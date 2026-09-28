@@ -30,7 +30,9 @@ const TAGS_FOR: Record<StopKind, Tag[]> = {
 const dur = (v: number) => (v >= 60 ? `${Math.floor(v / 60)}h${v % 60 ? String(v % 60).padStart(2, '0') : ''}` : `${v} 分`)
 
 export function setStop(trip: Trip, dayIndex: number, id: string, patch: Partial<Stop>): Trip {
-  return { ...trip, days: trip.days.map((d, i) => (i === dayIndex ? { ...d, stops: d.stops.map(s => (s.id === id ? { ...s, ...patch } : s)) } : d)) }
+  // 换了地方、改了名字或标签：就是自己定的了，不再算工具推荐
+  const mine = 'poi' in patch || 'name' in patch || 'tags' in patch
+  return { ...trip, days: trip.days.map((d, i) => (i === dayIndex ? { ...d, stops: d.stops.map(s => (s.id === id ? { ...s, ...patch, ...(mine ? { suggested: undefined } : {}) } : s)) } : d)) }
 }
 
 export function removeStop(trip: Trip, dayIndex: number, id: string): Trip {

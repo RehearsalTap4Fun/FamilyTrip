@@ -17,13 +17,14 @@ import { AddStopSheet, IssueSheet, removeStop, setStop, StopSheet } from './Stop
 import { AmapError, driveBetween } from '../geo/amap'
 import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
+import { TripActions } from './TripSwitcher'
 import { fillDrives } from '../geo/fillDrives'
 import { useSettings } from './Settings'
 
 const W = 300
 const H = 34
 
-export function ScopeTrip({ trip, onTrip, ratings, onSwitch }: { trip: Trip; onTrip: (t: Trip) => void; ratings: Rating[]; onSwitch: () => void }) {
+export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, tripCount }: { trip: Trip; onTrip: (t: Trip) => void; ratings: Rating[]; onSwitch: () => void; onNew: () => void; onPlan: () => void; tripCount: number }) {
   const [open, setOpen] = useState<number | null>(null)
   const [stopId, setStopId] = useState<string | null>(null)
   const [stopClosing, setStopClosing] = useState(false)
@@ -85,6 +86,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch }: { trip: Trip; onT
         </button>
         <span className={'run' + (fails ? ' fail' : warns ? ' hold' : '')}>{fails || warns ? `${fails ? `${fails} 必改 ` : ''}${warns} 留意` : '没问题'}</span>
       </header>
+      <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
       <ol className="sweeps">
         {trip.days.map((d, i) => {
           const c = deriveConstraints(partyOnDay(trip.party, i))

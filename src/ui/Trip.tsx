@@ -5,6 +5,7 @@ import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, StopKind, StopStatus, Tag, Trip } from '@core/types'
 import { checkDay, checkTrip, LODGING_PLACEHOLDER, TAG_LABEL } from '@core/validate'
 import { uid } from '../store/state'
+import { TripActions } from './TripSwitcher'
 import { dayTitle, driveHours, fmtShort, MODE_LABEL, tintOf } from './format'
 import { StackTable } from './StackTable'
 import { IconDown, IconUp, IconX, LevelMark, PetGlyph, StopSymbol } from './symbols'
@@ -14,7 +15,7 @@ const TAGS = Object.keys(TAG_LABEL) as Tag[]
 
 interface Props { trip: Trip; onTrip: (t: Trip) => void }
 
-export function TripPage({ trip, onTrip, onSwitch }: Props & { onSwitch: () => void }) {
+export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount }: Props & { onSwitch: () => void; onNew: () => void; onPlan: () => void; tripCount: number }) {
   const [open, setOpen] = useState<number | null>(null)
   const all = checkTrip(trip)
   const errs = all.filter(i => i.level === 'error').length
@@ -36,6 +37,7 @@ export function TripPage({ trip, onTrip, onSwitch }: Props & { onSwitch: () => v
           <p className="sub">{fmtShort(trip.startDate, 0)}–{fmtShort(trip.startDate, Math.max(0, last))} · {trip.days.length} 天 · {MODE_LABEL[trip.party.mode]} · {errs || warns ? `检查 ${errs} 处必改、${warns} 处留意` : '检查没有问题'}</p>
         </div>
       </header>
+      <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
 
       <div className="spread">
       <div className="page-l">

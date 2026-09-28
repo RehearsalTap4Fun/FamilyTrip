@@ -59,3 +59,30 @@ export function TripSwitcher({ open, trips, currentId, now, onPick, onDelete, on
     </Sheet>
   )
 }
+
+/** 行程页首屏的入口：看全部行程、新建（这一页的主操作，放在最显眼处）；新建时定过排法的行程再给一个「排这趟」 */
+export function TripActions({ count, onSwitch, onNew, trip, onPlan }: { count: number; onSwitch: () => void; onNew: () => void; trip?: Trip; onPlan?: () => void }) {
+  const flow = trip?.plan?.flow
+  return (
+    <>
+      <div className="trip-actions">
+        <button type="button" className="kbtn" onClick={onSwitch}>我的行程<span className="n mono">{count}</span></button>
+        <button type="button" className="kbtn primary" onClick={onNew}>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>新建行程
+        </button>
+      </div>
+      {flow === 'places' && onPlan && (
+        <button type="button" className="card-btn plan-cta" onClick={onPlan}>
+          <span className="cbody">
+            <span className="cname">{trip?.plan?.places?.length ? '改地点，重新排' : '排这趟：列出要去的地方'}</span>
+            <span className="csub">{trip?.plan?.places?.length ? `上次排了 ${trip.plan.places.length} 个点` : '按同行人的限制，自动安排开车、吃饭、午睡和住处'}</span>
+          </span>
+          <svg className="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
+        </button>
+      )}
+      {flow === 'region' && (
+        <p className="sheet-note plan-soon">「{trip?.plan?.region}」的去处推荐还在做（导入攻略、搜索推荐），先可以手动加站。</p>
+      )}
+    </>
+  )
+}

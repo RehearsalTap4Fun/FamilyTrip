@@ -91,6 +91,8 @@ export interface Stop {
   why?: string
   /** 实际到达时间 'HH:MM'，打卡时写入 */
   actualStart?: string
+  /** 排程工具在附近推荐的（吃饭、住处、服务区），还没人确认过 */
+  suggested?: boolean
 }
 
 export interface Day {
@@ -101,6 +103,26 @@ export interface Day {
 
 /** 玩法类型：决定推荐偏向与排程节奏，是偏好不是限制——和同行人的硬限制冲突时以限制为准 */
 export type TripStyle = 'scenic' | 'family' | 'active' | 'heritage' | 'resort' | 'food'
+
+/** 要去的一个点：流程一你列的、流程二推荐的、导入攻略提炼的，最后都是这个，交给排程引擎（core/planner.ts） */
+export interface PlanPlace {
+  id: string
+  name: string
+  kind: 'sight' | 'food' | 'lodging'
+  poi: Poi
+  /** 省 市 区，列表里给人认地方用 */
+  area?: string
+  /** 必去：排不下时最后才砍，而且会建议加天 */
+  must?: boolean
+  /** 指定第几天（从 0 起）；住处是指「这一晚」 */
+  day?: number
+  /** 固定开始时刻 HH:MM（门票预约之类） */
+  start?: string
+  durationMin?: number
+  tags?: Tag[]
+  walkKm?: number
+  altitudeM?: number
+}
 
 /** 新建时的两种排法：已知要去的点只排时间 / 只知道大概地区、要工具推荐去处 */
 export type PlanFlow = 'places' | 'region'
@@ -114,6 +136,8 @@ export interface TripPlan {
   region?: string
   /** 出发地（自驾、公共交通时填），第一天从这里出发 */
   origin?: string
+  /** 上次排程用的地点，回来改了再排 */
+  places?: PlanPlace[]
 }
 
 export interface Trip {

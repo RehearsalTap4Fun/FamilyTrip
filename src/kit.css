@@ -302,3 +302,38 @@
 .nt-flows .tile { min-height: 0; justify-content: flex-start; padding: 14px; width: 100%; }
 .nt-flows .tile.on { border-color: var(--k-accent); box-shadow: inset 0 0 0 1.5px var(--k-accent); }
 .nt-flows .tile.on b { color: var(--k-accent); }
+.trip-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin: 2px 0 12px; }
+.trip-actions .kbtn .n { font-size: 13px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--k-panel); color: var(--ink2); display: inline-flex; align-items: center; justify-content: center; }
+
+/* ——— 排程：列点、结果 ——— */
+.linkish { display: inline-block; margin: 8px 2px 0; padding: 6px 0; min-height: 36px; background: none; border: 0; font: 700 14px var(--sans); color: var(--k-accent); text-decoration: underline; text-underline-offset: 3px; }
+.plan-found { margin-top: 10px; }
+.plan-found .card-btn { min-height: 56px; padding: 8px 12px; }
+.plan-found .add { font: 900 18px var(--sans); color: var(--k-accent); flex: none; }
+.plan-found .card-btn:disabled .add { font-size: 13px; color: var(--ink2); }
+.plan-places { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--k-line); }
+.plan-places li { border-bottom: 1px solid var(--k-line); }
+.pp-row { width: 100%; display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: center; padding: 10px 2px; min-height: 52px; background: none; border: 0; text-align: left; color: var(--ink); }
+.pp-row .b { min-width: 0; display: flex; flex-direction: column; }
+.pp-row .b b { font: 700 15px var(--sans); }
+.pp-row .b small { font-size: 12px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-row .tags { display: flex; gap: 4px; }
+.pp-row .tags em { font: 700 11px/1 var(--sans); font-style: normal; padding: 4px 6px; border-radius: 4px; background: var(--k-panel); color: var(--ink2); white-space: nowrap; }
+.pp-row .tags em.must { background: var(--k-accent); color: #fff; }
+.pp-edit { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 14px; }
+.plan-unplaced { margin: 12px 0; padding: 12px 14px; border-radius: calc(var(--k-radius) + 4px); background: var(--warn-bg, var(--k-panel)); }
+.plan-unplaced h4 { margin: 0 0 6px; font: 700 14px var(--sans); color: var(--warn-ink, var(--ink)); }
+.plan-unplaced ul { margin: 0 0 10px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.plan-unplaced li { font: 500 13px/1.45 var(--sans); color: var(--ink2); }
+.plan-unplaced li b { color: var(--ink); margin-right: 6px; }
+.plan-unplaced p { margin: 0 0 10px; font: 500 13px var(--sans); color: var(--warn-ink, var(--ink)); }
+.plan-day { margin-top: 16px; }
+.plan-day h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; font: 700 14px var(--sans); color: var(--ink2); }
+.plan-day h3 .mono { font-size: 22px; color: var(--ink); }
+.plan-day h3 small { margin-left: auto; font-size: 12px; font-weight: 500; }
+.plan-day .day-chips { margin: 0 0 6px; }
+.replan-list li.drive { opacity: .7; }
+.replan-list li.drive .b b { font-weight: 500; font-size: 14px; }
+.plan-cta { margin: -4px 0 12px; border-color: var(--k-accent); }
+.plan-cta .cname { color: var(--k-accent); }
+.plan-soon { margin: -4px 2px 12px; }

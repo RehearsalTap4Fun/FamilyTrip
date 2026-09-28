@@ -1,0 +1,193 @@
+import { describe, expect, it } from 'vitest'
+import { planTrip, type Candidate, type NearbyPlace, type PlanTools } from '@core/planner'
+import { estDriveMin, distanceKm } from '@core/geo'
+import { carryParty, skeletonTrip } from '@core/trips'
+import { checkDay } from '@core/validate'
+import { scheduleDay, parseHM } from '@core/schedule'
+import type { Poi, Trip } from '@core/types'
+import { seedTrip } from '../src/data/seed'
+
+const P = (lng: number, lat: number): Poi => ({ lng, lat, adcode: '530000' })
+// 大理一片、丽江一片：相距约 150 km
+const DALI = { 古城: P(100.160, 25.690), 三塔: P(100.148, 25.710), 喜洲: P(100.130, 25.850), 双廊: P(100.190, 25.915), 洱海公园: P(100.230, 25.610) }
+const LIJIANG = { 古城: P(100.233, 26.873), 束河: P(100.205, 26.921), 黑龙潭: P(100.236, 26.884), 拉市海: P(100.120, 26.860) }
+const HOTEL_DALI = P(100.165, 25.695)
+const HOTEL_LJ = P(100.230, 26.878)
+
+let n = 0
+const newId = (p: string) => p + ++n
+const family = carryParty(seedTrip().party, new Set([...seedTrip().party.members, ...seedTrip().party.pets].map(x => x.id)))
+const base = (days: number, styles: Trip['plan'] extends infer T ? any : never = []): Trip =>
+  skeletonTrip({ title: 't', startDate: '2026-11-01', days, mode: 'selfDrive', party: family, flow: 'places', styles }, newId)
+const cand = (name: string, poi: Poi, extra: Partial<Candidate> = {}): Candidate => ({ id: name, name, kind: 'sight', poi, ...extra })
+
+/** 假高德：车程按估算，周边给三家店（最近的评分低） */
+const fake = (overrides: Partial<PlanTools> = {}): PlanTools => ({
+  drive: async (a, b) => estDriveMin(a, b),
+  nearby: async (what, at): Promise<NearbyPlace[]> => {
+    const off = (k: number) => P(at.lng + 0.003 * k, at.lat + 0.002 * k)
+    if (what === 'serviceArea') return [{ name: `服务区${at.lat.toFixed(2)}`, poi: at }]
+    const tag = what === 'food' ? '饭馆' : '酒店'
+    return [1, 2, 3].map(k => ({ name: `${tag}${at.lng.toFixed(3)}-${k}`, poi: off(k), rating: [3.9, 4.6, 4.2][k - 1] }))
+  },
+  ...overrides,
+})
+
+const allStops = (t: Trip) => t.days.flatMap(d => d.stops)
+
+describe('排程引擎：大理 → 丽江三天', () => {
+  const cands: Candidate[] = [
+    cand('大理古城', DALI.古城), cand('崇圣寺三塔', DALI.三塔), cand('喜洲古镇', DALI.喜洲), cand('双廊', DALI.双廊, { must: true }),
+    cand('丽江古城', LIJIANG.古城, { must: true }), cand('束河古镇', LIJIANG.束河), cand('黑龙潭', LIJIANG.黑龙潭), cand('拉市海', LIJIANG.拉市海),
+    { id: 'h1', name: '大理的酒店', kind: 'lodging', poi: HOTEL_DALI, day: 0 },
+    { id: 'h2', name: '丽江的酒店', kind: 'lodging', poi: HOTEL_LJ, day: 1 },
+    { id: 'h3', name: '丽江的酒店', kind: 'lodging', poi: HOTEL_LJ, day: 2 },
+  ]
+  const run = () => planTrip(base(3), cands, fake(), { newId })
+
+  it('按地理分天：第一天在大理；转场那天上午在大理、下午到丽江；最后一天在丽江；每晚住指定的酒店', async () => {
+    const r = await run()
+    const inDali = (name: string) => ['大理古城', '崇圣寺三塔', '喜洲古镇', '双廊'].includes(name)
+    const sightsOn = (d: number) => r.trip.days[d].stops.filter(s => s.kind === 'sight').map(s => s.name)
+    expect(sightsOn(0).length).toBeGreaterThan(0)
+    expect(sightsOn(0).every(inDali)).toBe(true)
+    expect(sightsOn(2).every(x => !inDali(x))).toBe(true)
+    const d1 = sightsOn(1).map(inDali)
+    expect(d1.indexOf(false) < 0 || d1.slice(d1.indexOf(false)).every(x => !x)).toBe(true) // 先大理后丽江，不来回
+    expect(r.trip.days.map(d => d.stops.slice(-1)[0].name)).toEqual(['大理的酒店', '丽江的酒店', '丽江的酒店'])
+    // 这家人（76 岁外婆）每天游玩 6 小时：放不下的点列出来，必去的都在
+    const placed = r.trip.days.flatMap(d => d.stops).map(s => s.name)
+    expect(placed).toContain('双廊')
+    expect(placed).toContain('丽江古城')
+    expect(r.unplaced.every(u => !u.candidate.must)).toBe(true)
+  })
+
+  it('每天都有午饭晚饭：附近评分最高的那家，或路上的服务区；两岁孩子的午睡不被占', async () => {
+    const r = await run()
+    for (const d of r.trip.days) {
+      const foods = d.stops.filter(s => s.kind === 'food')
+      expect(foods.length).toBeGreaterThanOrEqual(2)
+      expect(foods.every(f => f.name.endsWith('-2') || f.name.startsWith('服务区') || f.name.includes('附近找'))).toBe(true)
+      const [lunch, dinner] = scheduleDay(d).filter(s => s.stop.kind === 'food')
+      expect(lunch.start).toBeGreaterThanOrEqual(parseHM('11:00'))
+      expect(lunch.start).toBeLessThanOrEqual(parseHM('13:30'))
+      expect(dinner.start).toBeGreaterThanOrEqual(parseHM('17:00'))
+    }
+    for (let i = 0; i < 3; i++) expect(checkDay(r.trip, i).map(x => x.code)).not.toContain('noNap')
+    // 午睡不会把午饭挤到下午
+    for (const d of r.trip.days) expect(scheduleDay(d).find(s => s.stop.kind === 'food')!.start).toBeLessThanOrEqual(parseHM('13:30'))
+  })
+
+  it('大理到丽江的长途按连续驾驶上限拆段，中间停服务区；规则层不再报连开', async () => {
+    const r = await run()
+    // 每一段连续开车都不超过这家人的 90 分钟；转场那天确实开了很久
+    const legs = allStops(r.trip).map(s => (s.kind === 'drive' ? s.durationMin : s.driveMin ?? 0))
+    expect(Math.max(...legs)).toBeLessThanOrEqual(90)
+    expect(r.trip.days[1].stops.reduce((a, s) => a + (s.kind === 'drive' ? s.durationMin : s.driveMin ?? 0), 0)).toBeGreaterThan(150)
+    expect(allStops(r.trip).some(s => s.name.startsWith('服务区'))).toBe(true)
+    for (let i = 0; i < 3; i++) expect(checkDay(r.trip, i).map(x => x.code)).not.toContain('noDriveBreak')
+  })
+
+  it('推荐的住处、饭馆带「推荐」标记；推荐住处缺条件只作待核，指定的住处照常查', async () => {
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城)], fake(), { newId })
+    const [lodge] = r.trip.days[0].stops.slice(-1)
+    expect(lodge.suggested).toBe(true)
+    expect(r.trip.days[0].stops.filter(s => s.kind === 'food').every(f => f.suggested)).toBe(true)
+    expect(r.issues.filter(i => i.code.startsWith('need:'))).toEqual([])
+    const mine = await run()
+    expect(mine.issues.some(i => i.code === 'need:petOk')).toBe(true) // 指定的「大理的酒店」没标能带宠物
+  })
+
+  it('排完没有「游玩超时」这类必改问题；进度提示有分天和逐天', async () => {
+    const msgs: string[] = []
+    const r = await planTrip(base(3), cands, fake({ onProgress: m => msgs.push(m) }), { newId })
+    expect(r.issues.filter(i => i.code === 'activeTooLong')).toEqual([])
+    // 晚饭「到饭点再吃」是最后才定的，不会跟后来插进去的午睡、服务区撞车
+    expect(r.issues.filter(i => i.code === 'overlap')).toEqual([])
+    expect(msgs[0]).toBe('分天')
+    expect(msgs).toContain('排第 3/3 天')
+  })
+})
+
+describe('排程引擎：放不下、固定时刻、红黑榜、没有高德', () => {
+  it('午饭前就逛完、下午才开长途：拆成几段开车，中间停服务区歇', async () => {
+    const r = await planTrip(base(1), [
+      cand('大理古城', DALI.古城, { must: true, durationMin: 150 }), cand('丽江古城', LIJIANG.古城, { must: true, durationMin: 60 }),
+      { id: 'h', name: '丽江的酒店', kind: 'lodging', poi: HOTEL_LJ, day: 0 },
+    ], fake(), { newId, origin: HOTEL_DALI })
+    const stops = r.trip.days[0].stops
+    expect(stops.filter(s => s.kind === 'drive').length).toBeGreaterThanOrEqual(2)
+    expect(stops.some(s => s.kind === 'rest' && s.name.startsWith('服务区'))).toBe(true)
+    expect(checkDay(r.trip, 0).map(x => x.code)).not.toContain('noDriveBreak')
+  })
+
+  it('一天塞太多：先砍最费时的「想去」，必去的留下；只剩必去也放不下就建议加天', async () => {
+    const many = Array.from({ length: 8 }, (_, i) => cand(`点${i}`, P(100.16 + i * 0.01, 25.69), { durationMin: 90 + i * 10, must: i < 2 }))
+    const r = await planTrip(base(1), many, fake(), { newId })
+    expect(r.unplaced.length).toBeGreaterThan(0)
+    expect(r.unplaced.every(u => !u.candidate.must)).toBe(true)
+    expect(r.unplaced[0].candidate.name).toBe('点7')
+    expect(r.unplaced[0].reason).toContain('放不下')
+    const mustOnly = Array.from({ length: 6 }, (_, i) => cand(`必${i}`, P(100.16 + i * 0.01, 25.69), { durationMin: 120, must: true }))
+    const r2 = await planTrip(base(1), mustOnly, fake(), { newId })
+    expect(r2.unplaced).toEqual([])
+    expect(r2.extraDaysNeeded).toBeGreaterThanOrEqual(2)
+  })
+
+  it('指定了日子的点就在那天；固定时刻的点按时刻排', async () => {
+    const r = await planTrip(base(2), [
+      cand('A', DALI.古城), cand('B', DALI.三塔), cand('C', DALI.洱海公园, { day: 1 }), cand('D', DALI.喜洲, { start: '15:00' }),
+    ], fake(), { newId })
+    expect(r.trip.days[1].stops.some(s => s.name === 'C')).toBe(true)
+    const dayOfD = r.trip.days.findIndex(d => d.stops.some(s => s.name === 'D'))
+    const slot = scheduleDay(r.trip.days[dayOfD]).find(s => s.stop.name === 'D')!
+    expect(slot.start).toBe(parseHM('15:00'))
+    expect(slot.overlap).toBe(false)
+  })
+
+  it('黑榜不推荐，红榜优先', async () => {
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城)], fake({
+      verdictOf: p => (p.name.endsWith('-2') ? 'black' : p.name.endsWith('-1') ? 'red' : undefined),
+    }), { newId })
+    const foods = r.trip.days[0].stops.filter(s => s.kind === 'food')
+    expect(foods.some(f => f.name.endsWith('-2'))).toBe(false)
+    expect(foods.some(f => f.name.endsWith('-1'))).toBe(true)
+  })
+
+  it('没有高德：车程按直线估，吃饭住处放占位并说明', async () => {
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城), cand('喜洲古镇', DALI.喜洲)], {}, { newId })
+    expect(r.notes.join()).toContain('直线距离估算')
+    expect(r.trip.days[0].stops.some(s => s.name === '午饭（附近找）')).toBe(true)
+    expect(r.trip.days[0].stops.slice(-1)[0].name).toBe('住处')
+    const xz = r.trip.days[0].stops.find(s => s.name === '喜洲古镇')!
+    expect(xz.driveMin ?? 0).toBeGreaterThan(0)
+  })
+
+  it('玩法定节奏：健康有氧 08:00 出发，休闲度假 10:00、景点停得久', async () => {
+    const a = await planTrip(base(1, ['active']), [cand('X', DALI.古城)], fake(), { newId })
+    const b = await planTrip(base(1, ['resort']), [cand('X', DALI.古城)], fake(), { newId })
+    expect(a.trip.days[0].startTime).toBe('08:00')
+    expect(b.trip.days[0].startTime).toBe('10:00')
+    expect(b.trip.days[0].stops.find(s => s.name === 'X')!.durationMin).toBe(150)
+  })
+
+  it('没给住处：在最后一站附近找；第二天还在附近就连住', async () => {
+    const r = await planTrip(base(2), [cand('A', DALI.古城), cand('B', DALI.三塔)], fake(), { newId })
+    const [n1, n2] = r.trip.days.map(d => d.stops.slice(-1)[0])
+    expect(n1.name).toMatch(/^酒店/)
+    expect(n2.name).toBe(n1.name)
+  })
+
+  it('只给了一处住处、没说哪晚：整趟都住那儿', async () => {
+    const r = await planTrip(base(2), [cand('A', DALI.古城), cand('B', DALI.喜洲), { id: 'h', name: '大本营', kind: 'lodging', poi: HOTEL_DALI }], fake(), { newId })
+    expect(r.trip.days.map(d => d.stops.slice(-1)[0].name)).toEqual(['大本营', '大本营'])
+    expect(distanceKm(HOTEL_DALI, r.trip.days[1].stops.slice(-1)[0].poi!)).toBe(0)
+  })
+})
+
+describe('粘贴一串地名', () => {
+  it('按顿号、逗号、换行拆开，去掉序号和重复，太短的丢掉', async () => {
+    const { splitNames } = await import('../src/ui/PlanSheet')
+    expect(splitNames('1. 大理古城、双廊，喜洲古镇\n2) 丽江古城；束河古镇、双廊、A')).toEqual(['大理古城', '双廊', '喜洲古镇', '丽江古城', '束河古镇'])
+  })
+})

@@ -12,6 +12,10 @@ export interface Place {
   poi: Poi
   /** 高德分类，例如「风景名胜;公园广场;公园」 */
   type: string
+  /** 高德评分 0–5（周边搜索带 business 字段时才有） */
+  rating?: number
+  /** 离搜索中心的米数（周边搜索才有） */
+  distanceM?: number
 }
 
 export class AmapError extends Error {
@@ -71,7 +75,13 @@ export function parsePlaces(j: any): Place[] {
   return (j.pois ?? []).map((p: any) => {
     const [lng, lat] = str(p.location).split(',').map(Number)
     const area = [str(p.pname), str(p.cityname), str(p.adname)].filter((x, i, a) => x && a.indexOf(x) === i).join(' ')
-    return { name: str(p.name), address: str(p.address), area, type: str(p.type), poi: { lng, lat, adcode: str(p.adcode) || undefined, amapId: str(p.id) || undefined } }
+    const rating = Number(p.business?.rating)
+    const distanceM = Number(p.distance)
+    return {
+      name: str(p.name), address: str(p.address), area, type: str(p.type), poi: { lng, lat, adcode: str(p.adcode) || undefined, amapId: str(p.id) || undefined },
+      ...(Number.isFinite(rating) && str(p.business?.rating) ? { rating } : {}),
+      ...(Number.isFinite(distanceM) && str(p.distance) ? { distanceM } : {}),
+    }
   }).filter((p: Place) => Number.isFinite(p.poi.lng) && Number.isFinite(p.poi.lat))
 }
 
@@ -81,6 +91,18 @@ export function parsePlaces(j: any): Place[] {
  */
 export async function searchPlaces(keywords: string, key: string, opts: { city?: string; fetchImpl?: typeof fetch } = {}): Promise<Place[]> {
   const j = await call('v5/place/text', { keywords, region: opts.city ?? '', city_limit: 'false', page_size: '10', page_num: '1' }, key, opts.fetchImpl ?? fetch)
+  return parsePlaces(j)
+}
+
+/** 高德 POI 分类码：周边找吃饭、住处、服务区用 */
+export const AMAP_TYPES = { food: '050000', lodging: '100000', serviceArea: '180300' } as const
+
+/** 周边搜索（v5 place/around）：按距离排，带评分。radius 单位米，高德上限 50 km */
+export async function searchAround(center: Poi, key: string, opts: { types?: string; keywords?: string; radius?: number; fetchImpl?: typeof fetch } = {}): Promise<Place[]> {
+  const j = await call('v5/place/around', {
+    location: `${center.lng},${center.lat}`, types: opts.types ?? '', keywords: opts.keywords ?? '',
+    radius: String(Math.min(50000, opts.radius ?? 3000)), sortrule: 'distance', page_size: '10', page_num: '1', show_fields: 'business',
+  }, key, opts.fetchImpl ?? fetch)
   return parsePlaces(j)
 }
 

@@ -6,6 +6,7 @@ import { KEY as STATE_KEY, currentTrip, DEVICE_THEMES, THEME_LABEL, loadState, n
 import { sortTrips } from '@core/trips'
 import { NewTripSheet } from './ui/NewTrip'
 import { TripSwitcher } from './ui/TripSwitcher'
+import { PlanSheet } from './ui/PlanSheet'
 import { useToast } from './ui/kit/Toast'
 import { PartyPage } from './ui/Party'
 import { FootprintPage } from './ui/Footprint'
@@ -66,6 +67,7 @@ export function App() {
   const liveDay = tripProgress(trip, now).dayIndex
   const [switching, setSwitching] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [planning, setPlanning] = useState(false)
   const theme: Theme = state.theme ?? 'braun'
   const device = DEVICE_THEMES.includes(theme)
   useEffect(() => {
@@ -81,15 +83,15 @@ export function App() {
       <main className="sheet" key={tab}>
         <div className="sheet-body">
           {tab === 'today' && (device ? <ScopeToday trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} /> : <Today trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} />)}
-          {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} />)}
+          {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} />)}
           {tab === 'party' && <PartyPage trip={trip} onTrip={onTrip} demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))} onReset={() => setState(restoreSamples)} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))} amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
             llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))} />}
           {tab === 'footprint' && <FootprintPage trips={state.trips} />}
           {tab === 'ratings' && <RatingsPage trip={trip} ratings={state.ratings} onRatings={onRatings} dayIndex={liveDay} />}
         </div>
       </main>
-      <TripsLayer state={state} setState={setState} now={now} switching={switching} creating={creating}
-        onSwitching={setSwitching} onCreating={setCreating} onCreated={() => setTab('trip')} />
+      <TripsLayer state={state} setState={setState} now={now} switching={switching} creating={creating} planning={planning}
+        onSwitching={setSwitching} onCreating={setCreating} onPlanning={setPlanning} onCreated={() => setTab('trip')} />
       <nav className="tabs" aria-label="页面">
         {TABS.map(t => (
           <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
@@ -104,14 +106,16 @@ export function App() {
 }
 
 /** 切换行程与新建行程的两个面板；放在 ToastProvider 里面，删除才能给撤销 */
-function TripsLayer({ state, setState, now, switching, creating, onSwitching, onCreating, onCreated }: {
+function TripsLayer({ state, setState, now, switching, creating, planning, onSwitching, onCreating, onPlanning, onCreated }: {
   state: AppState
   setState: React.Dispatch<React.SetStateAction<AppState>>
   now: Date
   switching: boolean
   creating: boolean
+  planning: boolean
   onSwitching: (v: boolean) => void
   onCreating: (v: boolean) => void
+  onPlanning: (v: boolean) => void
   onCreated: () => void
 }) {
   const toast = useToast()
@@ -136,7 +140,16 @@ function TripsLayer({ state, setState, now, switching, creating, onSwitching, on
         onCreate={t => {
           setState(s => ({ ...s, trips: [...s.trips, t], currentId: t.id }))
           onCreating(false); onCreated()
-          toast(`已建好「${t.title}」`)
+          // 选了「我知道要去哪些地方」：建好直接去列点排程
+          if (t.plan?.flow === 'places') onPlanning(true)
+          else toast(`已建好「${t.title}」`)
+        }} />
+      <PlanSheet open={planning} trip={currentTrip(state)} ratings={state.ratings} onClose={() => onPlanning(false)}
+        onApply={t => {
+          const before = state
+          setState(s => withTrip(s, t))
+          onPlanning(false)
+          toast(`已排好「${t.title}」`, () => setState(before))
         }} />
     </>
   )

@@ -3,6 +3,9 @@
 import type { Poi, Stop, Trip } from '@core/types'
 import type { Drive, Place } from './amap'
 import { fillDrives } from './fillDrives'
+import { distanceKm } from '@core/geo'
+
+export { distanceKm }
 
 export interface GroundTools {
   /** 按名字搜地点；near 是附近一个已知位置，用来限定城市 */
@@ -34,13 +37,6 @@ export function namesMatch(query: string, found: string): boolean {
   if (q.length < 2) return found.includes(q)
   for (let i = 0; i + 2 <= q.length; i++) if (found.includes(q.slice(i, i + 2))) return true
   return false
-}
-
-export function distanceKm(a: Poi, b: Poi): number {
-  const r = Math.PI / 180
-  const dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2
-  return 6371 * 2 * Math.asin(Math.sqrt(h))
 }
 
 const pk = (p: Poi) => `${p.lng.toFixed(5)},${p.lat.toFixed(5)}`

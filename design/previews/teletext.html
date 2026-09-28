@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同路 · 图文电视</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --k:#000000; --r:#FF2A1F; --g:#19E619; --y:#FFE81A; --b:#1F3BFF; --m:#FF33E0; --c:#1AE6E6; --w:#F2F2F2;
+  --cw:9.75px; --ch:30px;
+  --face:"DotGothic16","Noto Sans SC",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#1A1A1A}
+body{display:flex;justify-content:center;padding:40px 16px;font-family:var(--face);color:var(--w)}
+body.one{padding:0;display:block;background:var(--k)}
+body.one .phone{border-radius:0;box-shadow:none}
+::selection{background:var(--y);color:var(--k)}
+.phone{width:390px;height:844px;background:var(--k);border-radius:28px;overflow:hidden;position:relative;box-shadow:0 18px 40px -12px rgba(0,0,0,.7);padding-top:34px}
+.row{height:var(--ch);display:flex;white-space:nowrap}
+.row.dbl{height:calc(var(--ch) * 2)}
+.c{display:inline-flex;align-items:center;justify-content:center;width:var(--cw);height:100%;font-size:17px;line-height:1}
+.c.w2{width:calc(var(--cw) * 2);font-size:18px}
+.dbl .c{height:var(--ch);transform:scaleY(2);transform-origin:top}
+.flash{animation:f 1.2s steps(1) infinite}
+@keyframes f{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}}
+.mosaic{display:grid;grid-template-columns:repeat(80, calc(var(--cw) / 2));grid-auto-rows:calc(var(--ch) / 3)}
+.mosaic i{display:block}
+.fast{display:flex;height:var(--ch)}
+.fast a{flex:1;display:flex;align-items:center;justify-content:center;font-size:17px;text-decoration:none;color:var(--k)}
+.reveal{border:0;background:none;font:inherit;color:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<section class="phone" id="tv"></section>
+<script>
+const COL = { k:'#000000', r:'#FF2A1F', g:'#19E619', y:'#FFE81A', b:'#1F3BFF', m:'#FF33E0', c:'#1AE6E6', w:'#F2F2F2' }
+const wide = ch => /[⺀-鿿＀-￯]/.test(ch)
+// 一行 = 若干段 [前景, 背景, 文字, 选项]，总宽 40 格
+function row(segs, opts = {}) {
+  const el = document.createElement('div')
+  el.className = 'row' + (opts.dbl ? ' dbl' : '')
+  let used = 0
+  for (const [fg, bg, text, o = {}] of segs) {
+    for (const ch of text) {
+      const s = document.createElement('span')
+      s.className = 'c' + (wide(ch) ? ' w2' : '') + (o.flash ? ' flash' : '')
+      s.textContent = ch === ' ' ? ' ' : ch
+      s.style.color = COL[fg]; s.style.background = COL[bg]
+      if (o.hidden) { s.style.color = COL[bg]; s.dataset.reveal = COL[fg] }
+      el.appendChild(s)
+      used += wide(ch) ? 2 : 1
+    }
+  }
+  const last = segs.length ? segs[segs.length - 1][1] : 'k'
+  for (; used < 40; used++) { const s = document.createElement('span'); s.className = 'c'; s.style.background = COL[last]; el.appendChild(s) }
+  return el
+}
+const tv = document.getElementById('tv')
+const add = el => tv.appendChild(el)
+
+add(row([['w','k','P303 '], ['y','k','同路图文'], ['w','k',' 303 '], ['c','k','10/03 10:55:12']]))
+add(row([['y','k',' 大理→丽江']], { dbl: true }))
+add(row([['c','k',' 第3天 · 自驾 · 外婆 朵朵 豆包 我 小林']]))
+
+// 块状马赛克：80×24 像素，每格 2×3
+const MW = 80, MH = 24, px = Array.from({ length: MH }, () => Array(MW).fill('k'))
+const lake = (x, y) => Math.hypot((x - 60) / 7, (y - 16) / 6) < 1
+for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+  if (lake(x, y)) px[y][x] = 'b'
+  const m = Math.max(0, 1 - Math.hypot((x - 70) / 12, (y - 2) / 6))
+  if (m > .15) px[y][x] = m > .6 ? 'w' : 'm'                 // 玉龙雪山：高于 2500 m 的部分
+  if (x < 10 && y > 6 && (x + y) % 3 === 0) px[y][x] = 'g'    // 苍山
+}
+const rx = y => Math.round(34 + 9 * Math.sin((MH - y) / 6))
+for (let y = 0; y < MH; y++) { const x = rx(y); px[y][x] = y > 15 ? 'y' : 'w'; px[y][x + 1] = y > 15 ? 'y' : 'w' }
+const now = 15
+const mosaic = document.createElement('div'); mosaic.className = 'mosaic'
+for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+  const i = document.createElement('i')
+  const isNow = y >= now - 1 && y <= now + 1 && x >= rx(now) - 1 && x <= rx(now) + 2
+  i.style.background = COL[isNow ? 'r' : px[y][x]]
+  if (isNow) i.className = 'flash'
+  mosaic.appendChild(i)
+}
+add(mosaic)
+add(row([['w','k',' '], ['k','y',' 丽江 14:00 '], ['w','k','      '], ['m','k','玉龙 >2500m']]))
+
+add(row([['w','r',' ! 连续驾驶 130 分 > 朵朵 90 分 ', { flash: false }]]))
+add(row([['w','k',' 前方 '], ['c','k','18km'], ['w','k',' 洱源服务区 停 '], ['c','k','20'], ['w','k',' 分']]))
+add(row([['g','k',' 晚 '], ['c','k','15'], ['g','k',' 分 · 未到砍站线']]))
+add(row([]))
+add(row([['y','k',' 今日限制      读数        由谁']]))
+add(row([['w','k',' 在外        '], ['c','k','2:25/6:00'], ['g','k','   外婆 朵朵']]))
+add(row([['w','k',' 步行        '], ['c','k','1.5/4.0km'], ['g','k','   外婆']]))
+add(row([['w','k',' 海拔        '], ['c','k','  ≤2500m '], ['g','k','   外婆 朵朵']]))
+add(row([['w','k',' 回住处      '], ['c','k','   20:00 '], ['g','k','   朵朵']]))
+add(row([]))
+add(row([['m','k',' 明天 D4 '], ['w','k','玉龙雪山 必改 1 处', { hidden: true }], ['c','k',' ?显示']]))
+add(row([['w','k',' 304 '], ['y','k','黑龙潭公园 16:00'], ['w','k',' 305 '], ['y','k','晚饭']]))
+
+const fast = document.createElement('nav'); fast.className = 'fast'
+;[['r','今天'],['g','行程'],['y','红黑榜'],['c','足迹']].forEach(([c, t]) => { const a = document.createElement('a'); a.href = '#'; a.textContent = t; a.style.background = COL[c]; fast.appendChild(a) })
+tv.appendChild(fast)
+const foot = row([['w','k','                               示例数据']]); foot.style.opacity = .6; add(foot)
+if (location.hash === '#one') document.body.classList.add('one')
+</script>
+</body>
+</html>

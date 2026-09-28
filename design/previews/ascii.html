@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同路 · 字符场景</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --black:#0A0806;
+  --ink:#FFB347;
+  --ink-hi:#FFE2B0;
+  --ink-lo:#8A5A1E;
+  --ink-dim:#4A3314;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --cjk:"Noto Sans SC","PingFang SC",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#151210}
+body{display:flex;justify-content:center;padding:40px 16px;font-family:var(--mono);color:var(--ink)}
+body.one{padding:0;background:var(--black);display:block}
+body.one .phone{border-radius:0;box-shadow:none}
+::selection{background:var(--ink);color:var(--black)}
+.phone{width:390px;height:844px;background:var(--black);border-radius:28px;overflow:hidden;position:relative;box-shadow:0 18px 40px -12px rgba(0,0,0,.7);padding:18px 0 0;display:flex;flex-direction:column}
+pre{font:400 13px/15px var(--mono);font-variant-ligatures:none;font-feature-settings:'calt' 0,'liga' 0;letter-spacing:0;white-space:pre;margin:0 auto;width:44ch;text-shadow:0 0 6px rgba(255,179,71,.35)}
+.w{display:inline-block;width:2ch;text-align:center;font-family:var(--cjk);font-weight:500;font-size:12.5px}
+.hi{color:var(--ink-hi);font-weight:700}
+.lo{color:var(--ink-lo)}
+.dim{color:var(--ink-dim)}
+.inv{background:var(--ink);color:var(--black);text-shadow:none}
+.blink{animation:b 1s steps(1) infinite}
+@keyframes b{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}}
+.gap{height:10px}
+.tabs{margin-top:auto;border-top:1px solid var(--ink-dim);display:flex;height:60px}
+.tabs a{flex:1;display:flex;align-items:center;justify-content:center;font:500 13px var(--cjk);color:var(--ink-lo);text-decoration:none}
+.tabs a.on{color:var(--black);background:var(--ink)}
+</style>
+</head>
+<body>
+<section class="phone">
+  <pre id="head"></pre>
+  <pre id="scene"></pre>
+  <div class="gap"></div>
+  <pre id="big"></pre>
+  <div class="gap"></div>
+  <pre id="rows"></pre>
+  <nav class="tabs"><a class="on" href="#">今天</a><a href="#">行程</a><a href="#">红黑榜</a><a href="#">足迹</a></nav>
+</section>
+<script>
+const W = 44
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+// 一个 CJK 字占两格，包成 2ch 宽的 span，网格不走样
+const cell = s => [...s].map(c => /[　-鿿＀-￯]/.test(c) ? `<span class="w">${c}</span>` : esc(c)).join('')
+const cols = s => [...s].reduce((a, c) => a + (/[　-鿿＀-￯]/.test(c) ? 2 : 1), 0)
+const pad = (s, n) => s + ' '.repeat(Math.max(0, n - cols(s)))
+const padL = (s, n) => ' '.repeat(Math.max(0, n - cols(s))) + s
+
+// —— 抬头 ——
+document.getElementById('head').innerHTML =
+  `<span class="inv">${cell(pad(' D3 大理→丽江  10/03', 32))}</span><span class="inv"> 10:55 <span class="blink">▮</span>   </span>\n` +
+  `<span class="lo">${cell('外婆76 · 朵朵2 · 豆包 · 我 · 小林     自驾')}</span>`
+
+// —— 场景：由高度场渲染的字符地形，北在上 ——
+const H = 20, ramp = ' .:-=+*#%@'
+const hash = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s) }
+const noise = (x, y) => {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi
+  const f = t => t * t * (3 - 2 * t)
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1)
+  return a + (b - a) * f(xf) + (c - a) * f(yf) + (a - b - c + d) * f(xf) * f(yf)
+}
+const height = (x, y) => {
+  let h = 0.28 * noise(x / 7, y / 5) + 0.12 * noise(x / 3, y / 2.5) + 0.05 * noise(x, y)
+  h += Math.max(0, 1 - Math.hypot((x - 36) / 10, (y - 1) / 6)) * 1.05 // 玉龙雪山在东北
+  h += Math.max(0, 1 - Math.hypot((x - 4) / 6, (y - 13) / 9)) * 0.75   // 西侧苍山
+  return h
+}
+const lake = (x, y) => Math.hypot((x - 33) / 4, (y - 15.5) / 4.2) < 1   // 洱海
+const roadX = y => Math.round(20 + 5 * Math.sin((H - y) / 5.5))
+const nowY = 14
+let out = ''
+for (let y = 0; y < H; y++) {
+  let line = ''
+  for (let x = 0; x < W; x++) {
+    const rx = roadX(y)
+    if (x === rx) {
+      if (y === nowY) line += '<span class="hi blink">@</span>'
+      else line += y > nowY ? '<span class="hi">#</span>' : '<span class="hi">:</span>'
+      continue
+    }
+    if (lake(x, y)) { line += '<span class="lo">' + ((x + y) % 3 ? '~' : ' ') + '</span>'; continue }
+    const h = Math.min(0.999, height(x, y) / 1.35)
+    const ch = ramp[Math.floor(h * ramp.length)]
+    // 超过 2500 m 的地方：外婆、朵朵上不去，压成最亮
+    line += h > 0.78 ? `<span class="hi">${esc(ch)}</span>` : (h < 0.35 ? `<span class="dim">${esc(ch)}</span>` : esc(ch))
+  }
+  out += line + '\n'
+}
+// 注记直接写进网格
+const rows = out.split('\n')
+const put = (y, x, text, cls = 'inv') => {
+  // 以可见列替换：先把该行拆成可见单元
+  const units = rows[y].match(/<span[^>]*>.*?<\/span>|./g)
+  const t = cell(text), n = cols(text)
+  units.splice(x, n, `<span class="${cls}">${t}</span>`)
+  rows[y] = units.join('')
+}
+put(1, roadX(1) + 2, '丽江 14:00')
+put(0, 30, '玉龙 >2500m', 'hi')
+put(8, roadX(8) + 2, '洱源服务区 P')
+put(nowY, roadX(nowY) + 2, '你在这 晚15分', 'hi')
+put(17, roadX(17) + 2, '喜洲 ✓', 'lo')
+put(19, roadX(19) + 2, '大理 08:30', 'lo')
+put(16, 31, '洱海', 'lo')
+document.getElementById('scene').innerHTML = rows.join('\n')
+
+// —— 大字读数：同一个数字的字形在不同尺寸重复 ——
+const F = { '0':['###','# #','# #','# #','###'], '1':[' # ','## ',' # ',' # ','###'], '3':['###','  #','###','  #','###'], '9':['###','# #','###','  #','###'], '/':['  #','  #',' # ','#  ','#  '] }
+const big = s => [0,1,2,3,4].map(r => [...s].map(c => F[c][r].replace(/#/g, '@')).join(' ')).join('\n')
+const b = big('130').split('\n'), s = big('90').split('\n')
+document.getElementById('big').innerHTML = b.map((l, i) => `<span class="hi">${l}</span>  <span class="lo">${s[i]}</span>` + (i === 1 ? cell('   连续驾驶 分') : i === 2 ? cell('   朵朵要求 90 内') : i === 3 ? '<span class="inv">' + cell(' 前面服务区停 20 ') + '</span>' : '')).join('\n')
+
+// —— 限制：条形用字形密度表示 ——
+const bar = (v, max, n = 14) => {
+  const full = Math.min(n, Math.round(v / max * n))
+  return '<span class="hi">' + '@'.repeat(full) + '</span><span class="dim">' + '.'.repeat(n - full) + '</span>'
+}
+const r = (k, v, lim, by, val) => cell(pad(k, 6)) + bar(v, lim) + ' ' + cell(padL(val, 10)) + ' ' + `<span class="lo">${cell(by)}</span>`
+document.getElementById('rows').innerHTML = [
+  `<span class="lo">${cell('今日限制 · 取同行中最严 ' + '-'.repeat(19))}</span>`,
+  r('在外', 2.4, 6, '外婆朵朵', '2:25/6h'),
+  r('步行', 1.5, 4, '外婆', '1.5/4km'),
+  r('海拔', 2020, 2500, '外婆朵朵', '2020/2500'),
+  r('回住处', 10.9 - 8, 20 - 8, '朵朵', '→20:00'),
+  '',
+  `<span class="lo">${cell('接下来 ' + '-'.repeat(36))}</span>`,
+  cell('14:00  入住 束河客栈   一楼 可带狗'),
+  cell('16:00  黑龙潭公园     2km 推车?  ') + '<span class="inv">' + cell('核') + '</span>',
+  `<span class="dim">${cell('示例数据')}</span>`,
+].join('\n')
+if (location.hash === '#one') document.body.classList.add('one')
+</script>
+</body>
+</html>

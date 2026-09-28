@@ -1,0 +1,831 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T12:00:00+08:00",
+  "title": "Design System: 同路",
+  "extensions": {
+    "colorMeta": {
+      "housing": {
+        "role": "neutral",
+        "displayName": "机身暖灰",
+        "canonical": "#D8D5CE",
+        "tonalRamp": [
+          "#0D0B07",
+          "#272520",
+          "#44423C",
+          "#64615B",
+          "#85827C",
+          "#A8A59E",
+          "#CCC9C2",
+          "#F1EEE7"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "面板近白",
+        "canonical": "#F1F0EC",
+        "tonalRamp": [
+          "#0C0B09",
+          "#262522",
+          "#43423F",
+          "#62615E",
+          "#83827F",
+          "#A6A5A1",
+          "#CAC9C5",
+          "#EFEEEA"
+        ]
+      },
+      "panel-recess": {
+        "role": "neutral",
+        "displayName": "下凹灰",
+        "canonical": "#E5E3DD",
+        "tonalRamp": [
+          "#0C0B07",
+          "#262521",
+          "#43423D",
+          "#63615C",
+          "#84827D",
+          "#A7A59F",
+          "#CBC9C3",
+          "#F0EEE8"
+        ]
+      },
+      "key-face": {
+        "role": "neutral",
+        "displayName": "键面白",
+        "canonical": "#FBFBF9",
+        "tonalRamp": [
+          "#0B0B0A",
+          "#252524",
+          "#424240",
+          "#616160",
+          "#828281",
+          "#A5A5A3",
+          "#C9C9C7",
+          "#EEEEEC"
+        ]
+      },
+      "grid-line": {
+        "role": "neutral",
+        "displayName": "格线",
+        "canonical": "#D6D3CB",
+        "tonalRamp": [
+          "#0D0B06",
+          "#27251F",
+          "#44423B",
+          "#64615A",
+          "#85827B",
+          "#A8A59D",
+          "#CCC9C1",
+          "#F1EEE6"
+        ]
+      },
+      "edge": {
+        "role": "neutral",
+        "displayName": "边线",
+        "canonical": "#ABA79D",
+        "tonalRamp": [
+          "#0E0B05",
+          "#28251D",
+          "#454239",
+          "#656158",
+          "#868278",
+          "#A9A59B",
+          "#CDC9BE",
+          "#F2EEE3"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "墨",
+        "canonical": "#2A2724",
+        "tonalRamp": [
+          "#0D0B08",
+          "#272421",
+          "#45413E",
+          "#64605D",
+          "#85827E",
+          "#A8A4A0",
+          "#CCC8C4",
+          "#F2EEEA"
+        ]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "次墨",
+        "canonical": "#5F5A51",
+        "tonalRamp": [
+          "#0E0B05",
+          "#29241D",
+          "#464139",
+          "#666157",
+          "#878278",
+          "#AAA49A",
+          "#CEC8BE",
+          "#F4EEE3"
+        ]
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "淡墨",
+        "canonical": "#928D83",
+        "tonalRamp": [
+          "#0E0B05",
+          "#29251C",
+          "#464139",
+          "#656157",
+          "#878278",
+          "#AAA49A",
+          "#CEC9BE",
+          "#F3EEE3"
+        ]
+      },
+      "tab-ink": {
+        "role": "neutral",
+        "displayName": "标签栏墨",
+        "canonical": "#6F6A61",
+        "tonalRamp": [
+          "#0E0B05",
+          "#29241D",
+          "#464139",
+          "#656158",
+          "#878278",
+          "#AAA49B",
+          "#CEC8BE",
+          "#F4EEE3"
+        ]
+      },
+      "commit-orange": {
+        "role": "primary",
+        "displayName": "提交橙",
+        "canonical": "#E0561B",
+        "tonalRamp": [
+          "#220000",
+          "#461000",
+          "#742300",
+          "#A63700",
+          "#D84F0F",
+          "#FB7A4B",
+          "#FFB59A",
+          "#FEE9E2"
+        ]
+      },
+      "commit-orange-edge": {
+        "role": "primary",
+        "displayName": "橙键边",
+        "canonical": "#B4430F",
+        "tonalRamp": [
+          "#200000",
+          "#461000",
+          "#712605",
+          "#A23C0E",
+          "#CE5A2D",
+          "#F57E52",
+          "#FBB69E",
+          "#FEE9E2"
+        ]
+      },
+      "ok-green": {
+        "role": "secondary",
+        "displayName": "没问题绿",
+        "canonical": "#5E7F24",
+        "tonalRamp": [
+          "#050F00",
+          "#1C2B00",
+          "#344B03",
+          "#4D6D0A",
+          "#6E9037",
+          "#8FB35B",
+          "#B3D87E",
+          "#D8FFA3"
+        ]
+      },
+      "warn-amber": {
+        "role": "secondary",
+        "displayName": "留意琥珀",
+        "canonical": "#B05A00",
+        "tonalRamp": [
+          "#1B0300",
+          "#3C1B00",
+          "#663203",
+          "#924C0A",
+          "#C0681D",
+          "#E68B47",
+          "#FCB88A",
+          "#FEEADD"
+        ]
+      },
+      "warn-bg": {
+        "role": "secondary",
+        "displayName": "留意底",
+        "canonical": "#F4E1C8",
+        "tonalRamp": [
+          "#140800",
+          "#30220E",
+          "#4E3F2A",
+          "#6F5E48",
+          "#917F69",
+          "#B4A28A",
+          "#D9C6AE",
+          "#FFEBD2"
+        ]
+      },
+      "warn-ink": {
+        "role": "secondary",
+        "displayName": "留意字",
+        "canonical": "#7A3E00",
+        "tonalRamp": [
+          "#1B0400",
+          "#3D1A00",
+          "#643304",
+          "#8D4F1B",
+          "#B2713F",
+          "#D79462",
+          "#FEB885",
+          "#FFEADC"
+        ]
+      },
+      "error-red": {
+        "role": "secondary",
+        "displayName": "必改红",
+        "canonical": "#C23B22",
+        "tonalRamp": [
+          "#230000",
+          "#4C0200",
+          "#7A1703",
+          "#AF270B",
+          "#D74F36",
+          "#F97A60",
+          "#FEB4A4",
+          "#FEE9E4"
+        ]
+      },
+      "error-bg": {
+        "role": "secondary",
+        "displayName": "必改底",
+        "canonical": "#F2D5CD",
+        "tonalRamp": [
+          "#170603",
+          "#341F19",
+          "#533C35",
+          "#735B54",
+          "#967C74",
+          "#B99E96",
+          "#DEC2BA",
+          "#FEE9E3"
+        ]
+      },
+      "error-ink": {
+        "role": "secondary",
+        "displayName": "必改字",
+        "canonical": "#8C2415",
+        "tonalRamp": [
+          "#220000",
+          "#4E0000",
+          "#7C1203",
+          "#A23929",
+          "#C95D4A",
+          "#F0806C",
+          "#FCB5A7",
+          "#FFE9E4"
+        ]
+      },
+      "highlight": {
+        "role": "neutral",
+        "displayName": "高亮",
+        "canonical": "#EDE5CF",
+        "tonalRamp": [
+          "#100A00",
+          "#2B2413",
+          "#48422F",
+          "#68614E",
+          "#89826E",
+          "#ACA590",
+          "#D1C9B3",
+          "#F6EED8"
+        ]
+      },
+      "channel-1": {
+        "role": "tertiary",
+        "displayName": "通道 1（我）",
+        "canonical": "#B98600",
+        "tonalRamp": [
+          "#140800",
+          "#332100",
+          "#563D05",
+          "#7D5B0E",
+          "#A77905",
+          "#CF9B2D",
+          "#F5C058",
+          "#FEECCD"
+        ]
+      },
+      "channel-2": {
+        "role": "tertiary",
+        "displayName": "通道 2",
+        "canonical": "#2D7B8A",
+        "tonalRamp": [
+          "#000F13",
+          "#002B33",
+          "#004B57",
+          "#1A6D7B",
+          "#438F9E",
+          "#67B2C2",
+          "#8CD7E7",
+          "#D1F6FF"
+        ]
+      },
+      "channel-3": {
+        "role": "tertiary",
+        "displayName": "通道 3",
+        "canonical": "#AD447D",
+        "tonalRamp": [
+          "#1F0010",
+          "#47012D",
+          "#76094E",
+          "#9C346E",
+          "#C25790",
+          "#E97AB3",
+          "#FFACD4",
+          "#FEE7F1"
+        ]
+      },
+      "channel-4": {
+        "role": "tertiary",
+        "displayName": "通道 4",
+        "canonical": "#3E5DB6",
+        "tonalRamp": [
+          "#02003A",
+          "#08146A",
+          "#1F388E",
+          "#3B5AB3",
+          "#5A7DD9",
+          "#7FA1F9",
+          "#B1C8FF",
+          "#E7EEFF"
+        ]
+      },
+      "channel-5": {
+        "role": "tertiary",
+        "displayName": "通道 5",
+        "canonical": "#6F8A23",
+        "tonalRamp": [
+          "#070E00",
+          "#1F2A00",
+          "#384900",
+          "#546C04",
+          "#738F29",
+          "#95B250",
+          "#B9D774",
+          "#DDFD99"
+        ]
+      },
+      "channel-6": {
+        "role": "tertiary",
+        "displayName": "通道 6",
+        "canonical": "#8C5B3B",
+        "tonalRamp": [
+          "#1C0300",
+          "#3D1A00",
+          "#623514",
+          "#845434",
+          "#A87554",
+          "#CD9876",
+          "#F3BC99",
+          "#FEEADE"
+        ]
+      },
+      "window-sky": {
+        "role": "tertiary",
+        "displayName": "窗口天空",
+        "canonical": "#7FA7AB",
+        "tonalRamp": [
+          "#000F11",
+          "#022B2F",
+          "#23494D",
+          "#42696D",
+          "#638A8E",
+          "#85AEB2",
+          "#A9D2D6",
+          "#CDF8FC"
+        ]
+      },
+      "window-far": {
+        "role": "tertiary",
+        "displayName": "远山",
+        "canonical": "#BFCFC4",
+        "tonalRamp": [
+          "#040E07",
+          "#1C2820",
+          "#38463D",
+          "#57655C",
+          "#78877D",
+          "#9AAA9F",
+          "#BECEC3",
+          "#E3F3E8"
+        ]
+      },
+      "window-mid": {
+        "role": "tertiary",
+        "displayName": "中山",
+        "canonical": "#8FA67C",
+        "tonalRamp": [
+          "#030F00",
+          "#192B05",
+          "#354923",
+          "#546942",
+          "#758B62",
+          "#97AE84",
+          "#BAD2A7",
+          "#DFF8CB"
+        ]
+      },
+      "window-near": {
+        "role": "tertiary",
+        "displayName": "近山 / 标题栏",
+        "canonical": "#56704B",
+        "tonalRamp": [
+          "#001000",
+          "#152C09",
+          "#324A27",
+          "#506A45",
+          "#718C65",
+          "#93AF87",
+          "#B6D3AA",
+          "#DBF9CF"
+        ]
+      },
+      "window-caption-ink": {
+        "role": "tertiary",
+        "displayName": "窗口副文字",
+        "canonical": "#DCE6D6",
+        "tonalRamp": [
+          "#070D04",
+          "#20281C",
+          "#3D4538",
+          "#5C6457",
+          "#7D8677",
+          "#9FA999",
+          "#C3CDBD",
+          "#E8F2E2"
+        ]
+      },
+      "moon": {
+        "role": "tertiary",
+        "displayName": "月与星",
+        "canonical": "#ECE7D2",
+        "tonalRamp": [
+          "#0F0B01",
+          "#292515",
+          "#464231",
+          "#66614F",
+          "#878370",
+          "#AAA592",
+          "#CEC9B5",
+          "#F4EFDA"
+        ]
+      },
+      "toast": {
+        "role": "neutral",
+        "displayName": "撤销条",
+        "canonical": "#262826",
+        "tonalRamp": [
+          "#0A0C0A",
+          "#242624",
+          "#404340",
+          "#606260",
+          "#818381",
+          "#A3A6A3",
+          "#C7CAC7",
+          "#EDEFED"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "window-headline": {
+        "displayName": "窗口标题",
+        "purpose": "海报窗口里那一句此刻该做的事，全应用只此一处。"
+      },
+      "display": {
+        "displayName": "页名",
+        "purpose": "行程、同行、红黑榜的页名。"
+      },
+      "readout": {
+        "displayName": "读数",
+        "purpose": "读数格大数；下一站时刻 24px、每天天数 28px 同族。"
+      },
+      "key-numeral": {
+        "displayName": "键数字",
+        "purpose": "圆形日期键里的天数。"
+      },
+      "time": {
+        "displayName": "时刻",
+        "purpose": "站点列表的时刻、同行者上限、坐标轴。"
+      },
+      "title": {
+        "displayName": "标题",
+        "purpose": "底部面板标题；卡片名、路线名、磁贴名同为 900。"
+      },
+      "body-strong": {
+        "displayName": "站名",
+        "purpose": "今天页站点列表的站名。"
+      },
+      "body": {
+        "displayName": "正文",
+        "purpose": "影响提示、说明、撤销条。"
+      },
+      "label": {
+        "displayName": "字段名",
+        "purpose": "面板字段名、分段键。"
+      },
+      "chip": {
+        "displayName": "短标签",
+        "purpose": "问题短标签。"
+      },
+      "caption": {
+        "displayName": "说明",
+        "purpose": "次要说明、窗口里的地名与天数。"
+      }
+    },
+    "windowPhases": {
+      "dawn": {
+        "hours": "05:00–07:30",
+        "sky": "#CDB9A5",
+        "far": "#B3BDB1",
+        "mid": "#8A9C76",
+        "near": "#52694A"
+      },
+      "day": {
+        "hours": "07:30–16:30",
+        "sky": "#7FA7AB",
+        "far": "#BFCFC4",
+        "mid": "#8FA67C",
+        "near": "#56704B",
+        "sun": "#E0561B"
+      },
+      "dusk": {
+        "hours": "16:30–19:30",
+        "sky": "#C98C6D",
+        "far": "#A4918A",
+        "mid": "#6F7C5E",
+        "near": "#3F5039",
+        "sun": "#F2B26C"
+      },
+      "night": {
+        "hours": "19:30–05:00",
+        "sky": "#2F3B4B",
+        "far": "#485860",
+        "mid": "#37473F",
+        "near": "#25312A",
+        "moon": "#ECE7D2",
+        "road": "#ECE7D2 @ .5"
+      }
+    },
+    "shadows": [
+      {
+        "name": "key",
+        "value": "inset 0 1px 0 rgba(255,255,255,.7), 0 1px 3px -1px rgba(42,39,36,.35)",
+        "purpose": "一切键、日期键、卡片、下一站卡片的厚度。按下换下凹灰底。"
+      },
+      {
+        "name": "housing-panel",
+        "value": "inset 0 1px 0 #fff, 0 12px 26px -16px rgba(42,39,36,.45)",
+        "purpose": "嵌在机身上的主面板。"
+      },
+      {
+        "name": "bottom-sheet",
+        "value": "0 -12px 30px -14px rgba(0,0,0,.45)",
+        "purpose": "底部面板；遮罩 rgba(20,22,20,.38)。"
+      },
+      {
+        "name": "toast",
+        "value": "0 10px 24px -10px rgba(0,0,0,.5)",
+        "purpose": "撤销条。"
+      },
+      {
+        "name": "dragging-row",
+        "value": "0 8px 20px -8px rgba(0,0,0,.35)",
+        "purpose": "拖动排序中的行。"
+      },
+      {
+        "name": "segment-on",
+        "value": "0 1px 2px rgba(0,0,0,.18)",
+        "purpose": "分段键选中项。"
+      },
+      {
+        "name": "focus",
+        "value": "outline: 2px solid #E0561B; outline-offset: 2px",
+        "purpose": "键盘焦点；输入框聚焦为橙边 + 0 0 0 3px 25% 橙光晕。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "transform 100ms ease-out → scale(.97); background-color 120ms ease-out",
+        "purpose": "按下即反馈。"
+      },
+      {
+        "name": "sheet-spring",
+        "value": "spring damping 1, response 0.32s; settles at |v|<20px/s and |Δ|<1px; dismiss when projected offset > 45% height; rubberband 0.55 upward",
+        "purpose": "底部面板开合与拖动，不回弹，可打断；关闭播完退场（onExited）才卸载。"
+      },
+      {
+        "name": "swipe-spring",
+        "value": "spring damping 1, response 0.28s",
+        "purpose": "左滑动作与排序落位。"
+      },
+      {
+        "name": "trace-sweep",
+        "value": "0.9s cubic-bezier(.16,1,.3,1)",
+        "purpose": "读数屏曲线扫出。"
+      },
+      {
+        "name": "page-turn",
+        "value": "0.22s cubic-bezier(.16,1,.3,1), opacity 0→1, translateY 6px→0",
+        "purpose": "切换标签页。"
+      },
+      {
+        "name": "toast-in",
+        "value": "0.24s cubic-bezier(.16,1,.3,1), translateY 12px→0",
+        "purpose": "撤销条入场；5 秒后移除。"
+      },
+      {
+        "name": "toggle-knob",
+        "value": "180ms cubic-bezier(.25,1,.5,1)",
+        "purpose": "开关圆钮。"
+      },
+      {
+        "name": "next-blink",
+        "value": "1.2s steps(1) infinite, opacity .3 at 50%",
+        "purpose": "下一站的橙灯。"
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "面板与遮罩 200ms ease-out 淡入淡出（关闭同样淡出后卸载）；撤销条 toast-fade 0.2s 淡入；曲线扫出、换页、闪灯、高亮闪烁关闭。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone-column",
+        "value": "430px",
+        "purpose": "主面板与底部面板的最大宽度；更宽的屏幕上居中一列。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "提交键「到了」",
+      "kind": "button",
+      "refersTo": "button-commit",
+      "description": "一屏唯一的橙色提交键：打卡、加入、加一站。",
+      "html": "<button class=\"ds-key-commit\">到了</button>",
+      "css": ".ds-key-commit { min-height: 48px; min-width: 200px; padding: 0 24px; border-radius: 999px; background: #E0561B; color: #fff; border: 1px solid #B4430F; font: 900 17px 'Noto Sans SC', 'PingFang SC', sans-serif; box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 1px 3px -1px rgba(42,39,36,.35); transition: transform 100ms ease-out, background-color 120ms ease-out; cursor: pointer; } .ds-key-commit:active { transform: scale(.97); } .ds-key-commit:focus-visible { outline: 2px solid #E0561B; outline-offset: 2px; }"
+    },
+    {
+      "name": "中性键",
+      "kind": "button",
+      "refersTo": "button-key",
+      "description": "跳过、加一天、收起类动作；按下换下凹灰。",
+      "html": "<button class=\"ds-key\">跳过</button>",
+      "css": ".ds-key { min-height: 48px; padding: 0 18px; border-radius: 999px; background: #FBFBF9; color: #2A2724; border: 1px solid #ABA79D; font: 700 15px 'Noto Sans SC', 'PingFang SC', sans-serif; box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 1px 3px -1px rgba(42,39,36,.35); transition: transform 100ms ease-out, background-color 120ms ease-out; cursor: pointer; } .ds-key:active { transform: scale(.97); background: #E5E3DD; } .ds-key:focus-visible { outline: 2px solid #E0561B; outline-offset: 2px; }"
+    },
+    {
+      "name": "危险键",
+      "kind": "button",
+      "refersTo": "button-key-danger",
+      "description": "删除、移出同行：中性键面，红字。",
+      "html": "<button class=\"ds-key-danger\">删除</button>",
+      "css": ".ds-key-danger { min-height: 48px; padding: 0 18px; border-radius: 999px; background: #FBFBF9; color: #C23B22; border: 0; font: 700 15px 'Noto Sans SC', 'PingFang SC', sans-serif; box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 1px 3px -1px rgba(42,39,36,.35); transition: transform 100ms ease-out, background-color 120ms ease-out; cursor: pointer; } .ds-key-danger:active { transform: scale(.97); background: #E5E3DD; } .ds-key-danger:focus-visible { outline: 2px solid #E0561B; outline-offset: 2px; }"
+    },
+    {
+      "name": "圆形日期键",
+      "kind": "nav",
+      "refersTo": "date-key",
+      "description": "一排天数；选中变墨色，今天加橙色内圈。",
+      "html": "<nav class=\"ds-days\"><button class=\"ds-day\">1<small>10/1</small></button><button class=\"ds-day\">2<small>10/2</small></button><button class=\"ds-day on live\">3<small>10/3</small></button><button class=\"ds-day\">4<small>10/4</small></button></nav>",
+      "css": ".ds-days { display: flex; gap: 10px; } .ds-day { width: 50px; height: 50px; border-radius: 50%; background: #FBFBF9; color: #2A2724; border: 1px solid #ABA79D; box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 1px 3px -1px rgba(42,39,36,.35); font: 500 20px/1 Barlow, 'Helvetica Neue', sans-serif; font-variant-numeric: tabular-nums; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: transform 100ms ease-out; } .ds-day small { font: 400 10px 'Noto Sans SC', sans-serif; color: #5F5A51; } .ds-day.on { background: #2A2724; color: #F1F0EC; border-color: #2A2724; } .ds-day.on small { color: #CFCAC0; } .ds-day.live { box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 1px 3px -1px rgba(42,39,36,.35), inset 0 0 0 2px #E0561B; } .ds-day:active { transform: scale(.97); } .ds-day:focus-visible { outline: 2px solid #E0561B; outline-offset: 2px; }"
+    },
+    {
+      "name": "同行者胶囊键",
+      "kind": "chip",
+      "refersTo": "channel-capsule",
+      "description": "一人一颗，通道色圆点 + 名字 + 上限；点一下开关触发线。",
+      "html": "<div class=\"ds-chs\"><button class=\"ds-ch\" style=\"--c:#B98600\">我<b>10h</b></button><button class=\"ds-ch\" style=\"--c:#AD447D\">外婆<b>6h</b></button><button class=\"ds-ch off\" style=\"--c:#3E5DB6\">朵朵<b>6h</b></button></div>",
+      "css": ".ds-chs { display: flex; gap: 6px; } .ds-ch { flex: 1; min-height: 40px; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 7px; border-radius: 999px; background: #FBFBF9; border: 1px solid #ABA79D; color: #2A2724; font: 700 13px 'Noto Sans SC', sans-serif; cursor: pointer; } .ds-ch::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; } .ds-ch b { margin-left: auto; font: 500 13px Barlow, sans-serif; color: #5F5A51; } .ds-ch.off { opacity: .45; } .ds-ch:active { background: #E5E3DD; } .ds-ch:focus-visible { outline: 2px solid #E0561B; outline-offset: 2px; }"
+    },
+    {
+      "name": "读数格",
+      "kind": "card",
+      "refersTo": "readout",
+      "description": "一个字 + 细体大数 + 谁定的色点；超标变琥珀。",
+      "html": "<div class=\"ds-read\"><div class=\"ds-rd\"><span class=\"k\">游玩</span><span class=\"v\">1:30<small>/6:00</small></span><span class=\"dots\"><i style=\"background:#AD447D\"></i><i style=\"background:#3E5DB6\"></i></span></div><div class=\"ds-rd warn\"><span class=\"k\">连开</span><span class=\"v\">130<small>/90分</small></span><span class=\"dots\"><i style=\"background:#3E5DB6\"></i></span></div></div>",
+      "css": ".ds-read { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; } .ds-rd { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: baseline; padding: 4px 10px 5px; border-radius: 16px; background: #E5E3DD; } .ds-rd .k { font: 500 14px 'Noto Sans SC', sans-serif; color: #5F5A51; } .ds-rd .v { grid-row: 1 / 3; grid-column: 2; justify-self: end; font: 300 30px/1.1 Barlow, sans-serif; font-variant-numeric: tabular-nums; color: #2A2724; } .ds-rd .v small { font-size: 14px; color: #5F5A51; } .ds-rd .dots { display: flex; gap: 4px; } .ds-rd .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; } .ds-rd.warn .k, .ds-rd.warn .v { color: #B05A00; }"
+    },
+    {
+      "name": "短标签",
+      "kind": "chip",
+      "refersTo": "chip-warn",
+      "description": "问题只给短标签：留意琥珀、必改红；待核与不在场是中性描边。",
+      "html": "<span class=\"ds-lv warn\">连开 130/90 分</span> <span class=\"ds-lv error\">海拔 4506 m</span> <span class=\"ds-lv off\">外婆不在</span> <span class=\"ds-lv off\">4 待核</span>",
+      "css": ".ds-lv { display: inline-flex; align-items: center; font: 700 12px/1 'Noto Sans SC', sans-serif; padding: 4px 9px; border-radius: 999px; white-space: nowrap; } .ds-lv.warn { background: #F4E1C8; color: #7A3E00; } .ds-lv.error { background: #F2D5CD; color: #8C2415; } .ds-lv.off { color: #5F5A51; box-shadow: inset 0 0 0 1px #ABA79D; }"
+    },
+    {
+      "name": "步进器",
+      "kind": "input",
+      "refersTo": "stepper",
+      "description": "代替数字输入：年龄、时长、出发时间。",
+      "html": "<div class=\"ds-stepper\"><button aria-label=\"减\">−</button><output>70 岁</output><button aria-label=\"加\">+</button></div>",
+      "css": ".ds-stepper { display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; width: 300px; background: #FBFBF9; border: 1px solid #ABA79D; border-radius: 999px; overflow: hidden; } .ds-stepper button { height: 48px; font: 400 24px sans-serif; color: #2A2724; background: none; border: 0; cursor: pointer; transition: transform 100ms ease-out; } .ds-stepper button:active { transform: scale(.97); } .ds-stepper button:focus-visible { outline: 2px solid #E0561B; outline-offset: -2px; } .ds-stepper output { text-align: center; font: 600 22px 'Barlow Semi Condensed', sans-serif; font-variant-numeric: tabular-nums; color: #2A2724; }"
+    },
+    {
+      "name": "分段键",
+      "kind": "input",
+      "refersTo": "segmented-on",
+      "description": "代替下拉：行动能力、身份、红 / 黑。",
+      "html": "<div class=\"ds-seg\"><button class=\"on\">正常</button><button>走得慢</button><button>拄拐</button><button>轮椅</button></div>",
+      "css": ".ds-seg { display: flex; gap: 4px; padding: 4px; background: #E5E3DD; border-radius: 999px; width: 340px; } .ds-seg button { flex: 1; min-height: 42px; border-radius: 999px; border: 0; background: none; font: 700 14px 'Noto Sans SC', sans-serif; color: #5F5A51; cursor: pointer; transition: transform 100ms ease-out, background-color 120ms ease-out; } .ds-seg button.on { background: #FBFBF9; color: #2A2724; box-shadow: 0 1px 2px rgba(0,0,0,.18); } .ds-seg button:active { transform: scale(.97); } .ds-seg button:focus-visible { outline: 2px solid #E0561B; outline-offset: 2px; }"
+    },
+    {
+      "name": "海报窗口",
+      "kind": "custom",
+      "refersTo": "window-caption",
+      "description": "只在「今天」：平涂山景 + 一句此刻该做的事。",
+      "html": "<div class=\"ds-win\"><svg viewBox=\"0 0 350 92\" preserveAspectRatio=\"xMidYMid slice\"><rect width=\"350\" height=\"92\" fill=\"#7FA7AB\"/><circle cx=\"175\" cy=\"24\" r=\"13\" fill=\"#E0561B\"/><path d=\"M0 70 L46 51 L82 62 L130 35 L176 59 L214 46 L262 65 L300 43 L350 57 L350 92 L0 92 Z\" fill=\"#BFCFC4\"/><path d=\"M0 82 L60 68 L118 78 L170 63 L236 80 L292 66 L350 77 L350 92 L0 92 Z\" fill=\"#8FA67C\"/><path d=\"M0 97 C60 87 120 102 180 91 S300 85 350 94 L350 92 L0 92 Z\" fill=\"#56704B\"/></svg><p class=\"ds-cap\"><b>在洱源服务区歇20分</b><span>大理—丽江<br>第 3 天 · 10:55</span></p></div>",
+      "css": ".ds-win { width: 350px; } .ds-win svg { display: block; width: 100%; height: 92px; border-radius: 20px 20px 0 0; } .ds-cap { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin: 0; padding: 6px 14px 10px; background: #56704B; color: #fff; border-radius: 0 0 20px 20px; } .ds-cap b { font: 400 23px/1.15 'ZCOOL QingKe HuangYou', 'Noto Sans SC', sans-serif; letter-spacing: .04em; text-wrap: balance; } .ds-cap span { font: 500 12px/1.4 'Noto Sans SC', sans-serif; color: #DCE6D6; text-align: right; flex: none; }"
+    },
+    {
+      "name": "撤销条",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "撤销代替确认，5 秒。",
+      "html": "<div class=\"ds-toast\"><span>已到 洱源服务区 · 13:05</span><button>撤销</button></div>",
+      "css": ".ds-toast { width: 340px; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; padding: 0 8px 0 16px; border-radius: 999px; background: #262826; color: #fff; font: 500 14px 'Noto Sans SC', sans-serif; box-shadow: 0 10px 24px -10px rgba(0,0,0,.5); } .ds-toast button { min-height: 38px; padding: 0 16px; border-radius: 999px; border: 0; background: rgba(255,255,255,.14); color: #fff; font: 700 14px 'Noto Sans SC', sans-serif; cursor: pointer; } .ds-toast button:hover { background: rgba(255,255,255,.22); } .ds-toast button:focus-visible { outline: 2px solid #E0561B; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "开了一扇窗的家用小设备",
+    "overview": "同路的默认风格是「博朗 × 海报」（`data-family=\"device\"` 下的 `data-theme=\"braun\"`）：一台浅暖灰机身的家用小设备，Dieter Rams 式的克制。机身里嵌一块近白面板，面板上是圆形日期键、胶囊同行者键、一块读数屏和四格读数；只有「今天」页在面板顶端开一扇圆角海报窗口，窗里是平涂层叠山景，一句方块字标题压在近山上，只说此刻最该做的一件事。\n\n密度是「设备面板」而不是「网页卡片流」：字少、数字大，「谁定的」用通道色点表示，问题只给短标签，句子留在点开后的面板里。浏览为主，编辑一律进底部面板，一次只改一件事，面板底部当场写出「这样改之后」。拒绝「地图头图 + 卡片 + 一种蓝」，也拒绝暗底极客屏。\n\n旧的分省交通地图册（`data-theme=\"atlas\"`）仍可在设置里切换，示波器（scope）、公园导览折页（unigrid）、公园海报（poster）同属设备家族的备选风格；它们只是可切换的旧版或备选，不是本系统。本文件只描述 braun。",
+    "keyCharacteristics": [
+      "浅暖灰机身 + 近白面板 + 一格下凹的读数色，三层明度就是全部的结构。",
+      "全机只有一颗橙色提交键；绿色只表示没问题；通道色只表示人。",
+      "圆形与胶囊：日期键是圆，其余按键、分段、步进器、标签都是胶囊。",
+      "按键厚度靠带模糊的柔和投影与顶部内高光，没有硬边裙摆。",
+      "海报窗口只在「今天」，按时段换色，夜里换月亮。",
+      "只按手机设计：大屏上是居中的一列手机宽度。"
+    ],
+    "rules": [
+      {
+        "name": "The One Orange Key Rule",
+        "body": "一屏里可按的橙色键只有一颗，而且只给提交。只是收起、确认已读、取消的键（「关闭」「知道了」「取消」「算了」）一律用中性键面（`doneTone=\"plain\"`）。",
+        "section": "colors"
+      },
+      {
+        "name": "The Green Means OK Rule",
+        "body": "绿色只说「没问题」。不拿绿色做装饰、品牌色或选中态。",
+        "section": "colors"
+      },
+      {
+        "name": "The Channels Are People Rule",
+        "body": "通道色只代表同行者，只以圆点、触发线或这个人自己的时段（午睡）出现，不写成人名的字色，不拿来表示问题等级、类别或「待核」；不属于某个人的线一律用淡墨。",
+        "section": "colors"
+      },
+      {
+        "name": "The One Headline Rule",
+        "body": "方块字 ZCOOL QingKe HuangYou 只用于海报窗口里的一句话。页名、站名、面板标题都用 Noto Sans SC。",
+        "section": "typography"
+      },
+      {
+        "name": "The Short Label Rule",
+        "body": "问题在列表、读数、卡片上只显示短标签（`Issue.short`，如「连开 130/90 分」「台阶多」「4 待核」），完整句子只在点开的面板里。",
+        "section": "typography"
+      },
+      {
+        "name": "The Soft Key Rule",
+        "body": "按键的厚度用带模糊的阴影，不画硬边裙摆，不用无模糊的偏移阴影。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do 一屏只留一颗橙色提交键；收起类的完成键用中性 `doneTone=\"plain\"`。",
+      "Do 用通道色圆点表示「谁定的」，不写人名。",
+      "Do 在列表、读数和卡片上只放 `Issue.short` 短标签，句子进面板。",
+      "Do 浏览为主，编辑进底部面板，面板底部当场写「这样改之后」。",
+      "Do 用撤销条代替确认框；只有「恢复示例旅程」确认。",
+      "Do 用步进器、分段键、磁贴、开关、天数条代替输入框和下拉；只有名字用输入框。",
+      "Do 保证触控目标不小于 44px（键 48px、日期键 50px、行 ≥44px、把手 44px）。",
+      "Do 用带模糊的柔和投影 (`0 1px 3px -1px`) 加顶部内高光表达按键厚度，按下换下凹灰。",
+      "Do 面板和拖动用不回弹的弹簧，开关都有动画；减少动态效果时改为淡入淡出。",
+      "Do 大屏上保持居中的一列手机宽度（最大 430px）。"
+    ],
+    "donts": [
+      "Don't 把绿色用在「没问题 / 已完成」以外的任何地方。",
+      "Don't 拿通道色表示问题等级、类别或装饰。",
+      "Don't 把海报窗口搬到「今天」以外的页面，也不要给它加定时刷新。",
+      "Don't 在窗口标题以外使用方块字 ZCOOL QingKe HuangYou。",
+      "Don't 画硬边按键裙摆或无模糊的偏移阴影。",
+      "Don't 在读数格、读数屏上加阴影；它们靠下凹灰表示嵌入。",
+      "Don't 做「地图头图 + 卡片 + 一种蓝」的旅行 App 模样，也不做暗底极客屏。",
+      "Don't 在博朗风格里使用地图册的点状站点符号、路牌盾与高速红黄。"
+    ]
+  }
+}

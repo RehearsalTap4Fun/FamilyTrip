@@ -1,0 +1,105 @@
+{
+  "title": "同路 · 选视觉风格（第二手 · 更大胆）",
+  "question": "这一手全是外来形式，按发牌顺序由字符场景领头。数据同上一手；预览文件在 design/previews/{ascii,miura,teletext,lcars}.html。",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "字符场景",
+      "kicker": "THE ROLL",
+      "lineage": "打字机字符画 · 琥珀荧光单色",
+      "thesis": "今天的路是一幅用字符密度画出来的地形图，你是那个闪烁的 @。",
+      "palette": ["#0A0806", "#FFB347", "#FFE2B0", "#8A5A1E", "#4A3314"],
+      "materials": ["等宽字符网格", "字形密度即明暗", "反白注记"],
+      "viewport": "上半屏字符地形：苍山、洱海 ~、玉龙雪山超 2500 m 部分压成最亮，路线 # 走过/: 未走；下半屏大号字符读数 130/90 和用字形密度画的限制条。",
+      "risk": "像极客彩蛋；中文在等宽网格里要占两格，长句子会挤。",
+      "raised": [
+        {"from": "challenger-emigre", "raise": "关键读数用同一套字形放大到海报尺寸，130 这种数字一眼能看到。"},
+        {"from": "challenger-quarry", "raise": "区块像切出来的石料一样堆叠，中间留深缝，不用分割线。"}
+      ],
+      "comp": ".impeccable/mocks/decision/ascii.png"
+    },
+    {
+      "id": "challenger-miura",
+      "label": "三浦折地图",
+      "verdict": "wins",
+      "lineage": "三浦折（Miura-ori）折叠地图",
+      "thesis": "整趟旅程是一张折起来的纸：今天展开，其余几天折成两侧的窄条；违规的地方折痕反了。",
+      "palette": ["#F4F5F2", "#C39A2E", "#9C9082", "#86B2D8", "#17181A"],
+      "materials": ["哑光白纸", "金色封套", "山折虚线 / 谷折点划线", "折痕编号"],
+      "viewport": "顶部金色封套：大理丽江 五日折页；中间今天展开成宽栏，D1/D2、D4/D5 折在两侧，D4 上一个黑点表示有必改；底部『今日折痕』表列出最严限制。",
+      "case": "折叠地图本来就是自驾家庭手里的东西，天与天之间的折叠就是导航（认同感赢）；展开/折起对应今天/全程，一眼就懂（清晰度赢）。",
+      "risk": "两侧折条占掉 120px 宽度，今天栏在小屏上偏窄；折痕画得不准就像装饰虚线。",
+      "hero": "https://impeccable.style/worlds/cards/paper-folds-pleats-deployable-miura-orbit-sheet-hero.webp",
+      "comp": ".impeccable/mocks/decision/miura.png"
+    },
+    {
+      "id": "challenger-teletext",
+      "label": "图文电视",
+      "verdict": "competitive",
+      "lineage": "广播图文电视 · 40×24 字符格",
+      "thesis": "每天是一个三位数页码（303 = 第 3 天），底部四色快捷键就是导航。",
+      "palette": ["#000000", "#FFE81A", "#1AE6E6", "#FF2A1F", "#19E619", "#FF33E0", "#1F3BFF", "#F2F2F2"],
+      "materials": ["块状马赛克图形", "双倍高标题", "隐藏答案 REVEAL"],
+      "viewport": "P303 页头；双倍高黄字大理→丽江；马赛克路线图（玉龙雪山品红、洱海蓝）；红底警告行；青色读数；明天的必改藏在 ?显示 后面；红绿黄青四个快捷键。",
+      "case": "40 格一行在手机竖屏上刚好，信息密度够（清晰度持平）；但图文电视在国内没普及，缺少亲切感（认同感输）。",
+      "risk": "八种纯色很刺眼，做不好就是怀旧玩具。",
+      "hero": "https://impeccable.style/worlds/cards/broadcast-programming-teletext-service-hero.webp",
+      "comp": ".impeccable/mocks/decision/teletext.png"
+    },
+    {
+      "id": "challenger-lcars",
+      "label": "舰桥面板",
+      "verdict": "competitive",
+      "lineage": "科幻飞船控制台 · 肘形色块框",
+      "thesis": "每个同行人是左栏一块颜色，谁收紧了今天的限制，他那块颜色就出现在读数旁边。",
+      "palette": ["#000000", "#C49BE0", "#FFB38A", "#FFCC4D", "#8FA8FF", "#E0697A", "#E8D7B8"],
+      "materials": ["平涂色块", "粗肘形边框", "数字代码标签"],
+      "viewport": "紫色肘框包住整屏；左栏外婆桃色、朵朵金色、豆包蓝、大人沙色；主区下一站 11:10 大字、玫红警告、四格限制（色条对应成员）、时间线。",
+      "case": "成员色块与限制色条一一对应，叠加来源最清楚（清晰度赢）；一家人认不出这是什么（认同感输）。",
+      "risk": "强烈的影视联想；中文没有大写，原作那种压缩大写字的气质会丢一半。",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-elbow-panel-console-hero.webp",
+      "comp": ".impeccable/mocks/decision/lcars.png"
+    },
+    {
+      "id": "challenger-quarry",
+      "label": "云石采场",
+      "verdict": "declined",
+      "lineage": "超现实：切割云块",
+      "palette": ["#F4F6F8", "#7FB6E8", "#6B7078", "#C8CDD3"],
+      "materials": ["体积云", "切面"],
+      "thesis": "把天气切成砖。",
+      "viewport": "—",
+      "case": "和旅程无关，两轴都输。",
+      "risk": "看不懂。",
+      "kept": "块与块之间留深缝的堆叠节奏 → 字符场景区块。",
+      "hero": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-cloud-quarry-hero.webp"
+    },
+    {
+      "id": "challenger-emigre",
+      "label": "Emigre 位图字样",
+      "verdict": "declined",
+      "lineage": "Emigre 杂志位图字体样张",
+      "palette": ["#F7F7F2", "#111111", "#2E5BFF"],
+      "materials": ["位图字", "半调网点"],
+      "thesis": "同一个字形在五种尺寸上重复。",
+      "viewport": "—",
+      "case": "中文位图字体资源太少，落地困难。",
+      "risk": "字体受限。",
+      "kept": "同一字形放大到海报尺寸 → 字符场景的大号读数。",
+      "hero": "https://impeccable.style/worlds/cards/emigre-bitmap-specimen-hero.webp"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "buildPath": { "value": "code", "toggle": false },
+  "canon": true,
+  "canonCard": {
+    "label": "常规旅行应用",
+    "thesis": "穷游 / Wanderlog 式：地图头图 + 白色圆角卡片 + 一种蓝。",
+    "palette": ["#F4F6F9", "#FFFFFF", "#141A24", "#2F6BFF", "#FFF3DF"],
+    "materials": ["圆角卡片", "进度条", "底部抽屉"],
+    "viewport": "上方地图路线，下方抽屉：下一站卡片带打卡按钮、黄色提醒条、今日限制进度条、时间线。",
+    "risk": "和所有旅行 App 长一个样，认不出是谁。",
+    "comp": ".impeccable/mocks/decision/canon.png"
+  },
+  "steer": true
+}

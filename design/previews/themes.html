@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同路 · 风格对比</title>
+<style>
+:root { --bg: #ECEBE7; --ink: #1B1B1A; --ink2: #5E5E58; --line: #D2D1CB; --hi: #C4561F; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "PingFang SC", sans-serif; background: var(--bg); color: var(--ink); padding: 28px 20px 60px; }
+h1 { font-size: 22px; font-weight: 800; }
+.lead { color: var(--ink2); font-size: 14px; line-height: 1.7; margin-top: 6px; max-width: 72ch; }
+section { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); }
+h2 { font-size: 16px; font-weight: 800; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+h2 small { font-weight: 400; font-size: 13px; color: var(--ink2); }
+h2 .tag { font-size: 11px; font-weight: 700; color: #fff; background: var(--ink); padding: 2px 7px; border-radius: 4px; }
+h2 .tag.new { background: var(--hi); }
+p.what { font-size: 13px; color: var(--ink2); line-height: 1.6; margin-top: 4px; max-width: 72ch; }
+.row { display: flex; gap: 16px; margin-top: 12px; overflow-x: auto; padding-bottom: 6px; }
+.row img { width: 220px; height: auto; border-radius: 12px; box-shadow: 0 8px 18px -10px rgba(0,0,0,.4); display: block; }
+a.open { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--hi); text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<h1>同路 · 风格对比</h1>
+<p class="lead">同一份功能（MVP）、同一份示例数据，只换视觉。前四套共用「曲线 + 读数 + 下一站」的页面结构，第五套是最早的地图册。点「打开这一套」会用单文件版直接进入那套风格，可以上手点；应用里「同行」页底部也能随时切换。</p>
+
+<section>
+  <h2>公园导览折页 <span class="tag new">新 · 发牌领头</span><small>白纸、通栏黑带、严格网格、黑白为主</small></h2>
+  <p class="what">国家公园导览折页的做法：每页顶部一条黑带写地名，下面是方方正正的网格，颜色只留给同行者和问题。最冷静、最像印刷品。</p>
+  <div class="row"><img src="themes/unigrid-today.png" alt=""><img src="themes/unigrid-trip.png" alt=""></div>
+  <a class="open" href="../../release/同路.html?theme=unigrid">打开这一套</a>
+</section>
+
+<section>
+  <h2>博朗 × 海报 <span class="tag new">当前默认 · 你选的融合</span><small>博朗面板为底，顶部保留公园海报窗口</small></h2>
+  <p class="what">浅暖灰机身、圆形日期键、胶囊同行者键，全机只有「到了」一颗橙色键；顶部开一扇海报窗口，平涂山景配一句话「此刻最该做的事」，太阳就是那颗橙。</p>
+  <div class="row"><img src="themes/braun-today.png" alt=""><img src="themes/braun-trip.png" alt=""></div>
+  <a class="open" href="../../release/同路.html?theme=braun">打开这一套</a>
+</section>
+
+<section>
+  <h2>公园海报 <span class="tag new">新 · 竞争方向</span><small>平涂丝网色的山景、一句话标题、累计游玩画成一座山</small></h2>
+  <p class="what">旅行海报：顶部是一层层叠起来的山，太阳随时间走；下面一行大字只说此刻最该做的事（现在是「在洱源服务区歇 20 分」）。曲线下方填成山，上限像雪线。最有旅行的情绪，信息密度最低。</p>
+  <div class="row"><img src="themes/poster-today.png" alt=""><img src="themes/poster-trip.png" alt=""></div>
+  <a class="open" href="../../release/同路.html?theme=poster">打开这一套</a>
+</section>
+
+<section>
+  <h2>手持机液晶 <span class="tag">上一版</span><small>浅灰绿反射液晶屏、深墨字、橙色按键</small></h2>
+  <div class="row"><img src="themes/scope-today.png" alt=""><img src="themes/scope-trip.png" alt=""></div>
+  <a class="open" href="../../release/同路.html?theme=scope">打开这一套</a>
+</section>
+
+<section>
+  <h2>地图册 <span class="tag">最早一版</span><small>结构不同：一天一页地图</small></h2>
+  <div class="row"><img src="themes/atlas-today.png" alt=""><img src="themes/atlas-trip.png" alt=""></div>
+  <a class="open" href="../../release/同路.html?theme=atlas">打开这一套</a>
+</section>
+</body>
+</html>

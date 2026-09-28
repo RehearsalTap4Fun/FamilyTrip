@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同路 · 三浦折</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sheet:#F4F5F2;
+  --sheet-fold:#E3E4DF;
+  --gold:#C39A2E;
+  --gold-ink:#3A2C06;
+  --mtn:#9C9082;
+  --val:#86B2D8;
+  --ink:#17181A;
+  --ink2:#55585C;
+  --mono:"Martian Mono",ui-monospace,monospace;
+  --cjk:"Noto Sans SC","PingFang SC",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#CFD1CC}
+body{display:flex;justify-content:center;padding:40px 16px;font-family:var(--cjk);color:var(--ink);font-variant-numeric:tabular-nums}
+body.one{padding:0;display:block;background:var(--sheet)}
+body.one .phone{border-radius:0;box-shadow:none}
+::selection{background:var(--gold);color:var(--gold-ink)}
+.phone{width:390px;height:844px;background:var(--sheet);border-radius:28px;overflow:hidden;position:relative;box-shadow:0 18px 40px -12px rgba(0,0,0,.3);display:flex;flex-direction:column}
+.mono{font-family:var(--mono);font-size:9px;letter-spacing:.02em;color:var(--ink2)}
+
+/* 金色封套：折起来时就是它 */
+.packet{background:var(--gold);color:var(--gold-ink);padding:20px 18px 14px;position:relative}
+.packet h1{font-weight:900;font-size:28px;letter-spacing:.02em;line-height:1.05}
+.packet p{font-size:12px;font-weight:500;margin-top:6px}
+.packet .id{position:absolute;right:16px;top:20px;text-align:right;font-family:var(--mono);font-size:9px;line-height:1.6;color:var(--gold-ink);opacity:.8}
+.packet svg{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:10px}
+
+/* 展开的纸：左右是折起的日子，中间是今天 */
+.spread{flex:1;display:flex;min-height:0}
+.fold{width:30px;flex:none;position:relative;background:var(--sheet-fold)}
+.fold svg{position:absolute;inset:0;width:100%;height:100%}
+.fold b{position:absolute;top:12px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--ink2)}
+.fold i{position:absolute;left:50%;top:40px;width:8px;height:8px;margin-left:-4px;background:var(--ink);border-radius:50%}
+.fold span{position:absolute;top:58px;left:0;right:0;writing-mode:vertical-rl;font-size:11px;color:var(--ink2);display:flex;align-items:center;justify-content:flex-start;letter-spacing:.1em;margin:0 auto;width:14px}
+.today{flex:1;position:relative;padding:12px 12px 0;display:flex;flex-direction:column}
+.today .bg{position:absolute;inset:0;pointer-events:none}
+.dayhd{display:flex;justify-content:space-between;align-items:baseline;position:relative}
+.dayhd h2{font-weight:900;font-size:19px}
+.dayhd h2 small{font-weight:400;font-size:11px;color:var(--ink2);margin-left:6px}
+
+.stops{position:relative;margin-top:6px}
+.st{display:grid;grid-template-columns:40px 1fr;gap:8px;padding:9px 0 10px;position:relative}
+.st time{font-family:var(--mono);font-size:11px;font-weight:600;padding-top:3px}
+.st .n{font-weight:700;font-size:15px}
+.st .m{font-size:11px;color:var(--ink2);margin-top:2px;line-height:1.45}
+.st.done .n,.st.done time{color:var(--ink2);font-weight:500}
+.st.now{background:var(--gold);color:var(--gold-ink);margin:0 -12px;padding-left:12px;padding-right:12px}
+.st.now .m{color:var(--gold-ink)}
+.crease{height:8px;position:relative}
+.crease svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* 反折：规则被违反的地方，折痕方向反了 */
+.misfold{margin-top:8px;border:1.5px solid var(--ink);padding:8px 10px;position:relative;background:var(--sheet)}
+.misfold .mono{color:var(--ink)}
+.misfold p{font-size:12.5px;line-height:1.5;margin-top:3px}
+.misfold p b{font-weight:900}
+
+.limits{padding:10px 14px 12px;border-top:1.5px solid var(--ink);background:var(--sheet);position:relative}
+.limits h3{font-size:12px;font-weight:900;display:flex;justify-content:space-between;align-items:baseline}
+.lt{display:grid;grid-template-columns:auto 1fr auto auto;gap:4px 10px;margin-top:6px;align-items:baseline;font-size:12px}
+.lt .v{font-family:var(--mono);font-weight:600;font-size:12px;text-align:right}
+.lt .by{font-size:11px;color:var(--ink2)}
+
+.tabs{display:flex;height:60px;background:var(--ink);flex:none}
+.tabs a{flex:1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:#9A9DA2;text-decoration:none}
+.tabs a.on{color:var(--gold)}
+</style>
+</head>
+<body>
+<section class="phone">
+  <header class="packet">
+    <h1>大理丽江<br>五日折页</h1>
+    <p>国庆 · 自驾 · 外婆 76 · 朵朵 2 · 豆包 · 我 · 小林</p>
+    <div class="id">SHEET T-1001<br>5 × 2 CELLS<br>OPEN D3</div>
+    <svg viewBox="0 0 390 10" preserveAspectRatio="none" aria-hidden="true"><path d="M0 10 L0 4 L24 8 L48 2 L72 8 L96 2 L120 8 L144 2 L168 8 L192 2 L216 8 L240 2 L264 8 L288 2 L312 8 L336 2 L360 8 L390 3 L390 10 Z" fill="#F4F5F2"/></svg>
+  </header>
+
+  <div class="spread">
+    <div class="fold"><svg viewBox="0 0 30 600" preserveAspectRatio="none" aria-hidden="true"><path d="M15 0 L5 60 L15 120 L5 180 L15 240 L5 300 L15 360 L5 420 L15 480 L5 540 L15 600" fill="none" stroke="#9C9082" stroke-width="1" stroke-dasharray="4 2"/></svg><b>D1</b><span>昆明 大理</span></div>
+    <div class="fold" style="background:#E9EAE5"><svg viewBox="0 0 30 600" preserveAspectRatio="none" aria-hidden="true"><path d="M15 0 L25 60 L15 120 L25 180 L15 240 L25 300 L15 360 L25 420 L15 480 L25 540 L15 600" fill="none" stroke="#86B2D8" stroke-width="1" stroke-dasharray="6 2 1 2"/></svg><b>D2</b><span>大理 外婆到</span></div>
+
+    <main class="today">
+      <svg class="bg" viewBox="0 0 270 600" preserveAspectRatio="none" aria-hidden="true">
+        <g fill="none" stroke-width=".6">
+          <path d="M0 0 L20 60 L0 120 L20 180 L0 240 L20 300 L0 360 L20 420 L0 480 L20 540 L0 600" stroke="#86B2D8" stroke-dasharray="6 2 1 2"/>
+          <path d="M270 0 L250 60 L270 120 L250 180 L270 240 L250 300 L270 360 L250 420 L270 480 L250 540 L270 600" stroke="#9C9082" stroke-dasharray="4 2"/>
+        </g>
+      </svg>
+      <div class="dayhd"><h2>D3 大理 → 丽江<small>10/3 周六</small></h2><span class="mono">CELL 3A</span></div>
+      <div class="stops">
+        <div class="st done"><time>08:30</time><div><div class="n">大理古城 出发</div></div></div>
+        <div class="crease"><svg viewBox="0 0 250 8" preserveAspectRatio="none"><path d="M0 4 L20 1 L40 7 L60 1 L80 7 L100 1 L120 7 L140 1 L160 7 L180 1 L200 7 L220 1 L250 5" fill="none" stroke="#9C9082" stroke-dasharray="4 2"/></svg></div>
+        <div class="st done"><time>09:10</time><div><div class="n">喜洲古镇 ✓ 09:25</div><div class="m">步行 1.5 km · 推车可行</div></div></div>
+        <div class="st now"><time>10:55</time><div><div class="n">大丽高速 · 晚 15 分</div><div class="m">下一站 18 km：洱源服务区 停 20 分</div></div></div>
+        <div class="crease"><svg viewBox="0 0 250 8" preserveAspectRatio="none"><path d="M0 4 L20 7 L40 1 L60 7 L80 1 L100 7 L120 1 L140 7 L160 1 L180 7 L200 1 L220 7 L250 3" fill="none" stroke="#86B2D8" stroke-dasharray="6 2 1 2"/></svg></div>
+        <div class="st"><time>14:00</time><div><div class="n">丽江 入住束河客栈</div><div class="m">一楼 · 可带狗 · 12:30–14:30 朵朵车上午睡</div></div></div>
+        <div class="crease"><svg viewBox="0 0 250 8" preserveAspectRatio="none"><path d="M0 4 L20 1 L40 7 L60 1 L80 7 L100 1 L120 7 L140 1 L160 7 L180 1 L200 7 L220 1 L250 5" fill="none" stroke="#9C9082" stroke-dasharray="4 2"/></svg></div>
+        <div class="st"><time>16:00</time><div><div class="n">黑龙潭公园</div><div class="m">步行约 2 km · 推车未确认</div></div></div>
+      </div>
+      <div class="misfold"><span class="mono">MISFOLD C-090 · 连续驾驶</span><p><b>已连续开 130 分</b>，朵朵要求 90 分内停一次。在服务区停够 20 分，这道折痕就复位。</p></div>
+    </main>
+
+    <div class="fold" style="background:#E9EAE5"><svg viewBox="0 0 30 600" preserveAspectRatio="none" aria-hidden="true"><path d="M15 0 L25 60 L15 120 L25 180 L15 240 L25 300 L15 360 L25 420 L15 480 L25 540 L15 600" fill="none" stroke="#9C9082" stroke-width="1" stroke-dasharray="4 2"/></svg><b>D4</b><i title="必改"></i><span>玉龙雪山</span></div>
+    <div class="fold"><svg viewBox="0 0 30 600" preserveAspectRatio="none" aria-hidden="true"><path d="M15 0 L5 60 L15 120 L5 180 L15 240 L5 300 L15 360 L5 420 L15 480 L5 540 L15 600" fill="none" stroke="#86B2D8" stroke-width="1" stroke-dasharray="6 2 1 2"/></svg><b>D5</b><span>丽江 昆明</span></div>
+  </div>
+
+  <section class="limits">
+    <h3>今日折痕 · 取同行中最严<span class="mono">6 LINKED</span></h3>
+    <div class="lt">
+      <span class="mono">M-06H</span><span>在外</span><span class="v">2:25 / 6:00</span><span class="by">外婆 朵朵</span>
+      <span class="mono">M-04K</span><span>步行</span><span class="v">1.5 / 4 km</span><span class="by">外婆</span>
+      <span class="mono">V-25A</span><span>海拔</span><span class="v">≤ 2500 m</span><span class="by">外婆 朵朵</span>
+      <span class="mono">V-20T</span><span>回住处</span><span class="v">20:00</span><span class="by">朵朵</span>
+    </div>
+  </section>
+  <nav class="tabs"><a class="on" href="#">今天</a><a href="#">行程</a><a href="#">红黑榜</a><a href="#">足迹</a></nav>
+</section>
+<script>if(location.hash==='#one')document.body.classList.add('one')</script>
+</body>
+</html>

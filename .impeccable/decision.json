@@ -1,0 +1,133 @@
+{
+  "title": "同路 · 选视觉风格",
+  "question": "四套风格都用同一份示例数据（国庆大理丽江第 3 天：外婆 76 岁走得慢、朵朵 2 岁、豆包中型犬）。点开卡片看今天页，完整双屏在 design/previews/*.html。",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "分省交通地图册",
+      "kicker": "THE ROLL",
+      "lineage": "中国地图出版社《分省公路交通地图册》",
+      "thesis": "每一天是地图册里的一页：一条红边黄芯的高速从上走到下，限制写在图例里。",
+      "palette": ["#FDFDFB", "#F7EEB8", "#DCEDC8", "#D8281E", "#F4C400", "#2F7FC1", "#1D1D1B"],
+      "materials": ["图廓双线", "州市平涂色块", "宋体/黑体/仿宋分级注记", "图例与比例尺"],
+      "viewport": "图名+接图表(1-5 天)；竖向高速路线条，站点用城市/景点/住宿符号，午睡用保护区斜线，底部图例列出今日最严限制和比例尺。",
+      "risk": "信息密，路上一眼扫时比指路牌慢；做不精就像一张打印表格。",
+      "raised": [
+        {"from": "challenger-cathode", "raise": "比例尺上每个人的上限都在（淡），最严那个压实标红，叠加一眼可见。"},
+        {"from": "challenger-gameboy", "raise": "专色纪律：全应用只用地图册七种印刷色，不加渐变不加半透明。"},
+        {"from": "challenger-tdr", "raise": "图例密度：约束信息像图廓外图例那样密排，不拆成一张张卡片。"},
+        {"from": "challenger-cape", "raise": "路线红线是唯一的强调，也是唯一可拖动的控件（拖站点改顺序）。"}
+      ],
+      "comp": ".impeccable/mocks/decision/atlas.png"
+    },
+    {
+      "id": "model-pick",
+      "label": "高速指路标志",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "GB 5768 道路交通标志",
+      "thesis": "应用就是一排路牌：绿牌指路、棕牌景点、黄三角警告、红圈是今天的限制。",
+      "palette": ["#00744A", "#6E3F22", "#1B4FA0", "#F6C300", "#D0201A", "#FFFFFF", "#2B2F2E"],
+      "materials": ["反光膜标志板", "白色内框圆角", "路名拼音", "辅助标志白牌"],
+      "viewport": "顶部龙门架大绿牌：丽江 172 km + G5611 路牌 + 晚 15 分；下面服务区预告、黄三角警告配白色辅助牌、四个红圈限制牌、棕色景点牌。",
+      "risk": "每个自驾的人都认得，最容易想到；长句子塞进路牌会难看，规划页容易变成路牌堆叠。",
+      "comp": ".impeccable/mocks/decision/signs.png"
+    },
+    {
+      "id": "challenger-scope",
+      "label": "示波器",
+      "verdict": "competitive",
+      "lineage": "CRT 示波器 · 多通道叠加",
+      "thesis": "每个同行人是一个通道，同一条行程曲线扫过所有人的触发电平。",
+      "palette": ["#07130D", "#8CFFA8", "#F2E14C", "#4FD8F0", "#F07BD8", "#FFB23F", "#1B1E1D"],
+      "materials": ["荧光余辉", "蚀刻格线", "七段读数", "旋钮"],
+      "viewport": "上方 CH1–CH4 通道键，中间格线屏：累计在外时长曲线穿过外婆/朵朵 6h 触发线，NOW 游标；下面四格读数和下一站。",
+      "case": "叠加机制表达得最直接（清晰度赢），但一家人对示波器没有亲切感（认同感输）。",
+      "risk": "像给工程师用的；深色在白天户外反光下吃力。",
+      "hero": "https://impeccable.style/worlds/cards/scientific-notation-oscilloscope-signal-bench-hero.webp",
+      "comp": ".impeccable/mocks/decision/scope.png"
+    },
+    {
+      "id": "challenger-cathode",
+      "label": "辉光数码管",
+      "verdict": "declined",
+      "lineage": "辉光管计数器",
+      "palette": ["#0E1320", "#FF7A1A", "#8C6A3E"],
+      "materials": ["阳极网", "暗态数字"],
+      "thesis": "所有候选值同时在场，被选中的那个点亮。",
+      "viewport": "—",
+      "case": "和一家人出游无关，两轴都输。",
+      "risk": "纯装饰。",
+      "kept": "所有人的上限同时在场、最严的被点亮 → 地图册比例尺。",
+      "hero": "https://impeccable.style/worlds/cards/operate-b-struck-cathode-gauze-hero.webp"
+    },
+    {
+      "id": "challenger-gameboy",
+      "label": "Game Boy 四绿",
+      "verdict": "declined",
+      "lineage": "掌机四色屏",
+      "palette": ["#9BBC0F", "#8BAC0F", "#306230", "#0F380F"],
+      "materials": ["8×8 格", "抖动网点"],
+      "thesis": "四个绿就是全部世界。",
+      "viewport": "—",
+      "case": "像素游戏味太重，信息量装不下。",
+      "risk": "玩具感。",
+      "kept": "颜色总量锁死的纪律 → 地图册只用七种专色。",
+      "hero": "https://impeccable.style/worlds/cards/digital-design-canon-gameboy-four-shade-field-hero.webp"
+    },
+    {
+      "id": "challenger-tdr",
+      "label": "伪企业信息噪声",
+      "verdict": "declined",
+      "lineage": "The Designers Republic 唱片封套",
+      "palette": ["#000000", "#FF2E88", "#FF7A00", "#FFFFFF"],
+      "materials": ["警示符号", "注册标"],
+      "thesis": "密度本身就是材料。",
+      "viewport": "—",
+      "case": "喧闹，家庭出行读不进去。",
+      "risk": "敌意感。",
+      "kept": "敢于密排的勇气 → 地图册图例式密排。",
+      "hero": "https://impeccable.style/worlds/cards/tdr-info-noise-sleeve-hero.webp"
+    },
+    {
+      "id": "challenger-cape",
+      "label": "抽绳斗篷",
+      "verdict": "declined",
+      "lineage": "可变形服装",
+      "palette": ["#111111", "#C9A227", "#4A4A4A"],
+      "materials": ["丝绸", "抽绳"],
+      "thesis": "一根线牵动整块布。",
+      "viewport": "—",
+      "case": "跟旅行无关。",
+      "risk": "看不懂。",
+      "kept": "一根线既是强调也是控件 → 地图册红线。",
+      "hero": "https://impeccable.style/worlds/cards/textiles-weave-drape-fashion-drawcord-transforming-cape-hero.webp"
+    },
+    {
+      "id": "challenger-alphabet",
+      "label": "字母风暴",
+      "verdict": "declined",
+      "lineage": "超现实文字景观",
+      "palette": ["#FFFFFF", "#111111", "#B8BCC2"],
+      "materials": ["文字即物质"],
+      "thesis": "字形变成天气。",
+      "viewport": "—",
+      "case": "两轴都输。",
+      "risk": "不可用。",
+      "kept": "字号本身携带等级 → 地图册地名注记分级。",
+      "hero": "https://impeccable.style/worlds/cards/dream-surreal-impossible-worlds-alphabet-storm-hero.webp"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "buildPath": { "value": "code", "toggle": false },
+  "canon": true,
+  "canonCard": {
+    "label": "常规旅行应用",
+    "thesis": "穷游 / Wanderlog 式：地图头图 + 白色圆角卡片 + 一种蓝。",
+    "palette": ["#F4F6F9", "#FFFFFF", "#141A24", "#2F6BFF", "#FFF3DF"],
+    "materials": ["圆角卡片", "进度条", "底部抽屉"],
+    "viewport": "上方地图路线，下方抽屉：下一站卡片带打卡按钮、黄色提醒条、今日限制进度条、时间线。",
+    "risk": "和所有旅行 App 长一个样，认不出是谁。",
+    "comp": ".impeccable/mocks/decision/canon.png"
+  },
+  "steer": true
+}

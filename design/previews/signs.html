@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同路 · 指路标志</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#00744A;
+  --green-deep:#005A39;
+  --brown:#6E3F22;
+  --blue:#1B4FA0;
+  --yellow:#F6C300;
+  --red:#D0201A;
+  --white:#FFFFFF;
+  --black:#151515;
+  --road:#2B2F2E;
+  --cjk:"Noto Sans SC","PingFang SC",sans-serif;
+  --num:"Barlow Semi Condensed","DIN Alternate",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:#C9CFCB}
+body{font-family:var(--cjk);background:#C9CFCB;color:var(--white);display:flex;gap:40px;justify-content:center;align-items:flex-start;padding:40px 16px;flex-wrap:wrap}
+::selection{background:var(--yellow);color:var(--black)}
+body.one{padding:0;background:var(--road)}
+body.one .phone:nth-child(n+2){display:none}
+body.one .phone{border-radius:0;box-shadow:none}
+.phone{width:390px;height:844px;background:var(--road);border-radius:28px;overflow:hidden;position:relative;box-shadow:0 18px 40px -12px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+
+/* 标志板：底色 + 内嵌白边，GB 5768 的圆角 */
+.sign{margin:0 12px;border-radius:12px;padding:5px}
+.sign > .face{border:3px solid var(--white);border-radius:8px;padding:12px 14px}
+.g{background:var(--green)}.b{background:var(--brown)}.bl{background:var(--blue)}
+
+.status{display:flex;justify-content:space-between;align-items:center;padding:18px 18px 12px;font-weight:700;font-size:13px;color:#DDE3E0}
+.status .d{display:flex;gap:8px;align-items:center}
+.status .d b{background:var(--white);color:var(--green);font-family:var(--num);font-size:15px;padding:1px 7px;border-radius:4px}
+
+.gantry .face{display:grid;grid-template-columns:1fr auto;align-items:end;gap:2px 10px}
+.gantry .to{font-weight:900;font-size:50px;line-height:1;letter-spacing:.04em}
+.gantry .py{font-family:var(--num);font-weight:600;font-size:17px;letter-spacing:.02em;opacity:.95;margin-top:2px}
+.gantry .km{font-family:var(--num);font-weight:700;font-size:44px;line-height:1;text-align:right}
+.gantry .km small{font-size:20px;margin-left:2px}
+.gantry .row2{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:10px;border-top:2px solid rgba(255,255,255,.9)}
+.gantry .row2 span{font-weight:700;font-size:15px}
+.gantry .late{margin-left:auto;background:var(--yellow);color:var(--black);font-weight:900;font-size:14px;padding:3px 8px;border-radius:4px}
+
+.exit{margin-top:10px}
+.exit .face{display:flex;align-items:center;gap:12px}
+.exit .dist{font-family:var(--num);font-weight:700;font-size:28px;line-height:1}
+.exit .dist small{display:block;font-family:var(--cjk);font-size:11px;font-weight:700;margin-top:3px;opacity:.9}
+.exit .nm{font-weight:900;font-size:22px;line-height:1.15}
+.exit .icons{display:flex;gap:5px;margin-top:6px}
+.exit .icons svg{width:24px;height:24px;background:var(--white);border-radius:3px}
+
+.warn{display:flex;gap:10px;align-items:stretch;margin:12px 12px 0}
+.warn .tri{width:84px;flex:none}
+.warn .aux{flex:1;background:var(--white);color:var(--black);border:2px solid var(--black);border-radius:6px;padding:8px 10px;font-size:13px;line-height:1.45;font-weight:500}
+.warn .aux b{font-weight:900}
+
+.limits{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 12px 0}
+.lim{display:flex;flex-direction:column;align-items:center;gap:5px}
+.lim .disk{width:70px;height:70px;border-radius:50%;background:var(--white);border:7px solid var(--red);display:flex;align-items:center;justify-content:center;color:var(--black);font-family:var(--num);font-weight:700;font-size:23px;line-height:1;text-align:center}
+.lim .disk small{display:block;font-size:12px}
+.lim .plate{background:var(--white);color:var(--black);border:1.5px solid var(--black);border-radius:3px;font-size:11px;font-weight:700;padding:1px 6px;white-space:nowrap}
+.lim .what{font-size:11px;color:#C8D0CC;font-weight:500}
+
+.tour{margin-top:12px}
+.tour .face{display:flex;align-items:center;gap:12px;padding:9px 12px}
+.tour .face svg{width:36px;height:36px;flex:none}
+.tour .nm{font-weight:900;font-size:19px}
+.tour .sub{font-size:12px;font-weight:500;opacity:.92;margin-top:1px}
+.tour .t{margin-left:auto;font-family:var(--num);font-weight:700;font-size:24px}
+
+.tabs{margin-top:auto;display:flex;background:var(--black);height:64px}
+.tabs a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#9AA39F;text-decoration:none;font-size:11px;font-weight:700}
+.tabs a.on{color:var(--white)}
+.tabs a.on svg{background:var(--green);border-radius:5px}
+.tabs svg{width:26px;height:26px;padding:3px}
+
+/* 第二屏 */
+.hd{padding:18px 16px 8px}
+.hd h1{font-weight:900;font-size:26px;letter-spacing:.04em}
+.hd p{font-size:12px;color:#C8D0CC;margin-top:4px;font-weight:500}
+.hd p b{color:var(--yellow)}
+.dlist{display:flex;flex-direction:column;gap:8px;padding:6px 12px}
+.dl{border-radius:10px;padding:4px}
+.dl .face{border:2.5px solid var(--white);border-radius:7px;padding:8px 10px;display:grid;grid-template-columns:50px 1fr;gap:10px;align-items:center}
+.dl .no{background:var(--white);color:var(--green);border-radius:5px;text-align:center;padding:3px 0 4px;line-height:1}
+.dl .no small{display:block;font-size:10px;font-weight:700}
+.dl .no b{font-family:var(--num);font-size:26px}
+.dl .rt{font-weight:900;font-size:17px}
+.dl .rt span{font-weight:500;font-size:12px;margin-left:6px;opacity:.9}
+.dl .is{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:4px;font-size:12px;font-weight:500}
+.dl .is span{display:flex;align-items:center;gap:4px}
+.dl .is svg{width:16px;height:16px;flex:none}
+.dl.today .no{background:var(--yellow);color:var(--black)}
+.foot{font-size:10px;color:#9AA39F;text-align:right;padding:4px 16px}
+</style>
+</head>
+<body>
+
+<!-- ============ 今天 ============ -->
+<section class="phone">
+  <div class="status"><div class="d"><b>D3</b>10 月 3 日 · 大理 → 丽江</div><div class="num" style="font-size:15px">10:55</div></div>
+
+  <div class="sign g gantry"><div class="face">
+    <div>
+      <div class="to">丽江</div>
+      <div class="py">Lijiang</div>
+    </div>
+    <div class="km">172<small>km</small></div>
+    <div class="row2">
+      <svg width="46" height="30" viewBox="0 0 46 30" aria-label="G5611 大丽高速"><rect x="1" y="1" width="44" height="28" rx="4" fill="#00744A" stroke="#fff" stroke-width="2"/><rect x="1" y="1" width="44" height="9" rx="3" fill="#D0201A"/><text x="23" y="8.5" text-anchor="middle" font-family="Noto Sans SC" font-weight="700" font-size="6.5" fill="#fff">国家高速</text><text x="23" y="24.5" text-anchor="middle" font-family="Barlow Semi Condensed" font-weight="700" font-size="14" fill="#fff">G5611</text></svg>
+      <span>大丽高速 · 预计 13:40 到</span>
+      <b class="late">晚 15 分</b>
+    </div>
+  </div></div>
+
+  <div class="sign g exit"><div class="face">
+    <div class="dist">18<small>公里 后</small></div>
+    <div>
+      <div class="nm">洱源服务区 停 20 分</div>
+      <div class="icons">
+        <svg viewBox="0 0 24 24"><text x="12" y="17.5" text-anchor="middle" font-family="Barlow Semi Condensed" font-weight="700" font-size="17" fill="#00744A">P</text></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#00744A" stroke-width="1.8"><path d="M7 4v7a2 2 0 0 0 4 0V4M9 11v9M16 4c-2 2-2 6 0 7v9"/></svg>
+        <svg viewBox="0 0 24 24" fill="#00744A"><path d="M6 4h8v16H6z"/><path d="M14 8h2l2 3v6a1.5 1.5 0 0 1-3 0v-3h-1" fill="none" stroke="#00744A" stroke-width="1.8"/><rect x="8" y="6" width="4" height="4" fill="#fff"/></svg>
+        <svg viewBox="0 0 24 24" fill="#00744A"><circle cx="9" cy="6" r="2"/><path d="M8 9h2l1 5h-1l-1 6H8l-1-6H6z"/><circle cx="16" cy="7" r="1.6"/><path d="M15 10h2l.8 4H17l-.5 4h-1l-.5-4h-.8z"/></svg>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="warn">
+    <svg class="tri" viewBox="0 0 84 76" aria-label="注意儿童"><path d="M42 3 L81 72 H3 Z" fill="#F6C300" stroke="#151515" stroke-width="5" stroke-linejoin="round"/><circle cx="36" cy="33" r="5" fill="#151515"/><path d="M33 40h7l3 10h-3l-2 12h-4l-1-12h-3z" fill="#151515"/><circle cx="50" cy="38" r="4" fill="#151515"/><path d="M48 44h5l2 8h-2l-1 10h-3l-1-10h-2z" fill="#151515"/></svg>
+    <div class="aux"><b>已连续开 130 分</b><br>朵朵（2 岁）要求 90 分钟内停一次，前面服务区歇一下</div>
+  </div>
+
+  <div class="limits">
+    <div class="lim"><div class="disk">6<small>h</small></div><span class="plate">外婆 朵朵</span><span class="what">在外</span></div>
+    <div class="lim"><div class="disk">4<small>km</small></div><span class="plate">外婆</span><span class="what">步行</span></div>
+    <div class="lim"><div class="disk" style="font-size:19px">2500<small>m</small></div><span class="plate">外婆 朵朵</span><span class="what">海拔</span></div>
+    <div class="lim"><div class="disk" style="font-size:20px">20:00</div><span class="plate">朵朵</span><span class="what">回住处</span></div>
+  </div>
+
+  <div class="sign b tour"><div class="face">
+    <svg viewBox="0 0 36 36" fill="#fff"><path d="M18 4 L32 14 H4 Z"/><rect x="7" y="15" width="3" height="12"/><rect x="16.5" y="15" width="3" height="12"/><rect x="26" y="15" width="3" height="12"/><rect x="4" y="28" width="28" height="3"/></svg>
+    <div><div class="nm">黑龙潭公园</div><div class="sub">步行约 2 km · 推车未确认</div></div>
+    <div class="t">16:00</div>
+  </div></div>
+
+  <div class="sign bl tour"><div class="face">
+    <svg viewBox="0 0 36 36" fill="none" stroke="#fff" stroke-width="3"><path d="M4 30 L14 12 L20 20 L25 14 L32 30 Z" stroke-linejoin="round"/></svg>
+    <div><div class="nm">明天 D4 玉龙雪山</div><div class="sub">冰川公园 4506 m 超限 · 需要改</div></div>
+    <svg viewBox="0 0 36 36" style="width:30px;height:30px"><circle cx="18" cy="18" r="15" fill="#fff" stroke="#D0201A" stroke-width="5"/></svg>
+  </div></div>
+
+  <nav class="tabs">
+    <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 3v18M7 8l5-5 5 5"/></svg>今天</a>
+    <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 20V4h9l-2 4 2 4H6"/></svg>行程</a>
+    <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="12" r="4"/><path d="M14 8l6 8M20 8l-6 8"/></svg>红黑榜</a>
+    <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7l5-3 6 3 5-3v13l-5 3-6-3-5 3z"/></svg>足迹</a>
+  </nav>
+</section>
+
+<!-- ============ 行程检查 ============ -->
+<section class="phone">
+  <div class="hd"><h1>大理丽江 · 国庆</h1><p>10 月 1–5 日 · 自驾 5 人 1 犬 · <b>1 处必改 · 3 处留意</b></p></div>
+  <div class="dlist">
+    <div class="dl sign g" style="margin:0"><div class="face"><div class="no"><small>出口</small><b>1</b></div><div><div class="rt">昆明 → 大理<span>驾车 4.5 h</span></div><div class="is"><span><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#1B4FA0" stroke="#fff" stroke-width="1.5"/><text x="8" y="11.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" font-family="Noto Sans SC">?</text></svg>双廊 推车未确认</span></div></div></div></div>
+    <div class="dl sign g" style="margin:0"><div class="face"><div class="no"><small>出口</small><b>2</b></div><div><div class="rt">大理<span>外婆到</span></div><div class="is"><span><svg viewBox="0 0 16 16"><path d="M8 1.5 L15 14.5 H1 Z" fill="#F6C300" stroke="#151515" stroke-width="1.6" stroke-linejoin="round"/></svg>崇圣寺三塔 台阶多</span></div></div></div></div>
+    <div class="dl sign g today" style="margin:0"><div class="face"><div class="no"><small>今天</small><b>3</b></div><div><div class="rt">大理 → 丽江<span>驾车 3.2 h</span></div><div class="is"><span><svg viewBox="0 0 16 16"><path d="M8 1.5 L15 14.5 H1 Z" fill="#F6C300" stroke="#151515" stroke-width="1.6" stroke-linejoin="round"/></svg>连续驾驶 130 分</span></div></div></div></div>
+    <div class="dl sign g" style="margin:0"><div class="face"><div class="no"><small>出口</small><b>4</b></div><div><div class="rt">玉龙雪山<span>海拔 4506 m</span></div><div class="is"><span><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="#fff" stroke="#D0201A" stroke-width="3"/></svg>冰川公园 超 2500 m</span><span><svg viewBox="0 0 16 16"><path d="M8 1.5 L15 14.5 H1 Z" fill="#F6C300" stroke="#151515" stroke-width="1.6" stroke-linejoin="round"/></svg>在外 7.5 h</span></div></div></div></div>
+    <div class="dl sign bl" style="margin:0"><div class="face"><div class="no" style="color:var(--blue)"><small>出口</small><b>5</b></div><div><div class="rt">丽江 → 昆明<span>高铁</span></div><div class="is"><span><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#1B4FA0" stroke="#fff" stroke-width="1.5"/><text x="8" y="11.5" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" font-family="Noto Sans SC">?</text></svg>豆包 托运确认</span></div></div></div></div>
+  </div>
+  <div class="foot">示例数据</div>
+  <nav class="tabs">
+    <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M7 8l5-5 5 5"/></svg>今天</a>
+    <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 20V4h9l-2 4 2 4H6"/></svg>行程</a>
+    <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="12" r="4"/><path d="M14 8l6 8M20 8l-6 8"/></svg>红黑榜</a>
+    <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7l5-3 6 3 5-3v13l-5 3-6-3-5 3z"/></svg>足迹</a>
+  </nav>
+</section>
+<script>if(location.hash==='#one')document.body.classList.add('one')</script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+/* 同路 · 设备家族的另外三套视觉。页面结构与示波器版相同，只换令牌与材质。 */
+
+/* ———————————————— 公园导览折页 ————————————————
+   国家公园导览折页（Unigrid）：白纸、顶部一条通栏黑带、严格网格、黑白为主，
+   颜色只留给同行者与问题。方角、细黑线、无阴影。 */
+:root[data-theme="unigrid"] {
+  --housing: #111111;
+  --lcd: #FFFFFF;
+  --lcd-2: #F3F3F1;
+  --lcd-key: #FFFFFF;
+  --grat: #DDDDD9;
+  --grat-hi: #1A1A1A;
+  --seg: #111111;
+  --seg-dim: #8C8C88;
+  --seg-2: #55554F;
+  --orange: #111111;
+  --key-edge: #000000;
+  --warn: #9A5B00;
+  --warn-bg: #F6E6C6;
+  --warn-ink: #6E3F00;
+  --red: #BE2F1D;
+  --red-bg: #F6D4CD;
+  --red-ink: #8A1F10;
+  --ok: #2F6B3A;
+  --ch1: #B07F00;
+  --ch2: #1E6E8A;
+  --ch3: #A3307A;
+  --ch4: #2C4DB0;
+  --mono: "Helvetica Neue", Helvetica, Arial, var(--sans);
+  --tab-ink: #A9A9A5;
+  --tab-on: #FFFFFF;
+  --hl: #F1EAD6;
+  --on-dim: #BDBDB8;
+  --sheet-depth: 0 0 0 0 transparent;
+  color-scheme: light;
+}
+:root[data-theme="unigrid"] .sheet { border-radius: 0; box-shadow: none; }
+:root[data-theme="unigrid"] .bez-top { margin: -12px -12px 12px; padding: 16px 14px 14px; background: #111; }
+:root[data-theme="unigrid"] .bez-top h1 { color: #fff; font: 700 24px/1.1 var(--mono), var(--sans); letter-spacing: 0; }
+:root[data-theme="unigrid"] .run { color: #fff; font: 700 20px var(--mono); }
+:root[data-theme="unigrid"] .run small, :root[data-theme="unigrid"] .run.hold { color: #BDBDB8; }
+:root[data-theme="unigrid"] .timebase button, :root[data-theme="unigrid"] .ch, :root[data-theme="unigrid"] .rd,
+:root[data-theme="unigrid"] .stop-card, :root[data-theme="unigrid"] .screen, :root[data-theme="unigrid"] .next-sweep,
+:root[data-theme="unigrid"] .sw, :root[data-theme="unigrid"] .panel, :root[data-theme="unigrid"] .key,
+:root[data-theme="unigrid"] .modes button, :root[data-theme="unigrid"] .chip, :root[data-theme="unigrid"] .ops button, :root[data-theme="unigrid"] .icon,
+:root[data-theme="unigrid"] .add-day, :root[data-theme="unigrid"] .adds button, :root[data-theme="unigrid"] .add-stop button, :root[data-theme="unigrid"] .danger {
+  border-radius: 0; box-shadow: none;
+}
+:root[data-theme="unigrid"] .timebase button { font-weight: 700; font-family: var(--mono); }
+:root[data-theme="unigrid"] .ch { box-shadow: inset 0 -4px 0 var(--c); border-color: #1A1A1A; }
+:root[data-theme="unigrid"] .rd, :root[data-theme="unigrid"] .screen, :root[data-theme="unigrid"] .sw, :root[data-theme="unigrid"] .panel { background: #fff; box-shadow: inset 0 0 0 1px #1A1A1A; }
+:root[data-theme="unigrid"] .rd .v { font-weight: 700; letter-spacing: -.02em; }
+:root[data-theme="unigrid"] .rd .k { color: #111; }
+:root[data-theme="unigrid"] .stop-card { border: 0; border-top: 4px solid #111; background: #fff; padding-left: 0; padding-right: 0; }
+:root[data-theme="unigrid"] .ev { border-bottom-color: #DDDDD9; }
+:root[data-theme="unigrid"] .ev .t { font-weight: 700; }
+:root[data-theme="unigrid"] .ev.next .led { background: var(--red); }
+:root[data-theme="unigrid"] .now { stroke: var(--red); }
+:root[data-theme="unigrid"] .tabs { background: #111; }
+:root[data-theme="unigrid"] .tabs button.on svg { color: #fff; }
+:root[data-theme="unigrid"] .chip-lv { border-radius: 0; }
+
+/* ———————————————— 博朗面板 ————————————————
+   Dieter Rams 的家电：浅暖灰机身、圆形按键、喇叭孔网格，
+   全机只有一颗橙色主键，绿色只表示「没问题」。少即是多。 */
+:root[data-theme="braun"] {
+  --housing: #D8D5CE;
+  --lcd: #F1F0EC;
+  --lcd-2: #E5E3DD;
+  --lcd-key: #FBFBF9;
+  --grat: #D6D3CB;
+  --grat-hi: #ABA79D;
+  --seg: #2A2724;
+  --seg-dim: #928D83;
+  --seg-2: #5F5A51;
+  --orange: #E0561B;
+  --key-edge: #B4430F;
+  --warn: #B05A00;
+  --warn-bg: #F4E1C8;
+  --warn-ink: #7A3E00;
+  --red: #C23B22;
+  --red-bg: #F2D5CD;
+  --red-ink: #8C2415;
+  --ok: #5E7F24;
+  --ch1: #B98600;
+  --ch2: #2D7B8A;
+  --ch3: #AD447D;
+  --ch4: #3E5DB6;
+  --ch5: #6F8A23;
+  --ch6: #8C5B3B;
+  --mono: "Barlow", "Helvetica Neue", var(--sans);
+  --tab-ink: #6F6A61;
+  --tab-on: #2A2724;
+  --hl: #EDE5CF;
+  --on-dim: #CFCAC0;
+  --sheet-depth: 0 12px 26px -16px rgba(42, 39, 36, .45);
+  color-scheme: light;
+}
+:root[data-theme="braun"] .sheet { border-radius: 28px; box-shadow: inset 0 1px 0 #fff, 0 12px 26px -16px rgba(42, 39, 36, .45); }
+:root[data-theme="braun"] .bez-top { position: relative; padding-right: 0; }
+:root[data-theme="braun"] .bez-top h1 { font: 500 22px/1.2 var(--sans); letter-spacing: .02em; }
+:root[data-theme="braun"] .run { font: 300 30px/1 var(--mono); letter-spacing: .01em; }
+/* 喇叭孔网格：机身上唯一的纹理 */
+:root[data-theme="braun"] .scope-today::before { content: ""; display: block; height: 22px; margin: 0 2px 10px; background-image: radial-gradient(circle, var(--seg-dim) 1.6px, transparent 2px); background-size: 9px 9px; opacity: .55; }
+:root[data-theme="braun"] .timebase { gap: 10px; justify-content: space-between; }
+:root[data-theme="braun"] .timebase button { flex: 0 0 auto; width: 56px; height: 56px; min-height: 0; border-radius: 50%; font: 500 20px/1 var(--mono); box-shadow: var(--key-shadow); }
+:root[data-theme="braun"] .timebase button.on { background: var(--seg); }
+:root[data-theme="braun"] .timebase button.live { box-shadow: var(--key-shadow), inset 0 0 0 2px var(--orange); }
+:root[data-theme="braun"] .ch { border-radius: 999px; box-shadow: none; padding-left: 8px; gap: 6px; justify-content: flex-start; }
+:root[data-theme="braun"] .ch::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+:root[data-theme="braun"] .ch b { margin-left: auto; color: var(--seg-2); font-weight: 500; }
+:root[data-theme="braun"] .rd, :root[data-theme="braun"] .screen, :root[data-theme="braun"] .sw, :root[data-theme="braun"] .panel { border-radius: 16px; box-shadow: none; background: var(--lcd-2); }
+:root[data-theme="braun"] .rd .v { font-weight: 300; font-size: 34px; }
+:root[data-theme="braun"] .rd .k { font-weight: 500; }
+:root[data-theme="braun"] .stop-card, :root[data-theme="braun"] .next-sweep { border-radius: 18px; border: 0; background: var(--lcd-key); box-shadow: var(--key-shadow); }
+:root[data-theme="braun"] .stop-card .n { font-weight: 500; }
+:root[data-theme="braun"] .key, :root[data-theme="braun"] .modes button, :root[data-theme="braun"] .chip, :root[data-theme="braun"] .add-day,
+:root[data-theme="braun"] .adds button, :root[data-theme="braun"] .add-stop button, :root[data-theme="braun"] .danger { border-radius: 999px; border: 0; box-shadow: var(--key-shadow); }
+:root[data-theme="braun"] .ops button, :root[data-theme="braun"] .icon { border-radius: 50%; border: 0; box-shadow: var(--key-shadow); }
+:root[data-theme="braun"] .trace { stroke-width: 2.4; }
+:root[data-theme="braun"] .ev.st-done .led { background: var(--ok); }
+:root[data-theme="braun"] .chip-lv { border-radius: 999px; padding: 4px 9px; }
+:root[data-theme="braun"] .tabs { background: var(--housing); }
+
+/* ———————————————— 公园海报 ————————————————
+   公园旅行海报：四五种平涂丝网色，天空一整块青，远山、近山、原野一层层叠上来；
+   标题栏只说一件事——此刻最该做什么。累计游玩画成一座山。 */
+:root[data-theme="poster"] {
+  --housing: #24514A;
+  --lcd: #EEF3F0;
+  --lcd-2: #DFE9E4;
+  --lcd-key: #FFFFFF;
+  --grat: #CBDAD4;
+  --grat-hi: #86A69E;
+  --seg: #1B2B28;
+  --seg-dim: #7D918B;
+  --seg-2: #4A5E59;
+  --orange: #C2562A;
+  --key-edge: #8F3E1C;
+  --warn: #A6631A;
+  --warn-bg: #F3E0BF;
+  --warn-ink: #6E3E00;
+  --red: #B03826;
+  --red-bg: #F1D2CA;
+  --red-ink: #86251A;
+  --ok: #2F6B4A;
+  --ch1: #C08A1C;
+  --ch2: #2C7C83;
+  --ch3: #8D4A89;
+  --ch4: #3A5AA6;
+  --mono: "Barlow Semi Condensed", var(--sans);
+  --tab-ink: #B9D3CB;
+  --tab-on: #FFFFFF;
+  --hl: #F1E6C8;
+  --on-dim: #C9DAD4;
+  --sheet-depth: 0 0 0 0 transparent;
+  --sky: #2F7F86;
+  --sun: #E5AA3C;
+  --far: #86B6AA;
+  --mid: #3F7B5D;
+  --near: #1F4C3B;
+  --display: "ZCOOL QingKe HuangYou", var(--sans);
+  color-scheme: light;
+}
+:root[data-theme="poster"] .sheet { border-radius: 14px; box-shadow: none; }
+:root[data-theme="poster"] .scope-today .bez-top { display: none; }
+:root[data-theme="poster"] .poster-scene { display: block; margin: -12px -12px 0; border-radius: 14px 14px 0 0; overflow: hidden; line-height: 0; }
+:root[data-theme="poster"] .poster-scene svg { width: 100%; height: 132px; display: block; }
+.pl-sky { fill: var(--sky); }
+.pl-sun { fill: var(--sun); }
+.pl-far { fill: var(--far); }
+.pl-mid { fill: var(--mid); }
+.pl-near { fill: var(--near); }
+.pl-road { fill: none; stroke: var(--sun); stroke-width: 3; stroke-dasharray: 8 5; }
+:root[data-theme="poster"] .poster-caption { display: flex; flex-direction: column; gap: 3px; margin: 0 -12px 12px; padding: 10px 14px 12px; background: var(--near); color: #fff; }
+:root[data-theme="poster"] .poster-caption b { font: 400 28px/1.15 var(--display); letter-spacing: .04em; }
+:root[data-theme="poster"] .poster-caption span { font: 500 12px var(--sans); color: #BFD8CF; }
+:root[data-theme="poster"] .trace-fill { display: block; fill: var(--mid); }
+:root[data-theme="poster"] .trace-fill.future { fill: var(--far); opacity: .55; }
+:root[data-theme="poster"] .trace { stroke: var(--near); stroke-width: 2.4; }
+:root[data-theme="poster"] .trace-future { stroke: var(--mid); }
+:root[data-theme="poster"] .screen { background: #F6F9F7; }
+:root[data-theme="poster"] .timebase button, :root[data-theme="poster"] .ch, :root[data-theme="poster"] .key,
+:root[data-theme="poster"] .next-sweep, :root[data-theme="poster"] .stop-card { border-radius: 4px; }
+:root[data-theme="poster"] .timebase button.on { background: var(--near); border-color: var(--near); }
+:root[data-theme="poster"] .rd .v, :root[data-theme="poster"] .stop-card .t, :root[data-theme="poster"] .ev .t { font-weight: 700; }
+:root[data-theme="poster"] .stop-card .n, :root[data-theme="poster"] .sw .rt, :root[data-theme="poster"] .title { font-family: var(--display); font-weight: 400; letter-spacing: .04em; }
+:root[data-theme="poster"] .tabs button.on svg { color: var(--sun); }
+:root[data-theme="braun"] .ch { font-size: 13px; padding: 0 8px 0 7px; gap: 4px; }
+:root[data-theme="braun"] .ch::before { width: 8px; height: 8px; }
+:root[data-theme="braun"] .ch b { font-size: 13px; }
+
+/* ———————————————— 博朗面板 × 海报窗口 ————————————————
+   2026-09-28 用户：博朗面板舒服，公园海报的顶部值得留下。
+   机身上开一扇圆角窗口，窗里是平涂山景；山用低饱和青灰与橄榄绿，太阳就是那颗橙色主键的颜色。
+   一句话标题压在近山上：此刻最该做的事。 */
+:root[data-theme="braun"] {
+  --sky: #7FA7AB;
+  --sun: var(--orange);
+  --far: #BFCFC4;
+  --mid: #8FA67C;
+  --near: #56704B;
+  --display: "ZCOOL QingKe HuangYou", var(--sans);
+}
+:root[data-theme="braun"] .scope-today::before { display: none; }
+:root[data-theme="braun"] .scope-today .bez-top { display: none; }
+:root[data-theme="braun"] .poster-scene { display: block; position: relative; border-radius: 20px 20px 0 0; overflow: hidden; line-height: 0; box-shadow: inset 0 0 0 1px rgba(42, 39, 36, .08); }
+:root[data-theme="braun"] .poster-scene svg { width: 100%; height: 118px; display: block; }
+:root[data-theme="braun"] .poster-caption { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin: 0 0 12px; padding: 8px 14px 12px; background: var(--near); color: #fff; border-radius: 0 0 20px 20px; }
+:root[data-theme="braun"] .poster-caption b { font: 400 25px/1.15 var(--display); letter-spacing: .04em; }
+:root[data-theme="braun"] .poster-caption span { font: 500 12px/1.4 var(--sans); color: #DCE6D6; text-align: right; flex: none; }
+:root[data-theme="braun"] .poster-caption b { font-size: 23px; text-wrap: balance; }
+
+/* ——— 海报窗口按时段换色：清晨、白天、傍晚、夜里（博朗的低饱和范围内） ——— */
+.pl-moon, .pl-star { fill: var(--moon, #ECE7D2); }
+:root[data-theme="braun"] .scope-today[data-phase="dawn"] { --sky: #CDB9A5; --far: #B3BDB1; --mid: #8A9C76; --near: #52694A; }
+:root[data-theme="braun"] .scope-today[data-phase="dusk"] { --sky: #C98C6D; --far: #A4918A; --mid: #6F7C5E; --near: #3F5039; --sun: #F2B26C; }
+:root[data-theme="braun"] .scope-today[data-phase="night"] { --sky: #2F3B4B; --far: #485860; --mid: #37473F; --near: #25312A; }
+:root[data-theme="braun"] .scope-today[data-phase="night"] .pl-road { stroke: #ECE7D2; opacity: .5; }
+/* 公园海报原版也跟着换，颜色更饱和 */
+:root[data-theme="poster"] .scope-today[data-phase="dawn"] { --sky: #E3A582; --far: #C9B39E; --mid: #6E8F62; --near: #2F5140; }
+:root[data-theme="poster"] .scope-today[data-phase="dusk"] { --sky: #D1704A; --far: #9A7A78; --mid: #4E6450; --near: #243C31; --sun: #F4C35A; }
+:root[data-theme="poster"] .scope-today[data-phase="night"] { --sky: #1E2F45; --far: #3C5163; --mid: #2B4038; --near: #172720; }
+/* 标题栏右侧的状态文字（行程页的「必改 / 留意」）不用时钟那套大细体 */
+:root[data-theme="braun"] .run.hold, :root[data-theme="braun"] .run.fail { font: 700 14px var(--sans); }
+
+/* ——— 审查修正：博朗的字、首屏高度、曲线下的山 ——— */
+:root[data-theme="braun"] .sub { font-family: var(--sans); font-weight: 500; }
+:root[data-theme="braun"] .title { font-weight: 700; letter-spacing: .02em; }
+:root[data-theme="braun"] .poster-scene svg { height: 92px; }
+:root[data-theme="braun"] .poster-caption { padding: 6px 14px 10px; margin-bottom: 10px; }
+:root[data-theme="braun"] .timebase button { width: 50px; height: 50px; }
+:root[data-theme="braun"] .rd { padding: 4px 10px 5px; }
+:root[data-theme="braun"] .rd .v { font-size: 30px; }
+:root[data-theme="braun"] .read { gap: 5px; margin-top: 6px; }
+:root[data-theme="braun"] .stop-card { margin-top: 6px; padding: 8px 12px; }
+:root[data-theme="braun"] .stop-card .acts { margin-top: 8px; }
+/* 累计游玩画成一座山，和窗口里的山呼应 */
+:root[data-theme="braun"] .trace-fill { display: block; fill: var(--mid); opacity: .38; }
+:root[data-theme="braun"] .trace-fill.future { fill: var(--far); opacity: .45; }

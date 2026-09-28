@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同路 · 风格预览</title>
+<style>
+:root{--bg:#EEEEEA;--ink:#1B1B1A;--ink2:#5E5E58;--line:#D4D4CE;--hi:#C23A1E}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;background:var(--bg);color:var(--ink);padding:32px 24px 60px}
+h1{font-size:24px;font-weight:800}
+.lead{color:var(--ink2);font-size:14px;margin-top:6px;max-width:70ch;line-height:1.6}
+h2{font-size:15px;font-weight:800;margin:32px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+h2 span{font-weight:400;color:var(--ink2);margin-left:8px;font-size:13px}
+.row{display:flex;gap:20px;overflow-x:auto;padding-bottom:10px}
+figure{flex:none;width:250px}
+figure a{display:block;border-radius:14px;overflow:hidden;box-shadow:0 8px 20px -10px rgba(0,0,0,.35);transition:transform .2s cubic-bezier(.2,.8,.2,1)}
+figure a:hover{transform:translateY(-3px)}
+figure img{display:block;width:100%;height:auto}
+figcaption{margin-top:10px;font-size:13px;line-height:1.5}
+figcaption b{font-size:15px;display:block}
+figcaption .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:var(--ink);color:#fff;margin-bottom:4px}
+figcaption .tag.win{background:var(--hi)}
+figcaption .tag.q{background:#8A8A84}
+figcaption p{color:var(--ink2)}
+</style>
+</head>
+<body>
+<h1>同路 · 视觉风格预览</h1>
+<p class="lead">八套风格用同一份示例数据：国庆大理丽江第 3 天，外婆 76 岁走得慢、朵朵 2 岁、豆包中型犬。点图打开可交互的整页（第一手的四套含「今天」和「行程检查」两屏）。选好了回终端告诉我名字即可。</p>
+
+<h2>已选 · 地图册 + 路标符号<span>地图册做主体，路标只作图例符号</span></h2>
+<div class="row">
+  <figure style="width:300px"><a href="fused.html"><img src="shots/fused.png" alt="地图册加路标符号"></a><figcaption><span class="tag win">定稿候选</span><b>分省交通地图册 × 高速指路标志</b><p>保留图廓、平涂、红边黄芯高速、图例比例尺；加入国家高速路牌盾、黄三角警告、红圈限制牌、棕色景点方标，以及 P 服务区绿标。</p></figcaption></figure>
+</div>
+
+<h2>第二手 · 更大胆<span>已看过</span></h2>
+<div class="row">
+  <figure><a href="ascii.html"><img src="shots/ascii.png" alt="字符场景"></a><figcaption><span class="tag">发牌领头</span><b>字符场景</b><p>琥珀荧光单色，字符密度画地形，你是闪烁的 @；大号字符读数。</p></figcaption></figure>
+  <figure><a href="miura.html"><img src="shots/miura.png" alt="三浦折地图"></a><figcaption><span class="tag win">我评估最强</span><b>三浦折地图</b><p>整趟旅程是一张折起来的纸：今天展开，其余天折在两侧；违规处折痕反了。</p></figcaption></figure>
+  <figure><a href="teletext.html"><img src="shots/teletext.png" alt="图文电视"></a><figcaption><span class="tag">备选</span><b>图文电视</b><p>40×24 字符格，303 = 第 3 天，底部红绿黄青四键导航。</p></figcaption></figure>
+  <figure><a href="lcars.html"><img src="shots/lcars.png" alt="舰桥面板"></a><figcaption><span class="tag">备选</span><b>舰桥面板</b><p>每个同行人一种颜色，限制色条指向收紧它的人。</p></figcaption></figure>
+</div>
+
+<h2>第一手<span>已被你换掉，仍可选</span></h2>
+<div class="row">
+  <figure><a href="atlas.html"><img src="shots/atlas.png" alt="分省交通地图册"></a><figcaption><span class="tag q">第一手领头</span><b>分省交通地图册</b><p>每天一页地图：红边黄芯高速从上到下，限制写在图例和比例尺里。</p></figcaption></figure>
+  <figure><a href="signs.html"><img src="shots/signs.png" alt="高速指路标志"></a><figcaption><span class="tag q">第一手推荐</span><b>高速指路标志</b><p>绿牌指路、棕牌景点、黄三角警告、红圈是今天的限制。</p></figcaption></figure>
+  <figure><a href="scope.html"><img src="shots/scope.png" alt="示波器"></a><figcaption><span class="tag q">第一手备选</span><b>示波器</b><p>每人一个通道，同一条行程曲线扫过所有人的触发线。</p></figcaption></figure>
+  <figure><a href="canon.html"><img src="shots/canon.png" alt="常规旅行应用"></a><figcaption><span class="tag q">对照组</span><b>常规旅行应用</b><p>地图头图 + 白色圆角卡片 + 一种蓝，和同类 App 一样。</p></figcaption></figure>
+</div>
+</body>
+</html>

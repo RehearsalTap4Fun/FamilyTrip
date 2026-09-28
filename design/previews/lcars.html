@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同路 · 舰桥面板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --k:#000000;
+  --lilac:#C49BE0;
+  --peach:#FFB38A;
+  --gold:#FFCC4D;
+  --peri:#8FA8FF;
+  --rose:#E0697A;
+  --sand:#E8D7B8;
+  --num:"Antonio",sans-serif;
+  --cjk:"Noto Sans SC","PingFang SC",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#161616}
+body{display:flex;justify-content:center;padding:40px 16px;font-family:var(--cjk);color:var(--sand);font-variant-numeric:tabular-nums}
+body.one{padding:0;display:block;background:var(--k)}
+body.one .phone{border-radius:0;box-shadow:none}
+::selection{background:var(--gold);color:var(--k)}
+.phone{width:390px;height:844px;background:var(--k);border-radius:28px;overflow:hidden;position:relative;box-shadow:0 18px 40px -12px rgba(0,0,0,.7);padding:22px 12px 0;display:grid;grid-template-columns:78px 1fr;grid-template-rows:auto 1fr auto;column-gap:8px}
+.num{font-family:var(--num)}
+
+/* 上肘：标题栏 */
+.elbow-top{grid-column:1/-1;display:grid;grid-template-columns:78px 1fr;column-gap:8px}
+.elbow-top .corner{background:var(--lilac);border-radius:36px 0 0 0;height:64px;position:relative}
+.elbow-top .corner::after{content:"";position:absolute;right:-8px;bottom:0;width:8px;height:22px;background:var(--lilac)}
+.elbow-top .bar{display:flex;flex-direction:column;justify-content:space-between}
+.elbow-top .ttl{display:flex;justify-content:space-between;align-items:baseline}
+.elbow-top h1{font-weight:900;font-size:24px;color:var(--gold);letter-spacing:.02em}
+.elbow-top .code{font-family:var(--num);font-size:15px;color:var(--peach)}
+.elbow-top .strip{display:flex;gap:6px;height:22px}
+.elbow-top .strip i{display:block;height:100%;background:var(--lilac)}
+
+/* 左栏：成员色块，一人一格 */
+.rail{display:flex;flex-direction:column;gap:6px;padding-top:6px}
+.pill{border-radius:0;padding:6px 8px 5px;color:var(--k);text-align:right;min-height:54px;display:flex;flex-direction:column;justify-content:flex-end}
+.pill b{font-family:var(--num);font-weight:700;font-size:13px;letter-spacing:.04em;display:block}
+.pill span{font-weight:900;font-size:14px}
+.pill.lo{background:var(--peach)}.pill.li{background:var(--lilac)}.pill.pe{background:var(--peri)}.pill.go{background:var(--gold)}.pill.sa{background:var(--sand)}
+.rail .fill{flex:1;background:var(--lilac);border-radius:0 0 0 36px;margin-top:0}
+
+.main{padding-top:10px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.next{display:grid;grid-template-columns:1fr auto;align-items:end}
+.next .lab{font-family:var(--num);font-size:14px;color:var(--peri);letter-spacing:.06em}
+.next .n{font-weight:900;font-size:26px;line-height:1.1;color:var(--sand)}
+.next .t{font-family:var(--num);font-weight:700;font-size:44px;line-height:.9;color:var(--gold)}
+.next .s{grid-column:1/-1;font-size:12px;color:var(--peach);margin-top:4px}
+
+.alert{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:stretch}
+.alert i{background:var(--rose);border-radius:9px 0 0 9px}
+.alert div{border-top:3px solid var(--rose);border-bottom:3px solid var(--rose);padding:6px 0}
+.alert b{font-family:var(--num);font-size:30px;color:var(--rose);line-height:1}
+.alert b small{font-size:15px;color:var(--sand)}
+.alert p{font-size:12.5px;line-height:1.45;margin-top:3px}
+
+.lims{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.lim{display:grid;grid-template-columns:8px 1fr;gap:7px}
+.lim i{border-radius:4px 0 0 4px}
+.lim .k{font-size:11px;color:var(--peri)}
+.lim .v{font-family:var(--num);font-weight:600;font-size:24px;line-height:1.1;color:var(--sand)}
+.lim .by{font-size:11px}
+
+.seq{display:flex;flex-direction:column;gap:4px}
+.seq div{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:center;font-size:13px}
+.seq time{font-family:var(--num);font-size:17px;color:var(--gold)}
+.seq em{font-style:normal;font-family:var(--num);font-size:12px;background:var(--peri);color:var(--k);padding:1px 6px;border-radius:8px}
+.seq .done{color:#7C7466}.seq .done time{color:#7C7466}
+
+.bot{grid-column:1/-1;display:grid;grid-template-columns:78px 1fr;column-gap:8px;margin-top:10px}
+.bot .corner{background:var(--lilac);border-radius:0 0 0 36px;height:70px}
+.bot nav{display:flex;gap:5px;align-items:stretch;height:44px;align-self:end;margin-bottom:14px}
+.bot nav a{flex:1;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 7px 4px;color:var(--k);font-weight:900;font-size:13px;text-decoration:none;background:var(--peri)}
+.bot nav a:last-child{border-radius:0 22px 22px 0}
+.bot nav a.on{background:var(--gold)}
+.foot{position:absolute;right:16px;bottom:4px;font-size:9px;color:#6D6558}
+</style>
+</head>
+<body>
+<section class="phone">
+  <div class="elbow-top">
+    <div class="corner"></div>
+    <div class="bar">
+      <div class="ttl"><h1>大理 → 丽江</h1><span class="code">03-1055</span></div>
+      <div class="strip"><i style="flex:5"></i><i style="flex:2;background:var(--peach)"></i><i style="flex:1;background:var(--gold)"></i><i style="flex:3"></i></div>
+    </div>
+  </div>
+
+  <aside class="rail">
+    <div class="pill lo"><b>01-76</b><span>外婆</span></div>
+    <div class="pill li" style="background:var(--gold)"><b>02-02</b><span>朵朵</span></div>
+    <div class="pill pe"><b>03-M</b><span>豆包</span></div>
+    <div class="pill sa"><b>04-05</b><span>我 小林</span></div>
+    <div class="fill"></div>
+  </aside>
+
+  <main class="main">
+    <section class="next">
+      <div><div class="lab">NEXT · 18 KM</div><div class="n">洱源服务区</div></div>
+      <div class="t">11:10</div>
+      <div class="s">停 20 分 · 之后接丽江，入住束河客栈 · 晚 15 分</div>
+    </section>
+
+    <section class="alert"><i></i><div><b>130<small> / 90 分</small></b><p>连续驾驶超了。朵朵（02-02）要求 90 分内停一次。</p></div></section>
+
+    <section class="lims">
+      <div class="lim"><i style="background:var(--peach)"></i><div><div class="k">在外</div><div class="v">2:25<span style="font-size:14px;color:#9A8F7C"> / 6:00</span></div><div class="by" style="color:var(--peach)">外婆 朵朵</div></div></div>
+      <div class="lim"><i style="background:var(--peach)"></i><div><div class="k">步行</div><div class="v">1.5<span style="font-size:14px;color:#9A8F7C"> / 4 KM</span></div><div class="by" style="color:var(--peach)">外婆</div></div></div>
+      <div class="lim"><i style="background:var(--gold)"></i><div><div class="k">海拔</div><div class="v">2500<span style="font-size:14px;color:#9A8F7C"> M</span></div><div class="by" style="color:var(--gold)">外婆 朵朵</div></div></div>
+      <div class="lim"><i style="background:var(--gold)"></i><div><div class="k">回住处</div><div class="v">20:00</div><div class="by" style="color:var(--gold)">朵朵</div></div></div>
+    </section>
+
+    <section class="seq">
+      <div class="done"><time>08:30</time>大理古城 出发<span></span></div>
+      <div class="done"><time>09:10</time>喜洲古镇 ✓<span></span></div>
+      <div><time>14:00</time>入住 束河客栈<em>PET OK</em></div>
+      <div><time>16:00</time>黑龙潭公园<em style="background:var(--peach)">推车?</em></div>
+      <div><time>D4</time>玉龙雪山 冰川公园<em style="background:var(--rose)">必改</em></div>
+    </section>
+  </main>
+
+  <div class="bot">
+    <div class="corner"></div>
+    <nav><a class="on" href="#">今天</a><a href="#">行程</a><a href="#">红黑榜</a><a href="#">足迹</a></nav>
+  </div>
+  <div class="foot">示例数据</div>
+</section>
+<script>if(location.hash==='#one')document.body.classList.add('one')</script>
+</body>
+</html>

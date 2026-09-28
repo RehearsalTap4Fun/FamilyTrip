@@ -15,6 +15,7 @@ import { fmtShort } from './format'
 import { Field, Segmented, Toggle } from './kit/controls'
 import { Sheet } from './kit/Sheet'
 import { Chip } from './ScopeToday'
+import { GuideImport } from './GuideImport'
 import { useSettings } from './Settings'
 import { LineIcon } from './symbols'
 
@@ -45,6 +46,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
   const [q, setQ] = useState('')
   const [found, setFound] = useState<{ kind: 'idle' } | { kind: 'loading' } | { kind: 'done'; list: Place[] } | { kind: 'error'; msg: string }>({ kind: 'idle' })
   const [bulk, setBulk] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [bulkMsg, setBulkMsg] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
@@ -54,7 +56,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
   useEffect(() => {
     if (!open) return
     setPlaces(trip.plan?.places ?? []); setStage({ kind: 'list' }); setQ(''); setFound({ kind: 'idle' })
-    setBulk(false); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length)
+    setBulk(false); setImporting(false); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length)
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 搜索优先在已经加过的点所在城市附近
@@ -119,7 +121,13 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
         <>
           {!amapKey && <p className="sheet-note">先在「同行」页最下面填上高德 Key，才能搜地点、算真实车程。</p>}
           <p className="sheet-note">列出想去的地方，会按同行人的限制分到每天，排好开车、吃饭、午睡和住处。{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发{trip.plan?.origin ? ` · 从${trip.plan.origin}` : ''}</p>
-          {amapKey && (bulk ? (
+          {importing ? (
+            <GuideImport trip={trip} onCancel={() => setImporting(false)} onAdd={list => {
+              // 攻略里的点并进来：同一个高德地点不重复；原文说法、顾虑只在勾选时看，不存
+              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, ...p }) => p)])
+              setImporting(false)
+            }} />
+          ) : amapKey && (bulk ? (
             <Field label="一次加好几个" hint="用顿号、逗号或换行隔开">
               <textarea className="kinput" rows={3} value={bulkText} onChange={e => setBulkText(e.target.value)} placeholder="比如：大理古城、双廊、喜洲古镇、丽江古城、束河古镇" />
               <div className="foot-row">
@@ -134,7 +142,10 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
                 <input className="kinput" value={q} onChange={e => setQ(e.target.value)} placeholder="景点、餐厅、酒店" enterKeyHint="search" aria-label="搜地点" />
                 <button type="submit" className="kbtn primary">搜</button>
               </form>
-              <button type="button" className="linkish" onClick={() => setBulk(true)}>有一串地名？一次粘贴进来</button>
+              <div className="plan-more">
+                <button type="button" className="linkish" onClick={() => setBulk(true)}>有一串地名？一次粘贴</button>
+                <button type="button" className="linkish" onClick={() => setImporting(true)}>从攻略导入</button>
+              </div>
               {found.kind === 'loading' && <p className="sheet-note">正在找…</p>}
               {found.kind === 'error' && <p className="issue-msg lv-error" role="alert">{found.msg}</p>}
               {found.kind === 'done' && (found.list.length === 0 ? <p className="sheet-note">没找到，换个叫法试试</p> : (
@@ -164,7 +175,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
                     <span className="b"><b>{p.name}</b><small>{p.area}</small></span>
                     <span className="tags">
                       {p.must && <em className="must">必去</em>}
-                      {p.day != null && <em>第 {p.day + 1} {p.kind === 'lodging' ? '晚' : '天'}</em>}
+                      {p.day != null ? <em>第 {p.day + 1} {p.kind === 'lodging' ? '晚' : '天'}</em> : p.prefDay != null && <em className="soft">原文第 {p.prefDay + 1} 天</em>}
                       {p.start && <em>{p.start}</em>}
                     </span>
                   </button>
@@ -176,7 +187,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
                       <Field label={p.kind === 'lodging' ? '住哪一晚' : '哪天去'}>
                         <div className="chips" role="radiogroup" aria-label="哪天">
                           {[undefined, ...Array.from({ length: trip.days.length }, (_, i) => i)].map(d => (
-                            <button key={String(d)} type="button" role="radio" aria-checked={p.day === d} className={'chipk' + (p.day === d ? ' on' : '')} onClick={() => patch(p.id, { day: d })}>
+                            <button key={String(d)} type="button" role="radio" aria-checked={p.day === d} className={'chipk' + (p.day === d ? ' on' : '')} onClick={() => patch(p.id, { day: d, prefDay: undefined })}>
                               {d == null ? '自动' : `${d + 1}`}
                             </button>
                           ))}

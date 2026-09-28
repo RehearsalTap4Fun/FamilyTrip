@@ -1,4 +1,10 @@
     # ---- 同路：/trip/  同步目录 /var/www/trip（规则源：trip/scripts/nginx-trip.inc）----
+    # 攻略正文代取 → 本机 Node 服务（systemd: trip-fetch）
+    location /trip/api/ {
+        proxy_pass http://127.0.0.1:18795/;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_read_timeout 20s;
+    }
     location = /trip { return 301 /trip/; }
     location = /trip/ { add_header Cache-Control "no-cache"; try_files /trip/index.html =404; }
     location = /trip/index.html { add_header Cache-Control "no-cache"; }

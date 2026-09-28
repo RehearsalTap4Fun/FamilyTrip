@@ -86,6 +86,27 @@ function chain<T extends { poi: Poi }>(items: T[], from?: Poi): T[] {
   return out
 }
 
+/** 有「想在哪天」的按天序分组串，组内最近邻；没有偏好的按地理插到离得最近的组里 */
+function chainByPref<T extends { poi: Poi; prefDay?: number }>(items: T[], from?: Poi): T[] {
+  if (!items.some(x => x.prefDay != null)) return chain(items, from)
+  const groups = new Map<number, T[]>()
+  for (const x of items) if (x.prefDay != null) groups.set(x.prefDay, [...(groups.get(x.prefDay) ?? []), x])
+  for (const x of items) {
+    if (x.prefDay != null) continue
+    let bd = [...groups.keys()][0], bk = Infinity
+    for (const [d, g] of groups) for (const y of g) { const k = distanceKm(x.poi, y.poi); if (k < bk) { bk = k; bd = d } }
+    groups.get(bd)!.push(x)
+  }
+  const out: T[] = []
+  let at = from
+  for (const d of [...groups.keys()].sort((a, b) => a - b)) {
+    const part = chain(groups.get(d)!, at)
+    out.push(...part)
+    at = part[part.length - 1]?.poi ?? at
+  }
+  return out
+}
+
 /** 开放路径的 2-opt：首尾可以固定（前一晚住处、今晚住处），点少时足够 */
 function twoOpt<T extends { poi: Poi }>(path: T[], from?: Poi, to?: Poi): T[] {
   const p = [...path]
@@ -124,7 +145,8 @@ function excessOf(b: DayBudget, sights: Candidate[], pace: Pace): number {
 
 /**
  * 把串好的点切成连续的几段，每段是一天。代价：负荷均衡（平方和）+ 景点超时、全天放不下重罚
- * + 离这天的路线远（这天从前一晚住处出发、到今晚住处，点离两头中近的那个越远越差）。
+ * + 离这天的路线远（这天从前一晚住处出发、到今晚住处，点离两头中近的那个越远越差）
+ * + 偏离「想在哪天」（导入攻略时原文的分天，只是偏好）。
  * 已经指定了日子的点先占那天的额度。
  */
 function splitDays(order: Candidate[], budgets: DayBudget[], pinned: Candidate[][], pace: Pace): number[][] {
@@ -136,13 +158,16 @@ function splitDays(order: Candidate[], budgets: DayBudget[], pinned: Candidate[]
     const load = seg.reduce((a, s) => a + durOf(s, pace), 0)
     const r = load / b.cap
     const ex = Math.max(0, excessOf(b, seg, pace)) / b.cap
-    let far = 0
+    let far = 0, off = 0
     for (let k = i; k < j; k++) {
       const p = order[k].poi
       const near = Math.min(b.from ? distanceKm(p, b.from) : Infinity, b.to ? distanceKm(p, b.to) : Infinity)
       if (Number.isFinite(near)) far += near / 30
+      // 想在哪天：偏离一天罚一点，比放不下、全天超时轻得多
+      const pd = order[k].prefDay
+      if (pd != null) off += Math.abs(d - pd) * 0.8
     }
-    return r * r + ex * 100 + far
+    return r * r + ex * 100 + far + off
   }
   // best[d][j]：前 d 天排掉前 j 个点的最小代价
   const best = Array.from({ length: days + 1 }, () => new Array(n + 1).fill(Infinity))
@@ -202,7 +227,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   const pinnedOn = () => Array.from({ length: days }, (_, d) => pinnedAll.filter(s => clampDay(s.day) === d))
   let daySights: Candidate[][] = []
   for (let guard = 0; guard < 200; guard++) {
-    const order = chain(free, opts.origin ?? night[0]?.poi)
+    const order = chainByPref(free, opts.origin ?? night[0]?.poi)
     const pinned = pinnedOn()
     const b = budgets()
     const segs = splitDays(order, b, pinned, pace)

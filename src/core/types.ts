@@ -116,6 +116,8 @@ export interface PlanPlace {
   must?: boolean
   /** 指定第几天（从 0 起）；住处是指「这一晚」 */
   day?: number
+  /** 想在第几天（从 0 起）：只是偏好，放不下或那天空了会挪。导入攻略时来自原文的分天 */
+  prefDay?: number
   /** 固定开始时刻 HH:MM（门票预约之类） */
   start?: string
   durationMin?: number

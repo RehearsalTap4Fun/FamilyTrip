@@ -320,6 +320,7 @@
 .pp-row .tags { display: flex; gap: 4px; }
 .pp-row .tags em { font: 700 11px/1 var(--sans); font-style: normal; padding: 4px 6px; border-radius: 4px; background: var(--k-panel); color: var(--ink2); white-space: nowrap; }
 .pp-row .tags em.must { background: var(--k-accent); color: #fff; }
+.pp-row .tags em.soft { background: none; border: 1px dashed var(--k-line); }
 .pp-edit { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 14px; }
 .plan-unplaced { margin: 12px 0; padding: 12px 14px; border-radius: calc(var(--k-radius) + 4px); background: var(--warn-bg, var(--k-panel)); }
 .plan-unplaced h4 { margin: 0 0 6px; font: 700 14px var(--sans); color: var(--warn-ink, var(--ink)); }
@@ -337,3 +338,27 @@
 .plan-cta { margin: -4px 0 12px; border-color: var(--k-accent); }
 .plan-cta .cname { color: var(--k-accent); }
 .plan-soon { margin: -4px 2px 12px; }
+
+/* ——— 导入攻略 ——— */
+.plan-more { display: flex; gap: 18px; flex-wrap: wrap; }
+.gi { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+.gi-head { padding: 12px 14px; border-radius: calc(var(--k-radius) + 4px); background: var(--k-panel); display: flex; flex-direction: column; gap: 3px; }
+.gi-head b { font: 900 16px var(--sans); color: var(--ink); }
+.gi-head small { font-size: 12px; color: var(--ink2); }
+.gi-head p { margin: 4px 0 0; font: 500 13px/1.5 var(--sans); color: var(--ink); }
+.gi-head .gi-warn { color: var(--warn-ink, var(--ink)); }
+.gi-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--k-line); }
+.gi-list li { border-bottom: 1px solid var(--k-line); }
+.gi-row { width: 100%; display: grid; grid-template-columns: 24px 20px 1fr; gap: 10px; align-items: center; padding: 10px 2px; min-height: 52px; background: none; border: 0; text-align: left; color: var(--ink); }
+.gi-row .box { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--k-line); display: inline-flex; align-items: center; justify-content: center; font: 900 14px var(--sans); color: #fff; }
+.gi-row.on .box { background: var(--k-accent); border-color: var(--k-accent); }
+.gi-row:not(.on) .b { opacity: .6; }
+.gi-row .b { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gi-row .b b { font: 700 15px var(--sans); }
+.gi-row .b b em { font: 700 11px/1 var(--sans); font-style: normal; margin-left: 6px; padding: 3px 6px; border-radius: 4px; background: var(--k-panel); color: var(--ink2); vertical-align: 1px; }
+.gi-row .b small { font-size: 12.5px; color: var(--ink2); }
+.gi-row .b small.avoid { color: var(--red-ink, var(--red, var(--ink))); font-weight: 700; }
+.gi-row .b small.caution { color: var(--warn-ink, var(--ink2)); }
+.gi-tips h4 { margin: 0 0 4px; font: 700 13px var(--sans); color: var(--ink); }
+.gi-tips ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.gi-tips li { font: 500 13px/1.45 var(--sans); color: var(--ink2); }

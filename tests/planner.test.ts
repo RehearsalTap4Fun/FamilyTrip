@@ -145,6 +145,18 @@ describe('排程引擎：放不下、固定时刻、红黑榜、没有高德', (
     expect(slot.overlap).toBe(false)
   })
 
+  it('「想在哪天」只是偏好：尽量照着排；某天的点被去掉、另一天挤不下时会挪到空着的那天', async () => {
+    const r = await planTrip(base(3), [
+      cand('丽江古城', LIJIANG.古城, { prefDay: 0 }), cand('束河古镇', LIJIANG.束河, { prefDay: 0 }),
+      cand('喜洲古镇', DALI.喜洲, { prefDay: 2 }), cand('大理古城', DALI.古城, { prefDay: 2, durationMin: 120 }), cand('双廊', DALI.双廊, { prefDay: 2, durationMin: 120 }),
+    ], fake(), { newId })
+    const dayOf = (n: string) => r.trip.days.findIndex(d => d.stops.some(s => s.name === n))
+    expect(r.unplaced).toEqual([])
+    expect(dayOf('丽江古城')).toBe(0)
+    expect(dayOf('束河古镇')).toBe(0)
+    expect(r.trip.days[1].stops.some(s => s.kind === 'sight')).toBe(true) // 第 2 天不再空着
+  })
+
   it('黑榜不推荐，红榜优先', async () => {
     const r = await planTrip(base(1), [cand('大理古城', DALI.古城)], fake({
       verdictOf: p => (p.name.endsWith('-2') ? 'black' : p.name.endsWith('-1') ? 'red' : undefined),

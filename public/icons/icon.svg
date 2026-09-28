@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 与饮食日记同一套手绘导览图语言：米色底、墨色岸线、平涂块面；青绿山丘上一条弯路通向小旗 -->
+  <rect width="512" height="512" fill="#F5F1E4"/>
+  <path d="M78 150C112 84 206 60 296 76C392 94 462 164 450 262C440 352 384 436 276 452C170 468 84 408 64 320C50 258 52 196 78 150Z" fill="#7CC7B2" stroke="#2C2E2A" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M196 452C176 400 208 364 262 346C322 326 350 290 318 256C294 230 256 232 262 204" fill="none" stroke="#2C2E2A" stroke-width="74" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M196 452C176 400 208 364 262 346C322 326 350 290 318 256C294 230 256 232 262 204" fill="none" stroke="#FFFFFF" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M198 440C182 398 212 366 262 350C318 330 344 292 316 260C296 238 262 236 264 214" fill="none" stroke="#2C2E2A" stroke-width="8" stroke-linecap="round" stroke-dasharray="20 22"/>
+  <path d="M264 204V96" stroke="#2C2E2A" stroke-width="12" stroke-linecap="round"/>
+  <path d="M266 100C292 94 318 106 346 102L334 132L348 160C320 166 296 152 266 158Z" fill="#E0561B" stroke="#2C2E2A" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="404" cy="128" r="30" fill="#FFD23F" stroke="#2C2E2A" stroke-width="10"/>
+</svg>

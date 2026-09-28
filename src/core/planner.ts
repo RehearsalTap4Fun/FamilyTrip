@@ -253,7 +253,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   // 吃饭的点：指定了日子的按日子，没指定的给离得最近的那天
   const dayFoods: Candidate[][] = Array.from({ length: days }, () => [])
   for (const f of foods) {
-    let d = clampDay(f.day)
+    let d = clampDay(f.day ?? f.prefDay)
     if (d == null) {
       let bd = 0, bk = Infinity
       daySights.forEach((ss, i) => { for (const s of ss) { const k = distanceKm(s.poi, f.poi); if (k < bk) { bk = k; bd = i } } })
@@ -274,7 +274,8 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     }
     return driveCache.get(k)!
   }
-  const used = new Set<string>()
+  // 已经在要去的地方里的店不再被推荐一遍（免得同一家吃两顿）
+  const used = new Set<string>(candidates.filter(c => c.kind !== 'sight').map(c => c.name))
   const nearbyCache = new Map<string, NearbyPlace | undefined>()
   const pick = async (what: NearbyKind, at: Poi, reuse = false): Promise<NearbyPlace | undefined> => {
     if (!tools.nearby) return undefined

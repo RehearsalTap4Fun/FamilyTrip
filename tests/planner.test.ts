@@ -157,6 +157,15 @@ describe('排程引擎：放不下、固定时刻、红黑榜、没有高德', (
     expect(r.trip.days[1].stops.some(s => s.kind === 'sight')).toBe(true) // 第 2 天不再空着
   })
 
+  it('要去的地方里有这家店：按「想在哪天」放，而且不会再被当成附近推荐吃第二顿', async () => {
+    const r = await planTrip(base(3), [
+      cand('大理古城', DALI.古城, { prefDay: 0 }), cand('丽江古城', LIJIANG.古城, { prefDay: 2 }),
+      { id: 'f', name: '饭馆100.163-2', kind: 'food', poi: P(100.163, 25.692), prefDay: 0 },
+    ], fake(), { newId })
+    const hits = r.trip.days.flatMap((d, i) => d.stops.filter(s => s.name === '饭馆100.163-2').map(() => i))
+    expect(hits).toEqual([0])
+  })
+
   it('黑榜不推荐，红榜优先', async () => {
     const r = await planTrip(base(1), [cand('大理古城', DALI.古城)], fake({
       verdictOf: p => (p.name.endsWith('-2') ? 'black' : p.name.endsWith('-1') ? 'red' : undefined),

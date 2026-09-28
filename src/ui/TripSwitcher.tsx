@@ -84,8 +84,14 @@ export function TripActions({ count, onSwitch, onNew, trip, onPlan }: { count: n
           <svg className="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
         </button>
       )}
-      {flow === 'region' && (
-        <p className="sheet-note plan-soon">「{trip?.plan?.region}」的去处推荐还在做（导入攻略、搜索推荐），先可以手动加站。</p>
+      {flow === 'region' && onPlan && (
+        <button type="button" className="card-btn plan-cta" onClick={onPlan}>
+          <span className="cbody">
+            <span className="cname">{trip?.plan?.places?.length ? '改地点，重新排' : `让 AI 推荐「${trip?.plan?.region ?? '这里'}」怎么玩`}</span>
+            <span className="csub">{trip?.plan?.places?.length ? `上次排了 ${trip.plan.places.length} 个点` : '按同行人的限制给几个方案，挑一个自动排好开车、吃饭、午睡和住处'}</span>
+          </span>
+          <svg className="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
+        </button>
       )}
     </>
   )

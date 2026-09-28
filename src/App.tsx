@@ -183,9 +183,8 @@ function TripsLayer({ state, setState, now, switching, creating, planning, onSwi
         onCreate={t => {
           setState(s => ({ ...s, trips: [...s.trips, t], currentId: t.id }))
           onCreating(false); onCreated()
-          // 选了「我知道要去哪些地方」：建好直接去列点排程
-          if (t.plan?.flow === 'places') onPlanning(true)
-          else toast(`已建好「${t.title}」`)
+          // 建好直接去排：「我知道要去哪些地方」列点，「只知道大概去哪」让 AI 推荐
+          onPlanning(true)
         }} />
       <PlanSheet open={planning} trip={currentTrip(state)} ratings={state.ratings} onClose={() => onPlanning(false)}
         onApply={t => {

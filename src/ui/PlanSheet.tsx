@@ -16,6 +16,7 @@ import { Field, Segmented, Toggle } from './kit/controls'
 import { Sheet } from './kit/Sheet'
 import { Chip } from './ScopeToday'
 import { GuideImport } from './GuideImport'
+import { Recommend } from './Recommend'
 import { useSettings } from './Settings'
 import { LineIcon } from './symbols'
 
@@ -47,6 +48,9 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
   const [found, setFound] = useState<{ kind: 'idle' } | { kind: 'loading' } | { kind: 'done'; list: Place[] } | { kind: 'error'; msg: string }>({ kind: 'idle' })
   const [bulk, setBulk] = useState(false)
   const [importing, setImporting] = useState(false)
+  // 「只知道大概去哪」建的行程、还没有地点：打开就直接让 AI 推荐
+  const regionFirst = trip.plan?.flow === 'region' && !(trip.plan?.places?.length)
+  const [recommending, setRecommending] = useState(regionFirst)
   const [bulkText, setBulkText] = useState('')
   const [bulkMsg, setBulkMsg] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
@@ -56,7 +60,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
   useEffect(() => {
     if (!open) return
     setPlaces(trip.plan?.places ?? []); setStage({ kind: 'list' }); setQ(''); setFound({ kind: 'idle' })
-    setBulk(false); setImporting(false); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length)
+    setBulk(false); setImporting(false); setRecommending(regionFirst); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length)
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 搜索优先在已经加过的点所在城市附近
@@ -121,7 +125,12 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
         <>
           {!amapKey && <p className="sheet-note">先在「同行」页最下面填上高德 Key，才能搜地点、算真实车程。</p>}
           <p className="sheet-note">列出想去的地方，会按同行人的限制分到每天，排好开车、吃饭、午睡和住处。{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发{trip.plan?.origin ? ` · 从${trip.plan.origin}` : ''}</p>
-          {importing ? (
+          {recommending ? (
+            <Recommend trip={trip} autoRun={regionFirst} onCancel={() => setRecommending(false)} onAdd={list => {
+              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, ...p }) => p)])
+              setRecommending(false)
+            }} />
+          ) : importing ? (
             <GuideImport trip={trip} onCancel={() => setImporting(false)} onAdd={list => {
               // 攻略里的点并进来：同一个高德地点不重复；原文说法、顾虑只在勾选时看，不存
               setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, ...p }) => p)])
@@ -145,6 +154,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
               <div className="plan-more">
                 <button type="button" className="linkish" onClick={() => setBulk(true)}>有一串地名？一次粘贴</button>
                 <button type="button" className="linkish" onClick={() => setImporting(true)}>从攻略导入</button>
+                <button type="button" className="linkish" onClick={() => setRecommending(true)}>AI 推荐方案</button>
               </div>
               {found.kind === 'loading' && <p className="sheet-note">正在找…</p>}
               {found.kind === 'error' && <p className="issue-msg lv-error" role="alert">{found.msg}</p>}

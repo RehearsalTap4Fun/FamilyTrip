@@ -146,7 +146,7 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
               <input className="kinput" value={title} onChange={e => setTitle(e.target.value)} placeholder={flow === 'region' && region.trim() ? region.trim() : '新行程'} />
             </Field>
           )}
-          {flow && <p className="sheet-note">{flow === 'places' ? '自动排时间' : '推荐去处'}还在做。先建好空行程：每天一个住处，可以先在「行程」页手动加站，做好后在这里接着排。</p>}
+          {flow && <p className="sheet-note">{flow === 'places' ? '建好后列出要去的地方（可以一个个搜、粘贴一串地名，或从攻略导入），按同行人的限制自动排好每天。' : '建好后 AI 会按同行人的限制推荐 2–3 个方案，挑一个就自动排好每天。'}</p>}
         </>
       )}
     </Sheet>

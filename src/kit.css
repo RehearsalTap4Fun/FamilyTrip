@@ -381,3 +381,13 @@
 .switch-foot { display: flex; flex-direction: column; gap: 8px; }
 .trip-row .cname em.shared { background: color-mix(in srgb, var(--k-accent) 14%, transparent); color: var(--k-accent); }
 .share-card { margin: 0 0 12px; }
+
+/* ——— AI 推荐方案 ——— */
+.rec-card { padding: 14px; border-radius: calc(var(--k-radius) + 4px); background: var(--k-surface); border: 1px solid var(--k-line); display: flex; flex-direction: column; gap: 6px; }
+.rec-card h4 { margin: 0; font: 900 17px var(--sans); color: var(--ink); }
+.rec-card .pitch { margin: 0; font: 700 13.5px/1.5 var(--sans); color: var(--ink); }
+.rec-card .fit { margin: 0; font: 500 13px/1.5 var(--sans); color: var(--ink2); }
+.rec-card ol { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rec-card li { font: 500 13px/1.5 var(--sans); color: var(--ink2); }
+.rec-card li b { color: var(--ink); margin-right: 6px; font-weight: 700; }
+.rec-card .skipped { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--warn-ink, var(--ink2)); }

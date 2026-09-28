@@ -152,4 +152,12 @@ export interface Trip {
   plan?: TripPlan
   /** 应用自带的示例，可以删、可以恢复 */
   sample?: boolean
+  /** 和同行好友共享：拿到分享码的人都能看、能改这一趟（src/sync/share.ts） */
+  share?: TripShare
+}
+
+export interface TripShare {
+  code: string
+  /** owner 是我分享出去的，member 是我用别人的分享码加入的 */
+  role: 'owner' | 'member'
 }

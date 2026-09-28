@@ -9,6 +9,8 @@ import { TripSwitcher } from './ui/TripSwitcher'
 import { PlanSheet } from './ui/PlanSheet'
 import { useToast } from './ui/kit/Toast'
 import { StorageSection } from './ui/CloudSync'
+import { JoinSheet, ShareCard } from './ui/ShareTrip'
+import { joinCodeFromHash } from './sync/share'
 import { useCloudSync } from './sync/useCloudSync'
 import { backupFileName, exportBackup, importBackup } from './store/backup'
 import { PartyPage } from './ui/Party'
@@ -101,6 +103,9 @@ function AppInner() {
   const [switching, setSwitching] = useState(false)
   const [creating, setCreating] = useState(false)
   const [planning, setPlanning] = useState(false)
+  // 邀请链接 #join=分享码：打开就弹出加入面板（码在 # 后面，不会发到服务器）
+  const [joining, setJoining] = useState<string | null>(() => joinCodeFromHash(location.hash))
+  useEffect(() => { if (joinCodeFromHash(location.hash)) history.replaceState(null, '', location.pathname + location.search + '#trip') }, [])
   const theme: Theme = state.theme ?? 'braun'
   const device = DEVICE_THEMES.includes(theme)
   useEffect(() => {
@@ -118,13 +123,18 @@ function AppInner() {
           {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} />)}
           {tab === 'party' && <PartyPage trip={trip} onTrip={onTrip} demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))} onReset={() => setState(restoreSamples)} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))} amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
             llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))}
+            shareSlot={<ShareCard trip={trip} status={cloud.sync.shares?.[trip.id]} syncing={cloud.share.syncing.includes(trip.id)}
+              onShare={() => { cloud.share.shareTrip(trip.id); toast('已生成分享码，复制邀请发给同行的人') }} onSyncNow={() => cloud.share.syncNow(trip.id)} onStop={del => cloud.share.stopShare(trip.id, del)} />}
             extra={<StorageSection sync={cloud.sync} syncing={cloud.syncing} onEnable={cloud.enable} onDisable={cloud.disable} onSyncNow={cloud.syncNow} onExport={doExport} onImport={doImport} />} />}
           {tab === 'footprint' && <FootprintPage trips={state.trips} />}
           {tab === 'ratings' && <RatingsPage trip={trip} ratings={state.ratings} onRatings={onRatings} dayIndex={liveDay} />}
         </div>
       </main>
       <TripsLayer state={state} setState={setState} now={now} switching={switching} creating={creating} planning={planning}
-        onSwitching={setSwitching} onCreating={setCreating} onPlanning={setPlanning} onCreated={() => setTab('trip')} />
+        onSwitching={setSwitching} onCreating={setCreating} onPlanning={setPlanning} onCreated={() => setTab('trip')}
+        onJoin={() => { setSwitching(false); setJoining('') }} />
+      <JoinSheet open={joining != null} initialCode={joining ?? ''} onClose={() => setJoining(null)}
+        onJoin={async code => { const t = await cloud.share.joinTrip(code); setJoining(null); setTab('trip'); toast(`已加入「${t.title}」`) }} />
       <nav className="tabs" aria-label="页面">
         {TABS.map(t => (
           <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
@@ -138,7 +148,7 @@ function AppInner() {
 }
 
 /** 切换行程与新建行程的两个面板；放在 ToastProvider 里面，删除才能给撤销 */
-function TripsLayer({ state, setState, now, switching, creating, planning, onSwitching, onCreating, onPlanning, onCreated }: {
+function TripsLayer({ state, setState, now, switching, creating, planning, onSwitching, onCreating, onPlanning, onCreated, onJoin }: {
   state: AppState
   setState: React.Dispatch<React.SetStateAction<AppState>>
   now: Date
@@ -148,6 +158,7 @@ function TripsLayer({ state, setState, now, switching, creating, planning, onSwi
   onSwitching: (v: boolean) => void
   onCreating: (v: boolean) => void
   onPlanning: (v: boolean) => void
+  onJoin: () => void
   onCreated: () => void
 }) {
   const toast = useToast()
@@ -167,7 +178,7 @@ function TripsLayer({ state, setState, now, switching, creating, planning, onSwi
     <>
       <TripSwitcher open={switching} trips={state.trips} currentId={state.currentId} now={now}
         onPick={id => { setState(s => ({ ...s, currentId: id })); onSwitching(false) }}
-        onDelete={remove} onNew={() => { onSwitching(false); onCreating(true) }} onClose={() => onSwitching(false)} />
+        onDelete={remove} onNew={() => { onSwitching(false); onCreating(true) }} onJoin={onJoin} onClose={() => onSwitching(false)} />
       <NewTripSheet open={creating} base={base} today={today} onClose={() => onCreating(false)}
         onCreate={t => {
           setState(s => ({ ...s, trips: [...s.trips, t], currentId: t.id }))

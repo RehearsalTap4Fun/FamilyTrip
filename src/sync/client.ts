@@ -14,7 +14,7 @@ export interface SyncResult {
 }
 
 export class SyncError extends Error {
-  constructor(message: string, public readonly kind: 'network' | 'server' | 'decrypt' | 'conflict') { super(message) }
+  constructor(message: string, public readonly kind: 'network' | 'server' | 'decrypt' | 'conflict' | 'gone') { super(message) }
 }
 
 /** 线上同站调用；本地开发调线上那一份（服务端允许 localhost:5321 跨域） */
@@ -37,23 +37,27 @@ async function putRemote(base: string, id: string, blob: string, baseVersion: nu
   return { ok: true, version: ((await res.json()) as { version: number }).version }
 }
 
-function decode(keys: SyncKeys, rec: RemoteRec): SyncState | null {
+function decode<T>(keys: SyncKeys, rec: RemoteRec): T | null {
   if (!rec.blob) return null
-  try { return decryptJson<SyncState>(keys, rec.blob) } catch { throw new SyncError('云端数据解不开：同步码不对，或数据已损坏', 'decrypt') }
+  try { return decryptJson<T>(keys, rec.blob) } catch { throw new SyncError('云端数据解不开：码不对，或数据已损坏', 'decrypt') }
 }
 
-export async function syncOnce(local: SyncState, code: string, opts: { fetchImpl?: typeof fetch; apiBase?: string } = {}): Promise<SyncResult> {
+type Opts = { fetchImpl?: typeof fetch; apiBase?: string; /** 云端是空的时候：新建（默认）还是当作已被删掉、不再推 */ onEmpty?: 'create' | 'gone' }
+const baseOf = (o: Opts) => (o.apiBase ?? syncApi()).replace(/\/$/, '')
+
+/** 通用的一轮：拉取 → 合并 → 云端没变就不推；推的时候版本冲突就再拉再合并再推 */
+export async function syncBlob<T>(local: T, keys: SyncKeys, merge: (a: T, b: T) => T, fp: (x: T) => string, opts: Opts = {}): Promise<{ merged: T; version: number; pushed: boolean; pulled: boolean }> {
   const f = opts.fetchImpl ?? fetch
-  const base = (opts.apiBase ?? syncApi()).replace(/\/$/, '')
-  const keys = deriveKeys(code)
+  const base = baseOf(opts)
   let rec = await getRemote(base, keys.id, f)
   let pushed = false
   for (let attempt = 0; attempt < 4; attempt++) {
-    const remote = decode(keys, rec)
-    const merged = remote ? mergeSync(local, remote) : local
-    const fp = fingerprint(merged)
-    const pulled = fp !== fingerprint(local)
-    if (remote && fp === fingerprint(remote)) return { merged, version: rec.version, pushed, pulled }
+    const remote = decode<T>(keys, rec)
+    if (!remote && opts.onEmpty === 'gone') throw new SyncError('云端已经没有了（对方停止了分享）', 'gone')
+    const merged = remote ? merge(local, remote) : local
+    const m = fp(merged)
+    const pulled = m !== fp(local)
+    if (remote && m === fp(remote)) return { merged, version: rec.version, pushed, pulled }
     const r = await putRemote(base, keys.id, encryptJson(keys, merged), rec.version, f)
     if (r.ok) { pushed = true; return { merged, version: r.version, pushed, pulled } }
     rec = r.current
@@ -61,9 +65,22 @@ export async function syncOnce(local: SyncState, code: string, opts: { fetchImpl
   throw new SyncError('多次版本冲突，稍后再试', 'conflict')
 }
 
+/** 只读：加入别人分享的行程时先看看有没有 */
+export async function readBlob<T>(keys: SyncKeys, opts: Opts = {}): Promise<{ value: T | null; version: number }> {
+  const rec = await getRemote(baseOf(opts), keys.id, opts.fetchImpl ?? fetch)
+  return { value: decode<T>(keys, rec), version: rec.version }
+}
+
+export async function deleteBlob(keys: SyncKeys, opts: Opts = {}): Promise<void> {
+  await (opts.fetchImpl ?? fetch)(`${baseOf(opts)}/sync/${keys.id}`, { method: 'DELETE' })
+}
+
+/** 自己多台设备之间的一轮同步 */
+export async function syncOnce(local: SyncState, code: string, opts: Opts = {}): Promise<SyncResult> {
+  return syncBlob(local, deriveKeys(code), mergeSync, fingerprint, opts)
+}
+
 /** 关闭同步时可选择删除云端副本 */
-export async function deleteRemote(code: string, opts: { fetchImpl?: typeof fetch; apiBase?: string } = {}): Promise<void> {
-  const f = opts.fetchImpl ?? fetch
-  const base = (opts.apiBase ?? syncApi()).replace(/\/$/, '')
-  await f(`${base}/sync/${deriveKeys(code).id}`, { method: 'DELETE' })
+export async function deleteRemote(code: string, opts: Opts = {}): Promise<void> {
+  await deleteBlob(deriveKeys(code), opts)
 }

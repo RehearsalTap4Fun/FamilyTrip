@@ -13,6 +13,7 @@ interface Props {
   onPick: (id: string) => void
   onDelete: (id: string) => void
   onNew: () => void
+  onJoin: () => void
   onClose: () => void
   onExited?: () => void
 }
@@ -24,12 +25,15 @@ export function tripLine(t: Trip): string {
   return `${fmtShort(t.startDate, 0)}–${fmtShort(t.startDate, t.days.length - 1)} · ${t.days.length} 天 · ${MODE_LABEL[t.party.mode]} · ${people}`
 }
 
-export function TripSwitcher({ open, trips, currentId, now, onPick, onDelete, onNew, onClose, onExited }: Props) {
+export function TripSwitcher({ open, trips, currentId, now, onPick, onDelete, onNew, onJoin, onClose, onExited }: Props) {
   const sorted = sortTrips(trips, now)
   const canDelete = trips.length > 1
   return (
     <Sheet open={open} onClose={onClose} onExited={onExited} title="我的行程" done="关闭" doneTone="plain"
-      footer={<button type="button" className="kbtn primary wide" onClick={onNew}>＋ 新建行程</button>}>
+      footer={<div className="switch-foot">
+        <button type="button" className="kbtn primary wide" onClick={onNew}>＋ 新建行程</button>
+        <button type="button" className="kbtn wide" onClick={onJoin}>加入同行好友的行程</button>
+      </div>}>
       {GROUPS.map(g => {
         const list = sorted.filter(t => tripStatus(t, now) === g)
         if (!list.length) return null
@@ -44,7 +48,7 @@ export function TripSwitcher({ open, trips, currentId, now, onPick, onDelete, on
                 content: (
                   <span className={'trip-row' + (t.id === currentId ? ' on' : '')}>
                     <span className="cbody">
-                      <span className="cname">{t.title}{t.sample && <em>示例</em>}</span>
+                      <span className="cname">{t.title}{t.sample && <em>示例</em>}{t.share && <em className="shared">共享</em>}</span>
                       <span className="csub">{tripLine(t)}</span>
                     </span>
                     {t.id === currentId && <svg className="tick" viewBox="0 0 16 16" aria-label="正在看"><path d="M3 8.5l3.2 3L13 5" /></svg>}
@@ -55,7 +59,7 @@ export function TripSwitcher({ open, trips, currentId, now, onPick, onDelete, on
           </section>
         )
       })}
-      {canDelete && <p className="sheet-note">左滑可以删除；删错了能撤销。</p>}
+      {canDelete && <p className="sheet-note">左滑可以删除；删错了能撤销。删掉共享的行程只是你自己退出，好友那边不受影响。</p>}
     </Sheet>
   )
 }

@@ -37,15 +37,20 @@ export interface SyncKeys {
 
 const keyCache = new Map<string, SyncKeys>()
 
+/** 同一种码两种用途：account 是自己多台设备之间的同步码，share 是单趟行程给同行好友的分享码。盐不同，id 与密钥互不相通 */
+export type KeyPurpose = 'account' | 'share'
+const SALT: Record<KeyPurpose, string> = { account: 'tonglu-sync-v1', share: 'tonglu-share-v1' }
+
 /** PBKDF2-SHA256 派生 64 字节：前 32 字节做密钥，后 32 字节哈希后做存储 id */
-export function deriveKeys(code: string): SyncKeys {
+export function deriveKeys(code: string, purpose: KeyPurpose = 'account'): SyncKeys {
   const norm = normalizeSyncCode(code)
-  if (!norm) throw new Error('同步码格式不对')
-  const hit = keyCache.get(norm)
+  if (!norm) throw new Error('码的格式不对')
+  const ck = purpose + ':' + norm
+  const hit = keyCache.get(ck)
   if (hit) return hit
-  const material = pbkdf2(sha256, utf8ToBytes(norm), utf8ToBytes('tonglu-sync-v1'), { c: 60000, dkLen: 64 })
+  const material = pbkdf2(sha256, utf8ToBytes(norm), utf8ToBytes(SALT[purpose]), { c: 60000, dkLen: 64 })
   const keys: SyncKeys = { key: material.slice(0, 32), id: bytesToHex(sha256(material.slice(32))) }
-  keyCache.set(norm, keys)
+  keyCache.set(ck, keys)
   return keys
 }
 

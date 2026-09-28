@@ -378,3 +378,6 @@
 .cloud-coderow .mono { font-size: 15px; letter-spacing: .05em; color: var(--ink); }
 .cloud-coderow .linkish { margin: 0; }
 .cloud .foot-row { flex-wrap: wrap; }
+.switch-foot { display: flex; flex-direction: column; gap: 8px; }
+.trip-row .cname em.shared { background: color-mix(in srgb, var(--k-accent) 14%, transparent); color: var(--k-accent); }
+.share-card { margin: 0 0 12px; }

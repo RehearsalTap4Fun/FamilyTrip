@@ -33,6 +33,8 @@ interface Props {
   onLlm: (p: Provider, keys: { anthropic?: string; deepseek?: string }) => void
   /** 设置下面再放的区块（存档与同步） */
   extra?: ReactNode
+  /** 「这趟旅程」里的分享卡片 */
+  shareSlot?: ReactNode
 }
 
 const MOB: { value: Mobility; label: string }[] = [
@@ -93,7 +95,7 @@ const colorFor = (trip: Trip, id: string) => {
 
 type Editing = { kind: 'member' | 'pet'; id: string } | { kind: 'add' } | { kind: 'reset' } | null
 
-export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, extra }: Props) {
+export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, extra, shareSlot }: Props) {
   const p = trip.party
   const n = trip.days.length
   const toast = useToast()
@@ -172,6 +174,7 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
       </details>
 
       <div className="section-h"><h2>这趟旅程</h2></div>
+      {shareSlot}
       <div className="settings">
         <Field label="名称"><input className="kinput" value={trip.title} onChange={e => onTrip({ ...trip, title: e.target.value })} /></Field>
         <Field label="出发日期"><input className="kinput" type="date" value={trip.startDate} onChange={e => e.target.value && onTrip({ ...trip, startDate: e.target.value })} /></Field>

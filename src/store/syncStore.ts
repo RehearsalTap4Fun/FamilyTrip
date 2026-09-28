@@ -1,6 +1,7 @@
 // 同步在本机的记账：同步码、设备 id、上一次打过时间戳的版本、上次同步的结果。
 // 单独存一个 key，不进导出的存档：同步码等于钥匙，不能跟着存档文件到处走。
 import { emptySync, type SyncState } from '../sync/account'
+import type { TripDoc } from '../sync/tripDoc'
 import { uid } from './state'
 
 export interface SyncLocal {
@@ -13,7 +14,11 @@ export interface SyncLocal {
   lastSyncAt?: number
   version?: number
   lastError?: string
+  /** 共享的每一趟：上一次打过时间戳的文档、上次同步的结果 */
+  shares?: Record<string, ShareLocal>
 }
+
+export interface ShareLocal { base: TripDoc; lastSyncAt?: number; version?: number; lastError?: string }
 
 const KEY = 'tonglu.sync'
 

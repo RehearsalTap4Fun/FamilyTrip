@@ -8,6 +8,9 @@ import { NewTripSheet } from './ui/NewTrip'
 import { TripSwitcher } from './ui/TripSwitcher'
 import { PlanSheet } from './ui/PlanSheet'
 import { useToast } from './ui/kit/Toast'
+import { StorageSection } from './ui/CloudSync'
+import { useCloudSync } from './sync/useCloudSync'
+import { backupFileName, exportBackup, importBackup } from './store/backup'
 import { PartyPage } from './ui/Party'
 import { FootprintPage } from './ui/Footprint'
 import { SettingsCtx } from './ui/Settings'
@@ -36,6 +39,10 @@ function initialTab(): Tab {
 }
 
 export function App() {
+  return <ToastProvider><AppInner /></ToastProvider>
+}
+
+function AppInner() {
   const [state, setState] = useState<AppState>(() => {
     // ?theme= 只在打开时生效一次，写进设置；之后在「同行」页照常切换
     const s = loadState()
@@ -61,6 +68,32 @@ export function App() {
     return () => { document.removeEventListener('visibilitychange', again); removeEventListener('focus', again) }
   }, [])
   const now = nowOf(state)
+  const toast = useToast()
+  const cloud = useCloudSync(state, setState, toast)
+  // 存档：下载一个 JSON 文件（不含 Key）
+  const doExport = () => {
+    const blob = new Blob([exportBackup(state)], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = backupFileName()
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+    toast('存档文件已导出')
+  }
+  // 读存档：没开同步就整份替换；开着同步只合并（整份替换会让存档里没有的行程在所有设备上被删掉）。本机的 Key 保留
+  const doImport = (text: string) => {
+    let got: AppState
+    try { got = importBackup(text).state } catch (e) { toast(e instanceof Error ? e.message : '导入失败'); return }
+    const before = state
+    setState(s => {
+      const keep = { amapKey: s.amapKey, llmKeys: s.llmKeys }
+      if (!cloud.sync.enabled) return { ...got, ...keep }
+      const ids = new Set(got.trips.map(t => t.id))
+      const rids = new Set(got.ratings.map(r => r.id))
+      return { ...s, trips: [...s.trips.filter(t => !ids.has(t.id)), ...got.trips], ratings: [...s.ratings.filter(r => !rids.has(r.id)), ...got.ratings] }
+    })
+    toast(`已导入 ${got.trips.filter(t => !t.sample).length} 趟行程`, () => setState(before))
+  }
   const trip = currentTrip(state)
   const onTrip = (t: Trip) => setState(s => withTrip(s, t))
   const onRatings = (ratings: Rating[]) => setState(s => ({ ...s, ratings }))
@@ -78,14 +111,14 @@ export function App() {
 
   return (
     <SettingsCtx.Provider value={{ amapKey: state.amapKey ?? '', llm: { provider: state.llmProvider ?? 'anthropic', apiKey: state.llmKeys?.[state.llmProvider ?? 'anthropic'] ?? '' } }}>
-    <ToastProvider>
     <div className="app">
       <main className="sheet" key={tab}>
         <div className="sheet-body">
           {tab === 'today' && (device ? <ScopeToday trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} /> : <Today trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} />)}
           {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} />)}
           {tab === 'party' && <PartyPage trip={trip} onTrip={onTrip} demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))} onReset={() => setState(restoreSamples)} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))} amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
-            llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))} />}
+            llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))}
+            extra={<StorageSection sync={cloud.sync} syncing={cloud.syncing} onEnable={cloud.enable} onDisable={cloud.disable} onSyncNow={cloud.syncNow} onExport={doExport} onImport={doImport} />} />}
           {tab === 'footprint' && <FootprintPage trips={state.trips} />}
           {tab === 'ratings' && <RatingsPage trip={trip} ratings={state.ratings} onRatings={onRatings} dayIndex={liveDay} />}
         </div>
@@ -100,7 +133,6 @@ export function App() {
         ))}
       </nav>
     </div>
-    </ToastProvider>
     </SettingsCtx.Provider>
   )
 }

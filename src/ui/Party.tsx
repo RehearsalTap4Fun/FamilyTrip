@@ -1,6 +1,6 @@
 // 「同行」：平时只看每人一张摘要卡；点卡片从底部拉起面板编辑，面板底部实时写出这样改的影响。
 // 加人分两步：先选身份，再只问这个身份需要的几项。删除不确认，给 5 秒撤销。
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { deriveConstraints, limitRules } from '@core/constraints'
 import { whoForAll } from '@core/explain'
 import { kidBand, partyOnDay } from '@core/party'
@@ -31,6 +31,8 @@ interface Props {
   llmProvider: Provider
   llmKeys: { anthropic?: string; deepseek?: string }
   onLlm: (p: Provider, keys: { anthropic?: string; deepseek?: string }) => void
+  /** 设置下面再放的区块（存档与同步） */
+  extra?: ReactNode
 }
 
 const MOB: { value: Mobility; label: string }[] = [
@@ -91,7 +93,7 @@ const colorFor = (trip: Trip, id: string) => {
 
 type Editing = { kind: 'member' | 'pet'; id: string } | { kind: 'add' } | { kind: 'reset' } | null
 
-export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm }: Props) {
+export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, extra }: Props) {
   const p = trip.party
   const n = trip.days.length
   const toast = useToast()
@@ -193,6 +195,8 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
         </Field>
         <button type="button" className="kbtn danger wide" onClick={() => setEditing({ kind: 'reset' })}>恢复示例行程</button>
       </div>
+
+      {extra}
 
       {editing?.kind === 'member' && <MemberSheet trip={trip} id={editing.id} dayLabels={dayLabels} onTrip={onTrip} onClose={close} onRemove={() => remove('member', editing.id)} open={!closing} onExited={exited} />}
       {editing?.kind === 'pet' && <PetSheet trip={trip} id={editing.id} dayLabels={dayLabels} onTrip={onTrip} onClose={close} onRemove={() => remove('pet', editing.id)} open={!closing} onExited={exited} />}

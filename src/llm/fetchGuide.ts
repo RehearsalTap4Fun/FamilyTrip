@@ -1,4 +1,4 @@
-// 按用户贴的攻略链接取正文：浏览器直接取会被跨域拦，走我们自己服务器上的代取服务（server/fetch-server.mjs）。
+// 按用户贴的攻略链接取正文：浏览器直接取会被跨域拦，走我们自己服务器上的代取服务（server/api-server.mjs）。
 // 部署在线上时同站调用；本地开发时调线上那一份（服务端允许 localhost:5321 跨域）。
 
 const REMOTE = 'https://47.109.97.108/trip/api/fetch'

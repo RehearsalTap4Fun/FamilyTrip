@@ -1,5 +1,5 @@
 // 导入攻略：一篇游记正文 → 大模型提炼路线与地点（标出与这群同行者冲突的地方）→ 高德核实 → 排程引擎的输入（PlanPlace）。
-// 正文来自用户粘贴，或服务器按用户贴的链接代取（server/fetch-server.mjs）。只提炼原文里有的，不编。
+// 正文来自用户粘贴，或服务器按用户贴的链接代取（server/api-server.mjs）。只提炼原文里有的，不编。
 import { z } from 'zod'
 import { deriveConstraints } from '@core/constraints'
 import { partyOnDay } from '@core/party'

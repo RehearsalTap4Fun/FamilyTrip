@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error 服务端是纯 .mjs，没有类型声明
-import { allowed, extractText } from '../server/fetch-server.mjs'
+import { allowed, extractText } from '../server/api-server.mjs'
 import { buildGuidePrompt, extractGuide, resolveGuide, type Guide, type SearchHit } from '../src/llm/importGuide'
 import { findUrl } from '../src/llm/fetchGuide'
 import { namesMatch } from '../src/geo/groundDay'

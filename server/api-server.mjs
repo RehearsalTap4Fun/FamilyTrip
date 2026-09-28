@@ -1,11 +1,20 @@
-// 同路 · 攻略正文代取：只替用户取他自己贴进来的攻略链接，只认几个攻略平台，取回来抽成纯文字。
-// 浏览器直接取这些网页会被跨域拦住，所以放在服务器上。不存任何内容、不记链接。
-// 部署：/opt/trip/fetch-server.mjs，systemd trip-fetch，nginx /trip/api/ → 127.0.0.1:18795（见 scripts/）。
-// 用法：GET /fetch?url=<攻略链接>  →  { url, host, title, text, partial }
+// 同路 · 服务端（零依赖，Node ≥ 18）。两件事，经 nginx 反代到 /trip/api/：
+//   1. 攻略正文代取：只替用户取他自己贴进来的攻略链接，只认几个攻略平台，抽成纯文字。不存内容、不记链接。
+//        GET /fetch?url=<攻略链接>  →  { url, host, title, text, partial }
+//   2. 云同步（与饮食日记同一套协议）：只存密文，存储键是同步码派生的 64 位十六进制 id，服务器解不开。
+//        GET    /sync/:id                         → { version, blob, updatedAt }（不存在时 version 0）
+//        PUT    /sync/:id  { blob, baseVersion }  → 200 { version, updatedAt }；版本不一致 409 并返回当前记录
+//        DELETE /sync/:id                         → 删除
+//   GET /health → { ok, time }
+// 部署：/opt/trip/api-server.mjs，systemd trip-api（scripts/trip-api.service），DATA_DIR=/var/lib/trip/sync。
+import fs from 'node:fs'
 import http from 'node:http'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const PORT = Number(process.env.PORT || 18795)
+const DATA = process.env.DATA_DIR || '/var/lib/trip/sync'
+const MAX_BLOB = 2 * 1024 * 1024
 const ORIGINS = new Set(['https://47.109.97.108', 'http://47.109.97.108', 'http://localhost:5321', 'http://127.0.0.1:5321'])
 /** 只认这些攻略平台（含子域名）。短链接跳转的每一跳都要在这里面 */
 export const HOSTS = ['xiaohongshu.com', 'xhslink.com', 'mafengwo.cn', 'ctrip.com', 'qyer.com', 'douyin.com', 'iesdouyin.com', 'mp.weixin.qq.com', 'zhihu.com', 'dianping.com']
@@ -135,43 +144,93 @@ async function fetchPage(start) {
   throw Object.assign(new Error('跳转太多次了'), { status: 502 })
 }
 
-// 每个 IP 每分钟最多 20 次
+// 每个 IP 每分钟：取正文最多 20 次，同步最多 120 次
 const hits = new Map()
-const limited = ip => {
+const limited = (ip, kind, max) => {
   const now = Date.now()
-  const list = (hits.get(ip) ?? []).filter(t => now - t < 60000)
+  const key = kind + ':' + ip
+  const list = (hits.get(key) ?? []).filter(t => now - t < 60000)
   list.push(now)
-  hits.set(ip, list)
-  if (hits.size > 5000) hits.clear()
-  return list.length > 20
+  hits.set(key, list)
+  if (hits.size > 10000) hits.clear()
+  return list.length > max
 }
 
+// —— 云同步存储：一个 id 一个文件，先写临时文件再改名，写一半断电也不会坏 ——
+const fileOf = id => path.join(DATA, id + '.json')
+const readRec = id => { try { return JSON.parse(fs.readFileSync(fileOf(id), 'utf8')) } catch { return null } }
+function writeRec(id, rec) {
+  const tmp = fileOf(id) + '.tmp'
+  fs.writeFileSync(tmp, JSON.stringify(rec))
+  fs.renameSync(tmp, fileOf(id))
+}
+const EMPTY = { version: 0, blob: null, updatedAt: 0 }
+
 function send(res, status, body, origin) {
+  if (res.headersSent) return
   const h = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
-  if (origin && ORIGINS.has(origin)) { h['Access-Control-Allow-Origin'] = origin; h.Vary = 'Origin' }
+  if (origin && ORIGINS.has(origin)) { h['Access-Control-Allow-Origin'] = origin; h['Access-Control-Allow-Methods'] = 'GET, PUT, DELETE, OPTIONS'; h['Access-Control-Allow-Headers'] = 'Content-Type'; h.Vary = 'Origin' }
   res.writeHead(status, h)
   res.end(JSON.stringify(body))
 }
 
 export function createServer() {
+  fs.mkdirSync(DATA, { recursive: true })
   return http.createServer(async (req, res) => {
     const origin = req.headers.origin
     if (req.method === 'OPTIONS') return send(res, 204, {}, origin)
     const u = new URL(req.url, 'http://x')
-    if (req.method !== 'GET' || u.pathname !== '/fetch') return send(res, 404, { error: 'not found' }, origin)
-    const ip = String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '')
-    if (limited(ip)) return send(res, 429, { error: '取得太频繁了，等一分钟再试' }, origin)
-    const target = u.searchParams.get('url') ?? ''
-    try {
-      const page = await fetchPage(target)
-      const out = extractText(page.html, page.url)
-      send(res, 200, { url: page.url, host: new URL(page.url).hostname, ...out }, origin)
-    } catch (e) {
-      send(res, e.status ?? 500, { error: e.message ?? '取正文失败' }, origin)
+    const ip = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress || '?'
+    if (u.pathname === '/health') return send(res, 200, { ok: true, time: Date.now() }, origin)
+
+    if (u.pathname === '/fetch') {
+      if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' }, origin)
+      if (limited(ip, 'fetch', 20)) return send(res, 429, { error: '取得太频繁了，等一分钟再试' }, origin)
+      try {
+        const page = await fetchPage(u.searchParams.get('url') ?? '')
+        return send(res, 200, { url: page.url, host: new URL(page.url).hostname, ...extractText(page.html, page.url) }, origin)
+      } catch (e) {
+        return send(res, e.status ?? 500, { error: e.message ?? '取正文失败' }, origin)
+      }
     }
+
+    const m = /^\/sync\/([a-f0-9]{64})$/.exec(u.pathname)
+    if (!m) return send(res, 404, { error: 'not found' }, origin)
+    if (limited(ip, 'sync', 120)) return send(res, 429, { error: 'too many requests' }, origin)
+    const id = m[1]
+    if (req.method === 'GET') return send(res, 200, readRec(id) ?? EMPTY, origin)
+    if (req.method === 'DELETE') { try { fs.unlinkSync(fileOf(id)) } catch { /* 不存在也算成功 */ } return send(res, 200, { ok: true }, origin) }
+    if (req.method !== 'PUT') return send(res, 405, { error: 'method not allowed' }, origin)
+    let body = ''
+    let size = 0
+    let aborted = false
+    req.on('data', c => {
+      size += c.length
+      if (size > MAX_BLOB + 4096) { aborted = true; send(res, 413, { error: 'too large' }, origin); req.destroy(); return }
+      body += c
+    })
+    req.on('end', () => {
+      if (aborted) return
+      // 里面抛什么都只回 500，不能让一个坏请求把整个进程带走
+      try {
+        let j
+        try { j = JSON.parse(body) } catch { return send(res, 400, { error: 'bad json' }, origin) }
+        if (!j || typeof j !== 'object') return send(res, 400, { error: 'bad body' }, origin)
+        if (typeof j.blob !== 'string' || j.blob.length === 0 || j.blob.length > MAX_BLOB) return send(res, 400, { error: 'bad blob' }, origin)
+        const cur = readRec(id)
+        const curV = cur ? cur.version : 0
+        if (Number(j.baseVersion) !== curV) return send(res, 409, cur ?? EMPTY, origin)
+        const rec = { version: curV + 1, blob: j.blob, updatedAt: Date.now() }
+        writeRec(id, rec)
+        send(res, 200, { version: rec.version, updatedAt: rec.updatedAt }, origin)
+      } catch (e) {
+        console.error('sync failed:', e)
+        send(res, 500, { error: 'internal error' }, origin)
+      }
+    })
   })
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  createServer().listen(PORT, '127.0.0.1', () => console.log(`trip-fetch on 127.0.0.1:${PORT}`))
+  createServer().listen(PORT, '127.0.0.1', () => console.log(`trip-api on 127.0.0.1:${PORT}, data ${DATA}`))
 }

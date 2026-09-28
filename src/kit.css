@@ -362,3 +362,19 @@
 .gi-tips h4 { margin: 0 0 4px; font: 700 13px var(--sans); color: var(--ink); }
 .gi-tips ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 .gi-tips li { font: 500 13px/1.45 var(--sans); color: var(--ink2); }
+
+/* ——— 存档与同步 ——— */
+.card-pad { padding: 14px; border-radius: calc(var(--k-radius) + 4px); background: var(--k-surface); border: 1px solid var(--k-line); display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.cloud-hd { display: flex; align-items: center; justify-content: space-between; }
+.cloud-hd b { font: 900 16px var(--sans); color: var(--ink); }
+.cloud .pill { font: 700 12px/1 var(--sans); padding: 5px 9px; border-radius: 999px; background: var(--k-panel); color: var(--ink2); }
+.cloud .pill.on { background: color-mix(in srgb, var(--ok, #2E7A3A) 15%, transparent); color: var(--ok, #2E7A3A); }
+.cloud .pill.busy { color: var(--k-accent); }
+.cloud .pill.bad { background: var(--red-bg, var(--k-panel)); color: var(--red-ink, var(--red)); }
+.cloud-points { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.cloud-points li { font: 500 13px/1.5 var(--sans); color: var(--ink2); }
+.cloud-code { margin: 0; padding: 12px; border-radius: var(--k-radius); background: var(--k-panel); font-size: 20px; line-height: 1.5; letter-spacing: .08em; text-align: center; color: var(--ink); }
+.cloud-coderow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cloud-coderow .mono { font-size: 15px; letter-spacing: .05em; color: var(--ink); }
+.cloud-coderow .linkish { margin: 0; }
+.cloud .foot-row { flex-wrap: wrap; }

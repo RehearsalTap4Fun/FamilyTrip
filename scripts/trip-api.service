@@ -1,0 +1,16 @@
+# 同路 · 服务端（server/api-server.mjs）：攻略正文代取 + 云同步。部署：scripts/deploy.sh 会同步到 /opt/trip 并重启
+[Unit]
+Description=Tonglu API (guide fetcher + encrypted sync)
+After=network.target
+
+[Service]
+User=admin
+Environment=PORT=18795
+Environment=DATA_DIR=/var/lib/trip/sync
+ExecStart=/usr/bin/node /opt/trip/api-server.mjs
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -16,11 +16,11 @@ ssh "$TRIP_SSH" "mkdir -p '$TRIP_PATH'"
 # assets/ 里的旧哈希文件不删：还开着旧页面的人按需加载 AI/SDK 分包时不会 404
 rsync -az --exclude assets/ --delete dist/ "$TRIP_SSH:$TRIP_PATH/"
 rsync -az dist/assets/ "$TRIP_SSH:$TRIP_PATH/assets/"
-# 攻略正文代取服务：文件有变化才重启
-if ! ssh "$TRIP_SSH" "cmp -s /opt/trip/fetch-server.mjs -" < server/fetch-server.mjs; then
-  echo "▶ 更新攻略代取服务"
-  rsync -az server/fetch-server.mjs "$TRIP_SSH:/opt/trip/fetch-server.mjs"
-  ssh "$TRIP_SSH" "sudo -n systemctl restart trip-fetch"
+# 服务端（攻略代取 + 云同步）：文件有变化才重启
+if ! ssh "$TRIP_SSH" "cmp -s /opt/trip/api-server.mjs -" < server/api-server.mjs; then
+  echo "▶ 更新服务端"
+  rsync -az server/api-server.mjs "$TRIP_SSH:/opt/trip/api-server.mjs"
+  ssh "$TRIP_SSH" "sudo -n systemctl restart trip-api"
 fi
 echo "✓ 已同步"
 if [ -n "${TRIP_URL:-}" ]; then

@@ -127,7 +127,8 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
           <p className="sheet-note">列出想去的地方，会按同行人的限制分到每天，排好开车、吃饭、午睡和住处。{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发{trip.plan?.origin ? ` · 从${trip.plan.origin}` : ''}</p>
           {recommending ? (
             <Recommend trip={trip} autoRun={regionFirst} onCancel={() => setRecommending(false)} onAdd={list => {
-              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, ...p }) => p)])
+              // AI 推荐的吃饭、住处还没人确认：带上「推荐」标记
+              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, ...p }) => (p.kind === 'sight' ? p : { ...p, suggested: true }))])
               setRecommending(false)
             }} />
           ) : importing ? (

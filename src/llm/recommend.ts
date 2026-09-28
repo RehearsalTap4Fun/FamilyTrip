@@ -23,8 +23,9 @@ export const ProposalsSchema = z.object({
         name: z.string().describe('高德地图上能搜到的正式名称'),
         city: z.string().describe('所在城市'),
         kind: z.enum(['sight', 'food', 'lodging']).describe('sight 景点或体验；food 有名的具体餐厅；lodging 具体住处（一般不用给）'),
+        durationMin: z.number().int().nullable().describe('建议玩多久（分钟），按这群人的节奏估；餐厅填 null'),
         note: z.string().describe('推荐理由，15 字以内'),
-      })).describe('这天去的地方，景点 1–3 个，可以加 1 家有名的餐厅'),
+      })).describe('这天去的地方：上午、下午都要有安排，景点 2–4 个，可以加 1 家有名的餐厅'),
     })),
     skipped: z.array(z.object({
       name: z.string(),
@@ -52,7 +53,7 @@ export function buildRecommendPrompt({ trip, region, wishes }: RecommendInput): 
   const system = [
     '你是熟悉中国各地的家庭旅行规划师。按用户给的地区、天数和同行者，推荐 2 到 3 个具体可行的方案。',
     '规则：',
-    '1. 每个方案按天列出去的地方，天数和用户给的一致；景点每天 1–3 个，要符合同行者的限制（海拔、步行、每天游玩时长、驾驶时长），宁可少去一个也不要超。',
+    '1. 每个方案按天列出去的地方，天数和用户给的一致。每天上午、下午都要有安排（有午睡就是午睡后），给出每个地方建议玩多久（durationMin），一天的景点时长加起来接近「每天在外上限减去两顿饭约 2 小时」，但不要超；要符合同行者的限制（海拔、步行、驾驶时长）。',
     '2. 同一天的地方要在一片区域里，天与天之间顺路，不要来回折返；自驾时相邻两天的城市之间开车不要超过同行者的每天驾驶上限。',
     '3. 地名用高德地图上能搜到的正式名称；只推荐你确定存在、仍在开放的地方，拿不准的不要写。',
     '4. 这个地区很热门、但不适合这群人的地方放进 skipped，写清楚原因（例如海拔超了老人的上限、要徒步很久）。',
@@ -102,7 +103,7 @@ export function proposalToGuide(p: Proposal, tripDays: number): Guide {
     summary: p.pitch,
     tips: [],
     places: p.days.flatMap(d => d.places.map(pl => ({
-      name: pl.name, city: pl.city || d.city, kind: pl.kind, day: d.day, durationMin: null, note: pl.note, avoid: null, caution: null,
+      name: pl.name, city: pl.city || d.city, kind: pl.kind, day: d.day, durationMin: pl.kind === 'sight' ? pl.durationMin ?? null : null, note: pl.note, avoid: null, caution: null,
     }))),
   }
 }

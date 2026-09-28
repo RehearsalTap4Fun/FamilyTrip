@@ -3,7 +3,7 @@ import type { NearbyKind, PlanTools } from '@core/planner'
 import { aggregate, type Rating } from '@core/ratings'
 import { AMAP_TYPES, driveBetween, searchAround } from './amap'
 
-const RADIUS: Record<NearbyKind, number> = { food: 2500, lodging: 6000, serviceArea: 20000 }
+const RADIUS: Record<NearbyKind, number> = { food: 2500, lodging: 6000, serviceArea: 20000, sight: 15000 }
 
 export function makePlanTools(amapKey: string, ratings: Rating[], onProgress?: (m: string) => void): PlanTools {
   const verdicts = aggregate(ratings)

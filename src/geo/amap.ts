@@ -96,7 +96,8 @@ export async function searchPlaces(keywords: string, key: string, opts: { city?:
 
 /** 高德 POI 分类码：周边找吃饭、住处、服务区用 */
 // 吃饭只找正餐：中餐厅 050100、外国餐厅 050200、快餐 050300；不要奶茶、咖啡、甜品（050500–050900，推荐午饭推出过蜜雪冰城）
-export const AMAP_TYPES = { food: '050100|050200|050300', lodging: '100000', serviceArea: '180300' } as const
+// 下午空着就近补的景点：风景名胜 110000、博物馆 140100
+export const AMAP_TYPES = { food: '050100|050200|050300', lodging: '100000', serviceArea: '180300', sight: '110000|140100' } as const
 
 /** 周边搜索（v5 place/around）：按距离排，带评分。radius 单位米，高德上限 50 km */
 export async function searchAround(center: Poi, key: string, opts: { types?: string; keywords?: string; radius?: number; fetchImpl?: typeof fetch } = {}): Promise<Place[]> {

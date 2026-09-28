@@ -14,7 +14,7 @@ export type Candidate = PlanPlace
 
 export interface NearbyPlace { name: string; poi: Poi; rating?: number; distanceM?: number }
 
-export type NearbyKind = 'food' | 'lodging' | 'serviceArea'
+export type NearbyKind = 'food' | 'lodging' | 'serviceArea' | 'sight'
 
 export interface PlanTools {
   /** 两点真实车程（分钟）；拿不到返回 null，改用估算 */
@@ -48,7 +48,10 @@ const LUNCH = 12 * 60
 const DINNER = 18 * 60
 const REST_MIN = 20
 /** 吃饭、住处推荐只认这个范围内的 */
-const NEAR_KM = { food: 2.5, lodging: 6, serviceArea: 20 }
+const NEAR_KM = { food: 2.5, lodging: 6, serviceArea: 20, sight: 15 }
+/** 景点最多延长到默认停留的这么多倍、不超过这么多分钟 */
+const STRETCH_X = 2
+const STRETCH_MAX = 240
 
 interface Pace { start: string; sightMin: number; mealMin: number }
 
@@ -208,8 +211,10 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
 
   // —— 住处：指定了哪晚就是哪晚；只给了一处又没说哪晚，当整趟的大本营 ——
   const night: (Candidate | undefined)[] = new Array(days).fill(undefined)
+  // 住处：指定的晚上优先；原文 / 方案里说的那晚（prefDay）其次
   for (const l of lodgings) { const d = clampDay(l.day); if (d != null && !night[d]) night[d] = l }
-  const looseLodging = lodgings.filter(l => clampDay(l.day) == null)
+  for (const l of lodgings) { const d = clampDay(l.prefDay); if (l.day == null && d != null && !night[d]) night[d] = l }
+  const looseLodging = lodgings.filter(l => clampDay(l.day ?? l.prefDay) == null)
   if (looseLodging.length === 1 && lodgings.length === 1) for (let d = 0; d < days; d++) night[d] = looseLodging[0]
   // 没住处的晚上：沿用前一晚（多半是连住）；第一晚没有就留空，排完再在附近找
   const budgets = (): DayBudget[] => cons.map((c, d) => ({
@@ -274,8 +279,10 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     }
     return driveCache.get(k)!
   }
-  // 已经在要去的地方里的店不再被推荐一遍（免得同一家吃两顿）
-  const used = new Set<string>(candidates.filter(c => c.kind !== 'sight').map(c => c.name))
+  // 已经在要去的地方里的不再被推荐一遍（免得同一家吃两顿、下午补的景点和要去的重复）
+  const used = new Set<string>(candidates.map(c => c.name))
+  // 用户（或攻略、方案）给了时长的站：补空档时不去拉长它
+  const fixedDur = new Set<string>()
   const nearbyCache = new Map<string, NearbyPlace | undefined>()
   const pick = async (what: NearbyKind, at: Poi, reuse = false): Promise<NearbyPlace | undefined> => {
     if (!tools.nearby) return undefined
@@ -292,9 +299,14 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     return got
   }
 
-  const toStop = (c: Candidate): Stop => ({
-    id: opts.newId('s'), kind: c.kind, name: c.name, durationMin: durOf(c, pace), status: 'planned', poi: c.poi,
-    priority: c.must ? 1 : 2, ...(c.start ? { start: c.start } : {}), ...(c.tags ? { tags: c.tags } : {}),
+  const toStop = (c: Candidate): Stop => {
+    const id = opts.newId('s')
+    if (c.durationMin != null) fixedDur.add(id)
+    return toStopWith(c, id)
+  }
+  const toStopWith = (c: Candidate, id: string): Stop => ({
+    id, kind: c.kind, name: c.name, durationMin: durOf(c, pace), status: 'planned', poi: c.poi,
+    priority: c.must ? 1 : 2, ...(c.start ? { start: c.start } : {}), ...(c.suggested ? { suggested: true } : {}), ...(c.tags ? { tags: c.tags } : {}),
     ...(c.walkKm != null ? { walkKm: c.walkKm } : {}), ...(c.altitudeM != null ? { altitudeM: c.altitudeM } : {}),
   })
 
@@ -376,7 +388,22 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       const inWin = opts2.filter(o => o.t >= lo && o.t <= hi)
       const gaps = opts2.filter(o => !o.sa)
       const pool = inWin.length ? inWin : which === 'lunch' ? opts2 : [gaps[gaps.length - 1]]
-      const o = pool.reduce((a, x) => (Math.abs(x.t - target) < Math.abs(a.t - target) ? x : a))
+      let o = pool.reduce((a, x) => (Math.abs(x.t - target) < Math.abs(a.t - target) ? x : a))
+      // 一天有两个以上景点、却全排在午饭前：看要不要把最后一个挪到午饭后（有午睡就在午睡后）。
+      // 不挪的代价是午饭吃晚了、挤掉午睡；挪的代价是上午干等（剩下的景点拉不长时）。下午空着的交给后面的「就近补一个」
+      if (which === 'lunch' && !o.sa) {
+        const sightAt = nodes.map((x, i) => (x.stop.kind === 'sight' ? i : -1)).filter(i => i >= 0)
+        const last = sightAt[sightAt.length - 1]
+        const alt = gaps.find(x => x.gap === last)
+        if (sightAt.length >= 2 && sightAt.every(i => i < o.gap) && alt) {
+          // 两种排法各算一个代价，挑小的：午饭晚过 12:30 每分钟算 2；有午睡而午饭吃到午睡开始半小时后，再加 60；挪了的话上午干等多少算多少
+          const canGrow = sightAt.slice(0, -1).reduce((a, i) => a + (fixedDur.has(nodes[i].stop.id) ? 0 : Math.min(nodes[i].stop.durationMin * (STRETCH_X - 1), STRETCH_MAX - nodes[i].stop.durationMin)), 0)
+          const late = (t: number) => Math.max(0, t - (12 * 60 + 30)) * 2 + (c.nap && t + pace.mealMin > c.nap.from + 30 ? 60 : 0)
+          const stay = late(o.t)
+          const move = Math.max(0, 11 * 60 + 30 - (alt.t + canGrow)) + late(Math.max(alt.t, 11 * 60 + 30))
+          if (move < stay) o = alt
+        }
+      }
       const near = o.sa?.poi ?? nodes[o.gap - 1]?.poi ?? nodes[o.gap]?.poi ?? lodge?.poi ?? prevNight
       let food: Node
       if (mine.length) {
@@ -461,6 +488,62 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       saOf.clear()
       const sl = (await timeline(nodes)).find(x => x.stop.id === m.stop.id)!
       if (sl.start < MEAL_AT[which] - 45) m.stop.start = fmtHM(MEAL_AT[which] - 30)
+    }
+
+    // —— 空档补满：等待时间（到饭点、到预约时刻）先拉长前一个景点；下午还空一大段就就近补一个 ——
+    const activeNow = () => nodes.reduce((a, x) => a + (x.stop.kind === 'sight' || x.stop.kind === 'food' ? x.stop.durationMin : 0), 0)
+    const baseDur = new Map(nodes.map(x => [x.stop.id, x.stop.durationMin]))
+    const stretch = async () => {
+      for (let guard = 0; guard < 6; guard++) {
+        saOf.clear()
+        const slots = await timeline(nodes)
+        let changed = false
+        for (let i = 1; i < slots.length; i++) {
+          const wait = slots[i].departAt - slots[i - 1].end
+          if (wait < 20) continue
+          const prev = nodes.find(x => x.stop.id === slots[i - 1].stop.id)
+          if (!prev || prev.stop.kind !== 'sight' || fixedDur.has(prev.stop.id)) continue
+          const b = baseDur.get(prev.stop.id) ?? prev.stop.durationMin
+          const room = Math.min(wait, b * STRETCH_X - prev.stop.durationMin, STRETCH_MAX - prev.stop.durationMin, c.activeMin.value - activeNow())
+          if (room >= 15) { prev.stop = { ...prev.stop, durationMin: prev.stop.durationMin + Math.floor(room / 5) * 5 }; changed = true }
+        }
+        if (!changed) break
+      }
+    }
+    await stretch()
+    // 补的景点避开午睡：有午睡就从午睡结束后开始；每天最多补两个，全天游玩不超过上限
+    if (tools.nearby) {
+      for (let added = 0; added < 2; added++) {
+        saOf.clear()
+        const slots = await timeline(nodes)
+        const lunchId = nodes.find(x => x.meal === 'lunch')?.stop.id
+        const li = slots.findIndex(sl => sl.stop.id === lunchId)
+        let done = false
+        for (let i = Math.max(1, li + 1); i < slots.length && !done; i++) {
+          const next = nodes.findIndex(x => x.stop.id === slots[i].stop.id)
+          const from = [...nodes.slice(0, next)].reverse().find(x => x.poi)?.poi
+          const left = c.activeMin.value - activeNow()
+          const freeFrom = c.nap && slots[i - 1].end < c.nap.to ? Math.max(slots[i - 1].end, c.nap.to) : slots[i - 1].end
+          const avail = slots[i].departAt - freeFrom
+          if (avail < 90 || left < 60 || next < 0 || !from) continue
+          progress(`第 ${d + 1} 天下午空着，就近找一个`)
+          const p = await pick('sight', from)
+          if (!p) { done = true; break }
+          const legIn = estDriveMin(from, p.poi)
+          const to = nodes[next].poi ?? p.poi
+          const dur = Math.floor(Math.min(150, avail - legIn - estDriveMin(p.poi, to) - 10, left) / 5) * 5
+          if (dur < 45) continue
+          const at = freeFrom + legIn
+          nodes.splice(next, 0, { poi: p.poi, stop: {
+            id: opts.newId('s'), kind: 'sight', name: p.name, durationMin: dur, status: 'planned', poi: p.poi, priority: 3, suggested: true,
+            // 等午睡结束再去
+            ...(at > slots[i - 1].end + legIn + 5 ? { start: fmtHM(Math.ceil(at / 5) * 5) } : {}),
+            why: `下午空着，就近加一个${p.rating ? ` · 评分 ${p.rating}` : ''}；不想去可以删`,
+          } })
+          done = true
+        }
+        if (!done) break
+      }
     }
 
     progress(`第 ${d + 1} 天查车程`)

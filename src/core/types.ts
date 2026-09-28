@@ -118,6 +118,8 @@ export interface PlanPlace {
   day?: number
   /** 想在第几天（从 0 起）：只是偏好，放不下或那天空了会挪。导入攻略时来自原文的分天 */
   prefDay?: number
+  /** AI 推荐出来的（还没人确认）：排进行程后带「推荐」标记，住处缺条件只作待核 */
+  suggested?: boolean
   /** 固定开始时刻 HH:MM（门票预约之类） */
   start?: string
   durationMin?: number

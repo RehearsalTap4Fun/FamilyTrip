@@ -27,7 +27,7 @@ const fake = (overrides: Partial<PlanTools> = {}): PlanTools => ({
   nearby: async (what, at): Promise<NearbyPlace[]> => {
     const off = (k: number) => P(at.lng + 0.003 * k, at.lat + 0.002 * k)
     if (what === 'serviceArea') return [{ name: `服务区${at.lat.toFixed(2)}`, poi: at }]
-    const tag = what === 'food' ? '饭馆' : '酒店'
+    const tag = what === 'food' ? '饭馆' : what === 'sight' ? '景点' : '酒店'
     return [1, 2, 3].map(k => ({ name: `${tag}${at.lng.toFixed(3)}-${k}`, poi: off(k), rating: [3.9, 4.6, 4.2][k - 1] }))
   },
   ...overrides,
@@ -199,10 +199,81 @@ describe('排程引擎：放不下、固定时刻、红黑榜、没有高德', (
     expect(n2.name).toBe(n1.name)
   })
 
+  it('方案里说是第 3 晚的住处：只住第 3 晚，不当整趟的大本营；AI 推荐的住处缺条件只作待核', async () => {
+    const r = await planTrip(base(3), [cand('大理古城', DALI.古城, { prefDay: 0 }), cand('喜洲古镇', DALI.喜洲, { prefDay: 1 }), cand('丽江古城', LIJIANG.古城, { prefDay: 2 }),
+      { id: 'h', name: '丽江的温泉酒店', kind: 'lodging', poi: HOTEL_LJ, prefDay: 2, suggested: true }], fake(), { newId })
+    const nights = r.trip.days.map(d => d.stops.slice(-1)[0].name)
+    expect(nights[2]).toBe('丽江的温泉酒店')
+    expect(nights[0]).not.toBe('丽江的温泉酒店')
+    expect(r.issues.filter(i => i.code.startsWith('need:'))).toEqual([])
+  })
+
   it('只给了一处住处、没说哪晚：整趟都住那儿', async () => {
     const r = await planTrip(base(2), [cand('A', DALI.古城), cand('B', DALI.喜洲), { id: 'h', name: '大本营', kind: 'lodging', poi: HOTEL_DALI }], fake(), { newId })
     expect(r.trip.days.map(d => d.stops.slice(-1)[0].name)).toEqual(['大本营', '大本营'])
     expect(distanceKm(HOTEL_DALI, r.trip.days[1].stops.slice(-1)[0].poi!)).toBe(0)
+  })
+})
+
+describe('下午别空着', () => {
+  const idleAfterLunch = (t: Trip, d: number) => {
+    const sl = scheduleDay(t.days[d])
+    const li = sl.findIndex(x => x.stop.kind === 'food')
+    let worst = 0
+    for (let i = Math.max(1, li + 1); i < sl.length; i++) {
+      // 午睡本身、以及午睡时段（12:30–14:30）里的空档不算空
+      if (sl[i - 1].stop.tags?.includes('napOk')) continue
+      worst = Math.max(worst, sl[i].departAt - Math.max(sl[i - 1].end, 14 * 60 + 30))
+    }
+    return worst
+  }
+  const active = (t: Trip, d: number) => t.days[d].stops.reduce((a, s) => a + (s.kind === 'sight' || s.kind === 'food' ? s.durationMin : 0), 0)
+
+  it('两个景点不全挤在上午：午饭后还有一个；等饭点的空档拉长前一个景点；不超过每天游玩上限', async () => {
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城), cand('崇圣寺三塔', DALI.三塔)], fake({ nearby: async (w, at) => (w === 'sight' ? [] : fake().nearby!(w, at)) }), { newId })
+    const sl = scheduleDay(r.trip.days[0])
+    const lunch = sl.find(x => x.stop.kind === 'food')!
+    expect(sl.some(x => x.stop.kind === 'sight' && x.start > lunch.start)).toBe(true)
+    expect(sl.filter(x => x.stop.kind === 'sight').some(x => x.stop.durationMin > 75)).toBe(true)
+    expect(active(r.trip, 0)).toBeLessThanOrEqual(360)
+    expect(checkDay(r.trip, 0).map(x => x.code)).not.toContain('overlap')
+  })
+
+  it('上午本来就不满：不把景点挪到下午（免得上午干等），下午就近补', async () => {
+    const r = await planTrip(base(1), [cand('大理州博物馆', DALI.古城, { durationMin: 60 }), cand('大理古城', DALI.三塔, { durationMin: 90 })], fake(), { newId })
+    const sl = scheduleDay(r.trip.days[0])
+    const lunch = sl.find(x => x.stop.kind === 'food')!
+    const mine = sl.filter(x => x.stop.kind === 'sight' && !x.stop.suggested)
+    expect(mine.every(x => x.start < lunch.start)).toBe(true)
+    // 上午没有长时间干等
+    const beforeLunch = sl.slice(0, sl.indexOf(lunch) + 1)
+    for (let i = 1; i < beforeLunch.length; i++) expect(beforeLunch[i].departAt - beforeLunch[i - 1].end).toBeLessThan(45)
+    expect(sl.some(x => x.stop.suggested && x.stop.kind === 'sight' && x.start > lunch.start)).toBe(true)
+  })
+
+  it('上午两个长景点：不挪的话午饭拖过一点、挤掉午睡，那就挪一个到下午', async () => {
+    const r = await planTrip(base(1), [cand('大理州博物馆', DALI.古城, { durationMin: 90 }), cand('大理古城', DALI.三塔, { durationMin: 120 })], fake(), { newId })
+    const sl = scheduleDay(r.trip.days[0])
+    const lunch = sl.find(x => x.stop.kind === 'food')!
+    expect(lunch.start).toBeLessThanOrEqual(12 * 60 + 30)
+    expect(sl.some(x => x.stop.kind === 'sight' && !x.stop.suggested && x.start > lunch.start)).toBe(true)
+    expect(checkDay(r.trip, 0).map(x => x.code)).not.toContain('noNap')
+  })
+
+  it('自己给了时长的景点不去拉长', async () => {
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城, { durationMin: 60 }), cand('崇圣寺三塔', DALI.三塔, { durationMin: 60 })], fake({ nearby: async (w, at) => (w === 'sight' ? [] : fake().nearby!(w, at)) }), { newId })
+    expect(r.trip.days[0].stops.filter(s => s.kind === 'sight').map(s => s.durationMin)).toEqual([60, 60])
+  })
+
+  it('下午还空一大段：就近补一个景点（标成推荐），不跟晚饭撞', async () => {
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城, { durationMin: 90 })], fake(), { newId })
+    const added = r.trip.days[0].stops.filter(s => s.kind === 'sight' && s.suggested)
+    expect(added.length).toBeGreaterThanOrEqual(1)
+    expect(added[0].name).toMatch(/^景点/)
+    expect(checkDay(r.trip, 0).map(x => x.code)).not.toContain('noNap') // 补的景点不占午睡
+    expect(checkDay(r.trip, 0).map(x => x.code)).not.toContain('overlap')
+    expect(idleAfterLunch(r.trip, 0)).toBeLessThan(120)
+    expect(active(r.trip, 0)).toBeLessThanOrEqual(360)
   })
 })
 

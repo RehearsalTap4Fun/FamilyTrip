@@ -77,7 +77,7 @@ function topBrings(trip: Trip, m: Member): { shown: string[]; more: number } {
 
 const rangeDays = (r: DayRange) => Array.from({ length: r.to - r.from + 1 }, (_, i) => r.from + i)
 
-function memberLine(m: Member, total: number): string {
+export function memberLine(m: Member, total: number): string {
   const days = m.days ? daysLabel(rangeDays(m.days), total) : '全程'
   const mob = m.mobility && m.mobility !== 'normal' ? MOB_LABEL[m.mobility] : ''
   const bits = m.role === 'adult' ? [mob, m.driver ? '会开车' : ''] : [`${m.age ?? '?'} 岁`, m.role === 'elder' ? mob : '']
@@ -173,8 +173,9 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
       <div className="settings">
         <Field label="名称"><input className="kinput" value={trip.title} onChange={e => onTrip({ ...trip, title: e.target.value })} /></Field>
         <Field label="出发日期"><input className="kinput" type="date" value={trip.startDate} onChange={e => e.target.value && onTrip({ ...trip, startDate: e.target.value })} /></Field>
-        <Toggle on={!!demoNow} onChange={v => onDemoNow(v ? `${trip.startDate}T10:00` : null)} label="演示时间" hint="用一个假的「现在」看旅途中的样子" />
-        {demoNow && <input className="kinput" type="datetime-local" value={demoNow} onChange={e => onDemoNow(e.target.value || null)} aria-label="演示时间" />}
+        {/* 演示时间只对示例行程生效：自己建的行程永远按真实时间 */}
+        {trip.sample && <Toggle on={!!demoNow} onChange={v => onDemoNow(v ? `${trip.startDate}T10:00` : null)} label="演示时间" hint="示例行程用一个假的「现在」看旅途中的样子" />}
+        {trip.sample && demoNow && <input className="kinput" type="datetime-local" value={demoNow} onChange={e => onDemoNow(e.target.value || null)} aria-label="演示时间" />}
         <Field label="风格">
           <Chips label="视觉风格" values={[theme]} onChange={v => { const t = v.find(x => x !== theme); if (t) onTheme(t as Theme) }}
             options={(Object.keys(THEME_LABEL) as Theme[]).map(t => ({ value: t, label: THEME_LABEL[t] }))} />
@@ -190,16 +191,16 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
           <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={llmKeys[llmProvider] ?? ''} placeholder={llmProvider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
             onChange={e => onLlm(llmProvider, { ...llmKeys, [llmProvider]: e.target.value.trim() })} />
         </Field>
-        <button type="button" className="kbtn danger wide" onClick={() => setEditing({ kind: 'reset' })}>恢复示例旅程</button>
+        <button type="button" className="kbtn danger wide" onClick={() => setEditing({ kind: 'reset' })}>恢复示例行程</button>
       </div>
 
       {editing?.kind === 'member' && <MemberSheet trip={trip} id={editing.id} dayLabels={dayLabels} onTrip={onTrip} onClose={close} onRemove={() => remove('member', editing.id)} open={!closing} onExited={exited} />}
       {editing?.kind === 'pet' && <PetSheet trip={trip} id={editing.id} dayLabels={dayLabels} onTrip={onTrip} onClose={close} onRemove={() => remove('pet', editing.id)} open={!closing} onExited={exited} />}
       <AddSheet open={editing?.kind === 'add'} trip={trip} dayLabels={dayLabels} onClose={() => setEditing(null)}
         onAdd={(party, id) => { onTrip({ ...trip, party }); setEditing(null); flash(id) }} />
-      <Sheet open={editing?.kind === 'reset'} onClose={() => setEditing(null)} title="恢复示例旅程？" done="恢复" onDone={() => { setEditing(null); onReset() }}
+      <Sheet open={editing?.kind === 'reset'} onClose={() => setEditing(null)} title="恢复示例行程？" done="恢复" onDone={() => { setEditing(null); onReset() }}
         footer={<button type="button" className="kbtn wide" onClick={() => setEditing(null)}>算了</button>}>
-        <p className="sheet-note">现在的行程、同行和红黑榜都会被示例替换，不能撤销。</p>
+        <p className="sheet-note">示例行程会换回最初的样子，你自己建的行程和红黑榜不受影响。</p>
       </Sheet>
     </div>
   )

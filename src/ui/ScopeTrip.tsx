@@ -5,7 +5,7 @@ import { deriveConstraints } from '@core/constraints'
 import { inRange, partyOnDay } from '@core/party'
 import { fmtHM, parseHM, scheduleDay } from '@core/schedule'
 import type { Trip } from '@core/types'
-import { checkDay, checkTrip, type Issue } from '@core/validate'
+import { checkDay, checkTrip, LODGING_PLACEHOLDER, type Issue } from '@core/validate'
 import { uid } from '../store/state'
 import { dayTitle, driveHours, fmtShort, MODE_LABEL, routeCode, stripCode } from './format'
 import { Stepper } from './kit/controls'
@@ -23,7 +23,7 @@ import { useSettings } from './Settings'
 const W = 300
 const H = 34
 
-export function ScopeTrip({ trip, onTrip, ratings }: { trip: Trip; onTrip: (t: Trip) => void; ratings: Rating[] }) {
+export function ScopeTrip({ trip, onTrip, ratings, onSwitch }: { trip: Trip; onTrip: (t: Trip) => void; ratings: Rating[]; onSwitch: () => void }) {
   const [open, setOpen] = useState<number | null>(null)
   const [stopId, setStopId] = useState<string | null>(null)
   const [stopClosing, setStopClosing] = useState(false)
@@ -54,7 +54,7 @@ export function ScopeTrip({ trip, onTrip, ratings }: { trip: Trip; onTrip: (t: T
   const warns = all.filter(i => i.level === 'warn').length
 
   const addDay = () => {
-    onTrip({ ...trip, days: [...trip.days, { startTime: '09:00', stops: [{ id: uid('s'), kind: 'lodging', name: '住处', durationMin: 0, status: 'planned' }] }] })
+    onTrip({ ...trip, days: [...trip.days, { startTime: '09:00', stops: [{ id: uid('s'), kind: 'lodging', name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' }] }] })
     setOpen(trip.days.length)
   }
   const removeDay = (i: number) => {
@@ -80,7 +80,9 @@ export function ScopeTrip({ trip, onTrip, ratings }: { trip: Trip; onTrip: (t: T
   return (
     <div className="scope-trip">
       <header className="bez-top">
-        <h1>{trip.title}<small>{fmtShort(trip.startDate, 0)}–{fmtShort(trip.startDate, trip.days.length - 1)} {MODE_LABEL[trip.party.mode]}</small></h1>
+        <button type="button" className="trip-switch" onClick={onSwitch} aria-haspopup="dialog" aria-label={`${trip.title}，切换或新建行程`}>
+          <h1>{trip.title}<svg className="caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg><small>{fmtShort(trip.startDate, 0)}–{fmtShort(trip.startDate, trip.days.length - 1)} {MODE_LABEL[trip.party.mode]}</small></h1>
+        </button>
         <span className={'run' + (fails ? ' fail' : warns ? ' hold' : '')}>{fails || warns ? `${fails ? `${fails} 必改 ` : ''}${warns} 留意` : '没问题'}</span>
       </header>
       <ol className="sweeps">

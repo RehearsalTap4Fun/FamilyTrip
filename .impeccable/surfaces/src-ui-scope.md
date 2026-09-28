@@ -1,3 +1,5 @@
+> **已移除（2026-09-28）**：示波器风格已从代码删除，只保留作设计历史。现行风格见 src-ui-braun.md（默认）与 src-ui.md（地图册）。
+
 ---
 version: 1
 slug: "src-ui-scope"

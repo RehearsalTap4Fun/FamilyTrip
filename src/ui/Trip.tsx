@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { inRange } from '@core/party'
 import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, StopKind, StopStatus, Tag, Trip } from '@core/types'
-import { checkDay, checkTrip, TAG_LABEL } from '@core/validate'
+import { checkDay, checkTrip, LODGING_PLACEHOLDER, TAG_LABEL } from '@core/validate'
 import { uid } from '../store/state'
 import { dayTitle, driveHours, fmtShort, MODE_LABEL, tintOf } from './format'
 import { StackTable } from './StackTable'
@@ -14,7 +14,7 @@ const TAGS = Object.keys(TAG_LABEL) as Tag[]
 
 interface Props { trip: Trip; onTrip: (t: Trip) => void }
 
-export function TripPage({ trip, onTrip }: Props) {
+export function TripPage({ trip, onTrip, onSwitch }: Props & { onSwitch: () => void }) {
   const [open, setOpen] = useState<number | null>(null)
   const all = checkTrip(trip)
   const errs = all.filter(i => i.level === 'error').length
@@ -22,7 +22,7 @@ export function TripPage({ trip, onTrip }: Props) {
   const last = trip.days.length - 1
 
   const addDay = () => {
-    onTrip({ ...trip, days: [...trip.days, { startTime: '09:00', stops: [{ id: uid('s'), kind: 'lodging', name: '住处', durationMin: 0, status: 'planned' }] }] })
+    onTrip({ ...trip, days: [...trip.days, { startTime: '09:00', stops: [{ id: uid('s'), kind: 'lodging', name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' }] }] })
     setOpen(trip.days.length)
   }
 
@@ -30,7 +30,9 @@ export function TripPage({ trip, onTrip }: Props) {
     <div className="trip">
       <header className="head">
         <div>
-          <h1 className="title">{trip.title}</h1>
+          <button type="button" className="trip-switch" onClick={onSwitch} aria-haspopup="dialog" aria-label={`${trip.title}，切换或新建行程`}>
+            <h1 className="title">{trip.title}<svg className="caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg></h1>
+          </button>
           <p className="sub">{fmtShort(trip.startDate, 0)}–{fmtShort(trip.startDate, Math.max(0, last))} · {trip.days.length} 天 · {MODE_LABEL[trip.party.mode]} · {errs || warns ? `检查 ${errs} 处必改、${warns} 处留意` : '检查没有问题'}</p>
         </div>
       </header>

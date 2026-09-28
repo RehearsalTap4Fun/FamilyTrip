@@ -99,6 +99,23 @@ export interface Day {
   stops: Stop[]
 }
 
+/** 玩法类型：决定推荐偏向与排程节奏，是偏好不是限制——和同行人的硬限制冲突时以限制为准 */
+export type TripStyle = 'scenic' | 'family' | 'active' | 'heritage' | 'resort' | 'food'
+
+/** 新建时的两种排法：已知要去的点只排时间 / 只知道大概地区、要工具推荐去处 */
+export type PlanFlow = 'places' | 'region'
+
+/** 新建行程时填的计划信息，排程和推荐靠它 */
+export interface TripPlan {
+  flow: PlanFlow
+  /** 最多两个，第一个为主 */
+  styles: TripStyle[]
+  /** 流程二的大致地区，例如「滇西北」 */
+  region?: string
+  /** 出发地（自驾、公共交通时填），第一天从这里出发 */
+  origin?: string
+}
+
 export interface Trip {
   id: string
   title: string
@@ -106,4 +123,7 @@ export interface Trip {
   startDate: string
   party: Party
   days: Day[]
+  plan?: TripPlan
+  /** 应用自带的示例，可以删、可以恢复 */
+  sample?: boolean
 }

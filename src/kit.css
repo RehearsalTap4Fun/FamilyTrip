@@ -9,7 +9,6 @@
   --k-pill: 999px;
 }
 :root[data-theme="atlas"] { --k-radius: 0; --k-pill: 0; }
-:root[data-theme="unigrid"] { --k-radius: 0; --k-pill: 0; }
 
 /* 按下即时反馈 */
 .stepper button, .seg button, .tile, .toggle, .chipk, .daystrip-all, .sheet-done, .sact, .grip, .kbtn, .card-btn, .fab {
@@ -22,7 +21,7 @@
 .sheet-layer { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
 .sheet-scrim { position: absolute; inset: 0; background: rgba(20, 22, 20, .38); opacity: 0; }
 .sheet-panel { position: relative; width: 100%; max-width: 430px; max-height: 88dvh; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); border-radius: 20px 20px 0 0; box-shadow: 0 -12px 30px -14px rgba(0, 0, 0, .45); transform: translateY(100%); will-change: transform; padding-bottom: env(safe-area-inset-bottom); }
-:root[data-theme="atlas"] .sheet-panel, :root[data-theme="unigrid"] .sheet-panel { border-radius: 0; border-top: 2.5px solid var(--ink); }
+:root[data-theme="atlas"] .sheet-panel { border-radius: 0; border-top: 2.5px solid var(--ink); }
 .sheet-grab { touch-action: none; cursor: grab; padding: 8px 16px 6px; flex: none; }
 .sheet-handle { display: block; width: 40px; height: 5px; border-radius: 3px; background: var(--k-line); margin: 0 auto 8px; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -55,7 +54,7 @@
 .seg { display: flex; gap: 4px; padding: 4px; background: var(--k-panel); border-radius: var(--k-pill); }
 .seg button { flex: 1; min-height: 42px; border-radius: var(--k-pill); font: 700 14px var(--sans); color: var(--ink2); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 6px; }
 .seg button.on { background: var(--k-surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .18); }
-:root[data-theme="atlas"] .seg button.on, :root[data-theme="unigrid"] .seg button.on { background: var(--ink); color: var(--paper); box-shadow: none; }
+:root[data-theme="atlas"] .seg button.on { background: var(--ink); color: var(--paper); box-shadow: none; }
 
 /* ——— 磁贴 ——— */
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -267,3 +266,39 @@
 .replan-list .b small { font-size: 12.5px; color: var(--ink2); margin-top: 1px; }
 .replan-list .dur { font-size: 13px; color: var(--ink2); }
 .replan-list li.new { background: color-mix(in srgb, var(--k-accent) 7%, transparent); }
+
+/* ——— 多个行程：标题点开切换、我的行程、新建行程（两套风格共用，靠 --k-* 令牌换装） ——— */
+.trip-switch { display: block; padding: 0; margin: 0; border: 0; background: none; color: inherit; text-align: left; font: inherit; cursor: pointer; min-height: 44px; border-radius: 8px; }
+.trip-switch h1 { display: inline; }
+.trip-switch:active { opacity: .7; }
+.trip-switch .caret { display: inline-block; width: 18px; height: 18px; margin-left: 4px; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+.trips-group { margin-bottom: 14px; }
+.trips-group h3 { font: 700 13px var(--sans); color: var(--ink2); margin: 0 0 6px 2px; letter-spacing: .04em; }
+.trip-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 60px; }
+.trip-row .cbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trip-row .cname { font: 900 16px var(--sans); color: var(--ink); }
+.trip-row .cname em { font: 700 11px/1 var(--sans); font-style: normal; margin-left: 6px; padding: 3px 6px; border-radius: 4px; background: var(--k-panel); color: var(--ink2); vertical-align: 2px; }
+.trip-row .csub { font: 500 12px var(--sans); color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trip-row .tick { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--k-accent); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.trip-row.on .cname { color: var(--k-accent); }
+
+.nt-steps { display: flex; gap: 4px; list-style: none; margin: 0 0 16px; padding: 0; counter-reset: nt; }
+.nt-steps li { flex: 1; font: 700 11px/1.2 var(--sans); color: var(--ink2); padding-top: 8px; border-top: 3px solid var(--k-line); opacity: .7; }
+.nt-steps li.done { border-top-color: var(--ink2); }
+.nt-steps li.on { border-top-color: var(--k-accent); color: var(--ink); opacity: 1; }
+.nt-who { list-style: none; margin: 4px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.nt-who li { font: 500 13px var(--sans); color: var(--ink2); }
+.nt-who b { color: var(--ink); margin-right: 8px; font-weight: 700; }
+.nt-limits { padding: 12px 14px; border-radius: calc(var(--k-radius) + 4px); background: var(--k-panel); }
+.nt-limits h4 { margin: 0 0 6px; font: 700 13px var(--sans); color: var(--ink); }
+.nt-limits ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.nt-limits li { font: 500 13px/1.45 var(--sans); color: var(--ink2); }
+.nt-styles { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.nt-styles li { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: calc(var(--k-radius) + 4px); background: var(--k-panel); }
+.nt-styles b { font: 900 15px var(--sans); color: var(--ink); }
+.nt-styles b em { font: 700 11px/1 var(--sans); font-style: normal; margin-left: 6px; padding: 3px 6px; border-radius: 4px; background: var(--k-surface); color: var(--ink2); vertical-align: 1px; }
+.nt-styles span { font: 500 13px/1.45 var(--sans); color: var(--ink2); }
+.nt-flows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.nt-flows .tile { min-height: 0; justify-content: flex-start; padding: 14px; width: 100%; }
+.nt-flows .tile.on { border-color: var(--k-accent); box-shadow: inset 0 0 0 1.5px var(--k-accent); }
+.nt-flows .tile.on b { color: var(--k-accent); }

@@ -154,15 +154,23 @@ export function checkDay(trip: Trip, dayIndex: number): Issue[] {
     }
     if (st.kind !== 'lodging' && !NEEDS_APPLY.includes(st.kind)) continue
     const needs = st.kind === 'lodging' ? c.lodgingNeeds : st.kind === 'food' ? new Map([...c.needs, ...fNeeds]) : c.needs
+    // 还没定的住处（新建行程、加一天时放的「住处」占位，没搜过地点）：只提示找的时候要满足什么，不算问题。
+    // 手写了名字（「客栈」）就算定了，照常按缺项报
+    const undecided = st.kind === 'lodging' && !st.poi && st.name === LODGING_PLACEHOLDER
     for (const [tag, by] of needs) {
       if (tags.has(tag)) continue
       // 住宿缺项影响一整晚，是 warn；景点标签常常没人标过，只提示去确认
-      push({ level: st.kind === 'lodging' ? 'warn' : 'tip', stopId: st.id, code: 'need:' + tag, short: `${TAG_LABEL[tag]}？`, message: `「${st.name}」未确认${TAG_LABEL[tag]}（${who(by)}）`, rules: by })
+      push(undecided
+        ? { level: 'tip', stopId: st.id, code: 'need:' + tag, short: `${TAG_LABEL[tag]}？`, message: `还没定住处，找的时候要${TAG_LABEL[tag]}（${who(by)}）`, rules: by }
+        : { level: st.kind === 'lodging' ? 'warn' : 'tip', stopId: st.id, code: 'need:' + tag, short: `${TAG_LABEL[tag]}？`, message: `「${st.name}」未确认${TAG_LABEL[tag]}（${who(by)}）`, rules: by })
     }
   }
 
   return out
 }
+
+/** 新建行程、加一天时住处的占位名 */
+export const LODGING_PLACEHOLDER = '住处'
 
 export function checkTrip(trip: Trip): Issue[] {
   return trip.days.flatMap((_, i) => checkDay(trip, i))

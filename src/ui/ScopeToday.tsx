@@ -1,5 +1,6 @@
 // 示波器版「今天」：一条累计游玩曲线扫过每个同行者的触发线。
 // 户外手持机的反射式液晶屏：字少、数字大，「谁定的」用通道色点表示，问题只给短标签。
+import { daysUntil } from '@core/trips'
 import { useMemo, useState } from 'react'
 import { deriveConstraints, limitRules, type Limit } from '@core/constraints'
 import { whoFor, whoForAll } from '@core/explain'
@@ -98,7 +99,11 @@ export function ScopeToday({ trip, now, demo, onTrip }: Props) {
   // 海报风格的一句话：此刻最该做的事
   const nextFix = next ? (byStop.get(next.id) ?? [])[0] : undefined
   const firstFail = issues.find(i => i.level === 'error')
-  const imperative = nextFix?.restAt ? `在${stripCode(nextFix.restAt.name)}歇${nextFix.restAt.durationMin}分`
+  // 没选日子时：出发前说还有几天，走完了就说走完了；选了某一天就讲那一天
+  const until = daysUntil(trip.startDate, now)
+  const imperative = picked == null && prog.dayIndex < 0 ? (until === 1 ? '明天出发' : `还有 ${until} 天出发`)
+    : picked == null && prog.dayIndex >= trip.days.length ? '这趟已经走完了'
+    : nextFix?.restAt ? `在${stripCode(nextFix.restAt.name)}歇${nextFix.restAt.durationMin}分`
     : firstFail ? `${firstFail.short}，要改`
     : next && nextSlot ? `${fmtHM(nextSlot.start + delay)} 到${stripCode(next.name)}`
     : live ? '今天走完了' : `第${dayIndex + 1}天 · ${dayTitle(day)}`

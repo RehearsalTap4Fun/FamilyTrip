@@ -289,8 +289,6 @@ input::placeholder { color: #8C8C85; }
 .tabs button.on { color: var(--ink); font-weight: 900; }
 .tabs button.on svg { color: var(--hwy); }
 
-
-
 /* 红黑榜空态：先把图例讲清楚 */
 .empty-legend { margin-top: 14px; border: var(--hair); padding: 8px 10px 4px; }
 .empty-legend h3 { font: 900 12px var(--sans); letter-spacing: .3em; }
@@ -301,7 +299,6 @@ input::placeholder { color: #8C8C85; }
 .empty-legend li p { font-size: 12.5px; line-height: 1.55; color: var(--ink2); margin-top: 1px; }
 .empty-legend .empty { padding: 8px 0 6px; border-top: var(--hair); font-size: 12.5px; }
 .rate-form .primary:disabled { background: var(--ink2) !important; }
-
 
 /* ——— 手机触控：按钮不小于 44px，输入框 16px 防止 iOS 点击时放大页面 ——— */
 input, select { font-size: 16px; min-height: 36px; }

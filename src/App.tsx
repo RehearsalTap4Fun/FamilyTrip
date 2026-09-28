@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { tripProgress } from '@core/progress'
 import type { Rating } from '@core/ratings'
 import type { Trip } from '@core/types'
-import { KEY as STATE_KEY, defaultState, DEVICE_THEMES, THEME_LABEL, loadState, nowOf, saveState, type AppState, type Theme } from './store/state'
+import { KEY as STATE_KEY, currentTrip, DEVICE_THEMES, THEME_LABEL, loadState, nowOf, restoreSamples, saveState, withTrip, type AppState, type Theme } from './store/state'
+import { sortTrips } from '@core/trips'
+import { NewTripSheet } from './ui/NewTrip'
+import { TripSwitcher } from './ui/TripSwitcher'
+import { useToast } from './ui/kit/Toast'
 import { PartyPage } from './ui/Party'
 import { FootprintPage } from './ui/Footprint'
 import { SettingsCtx } from './ui/Settings'
@@ -56,9 +60,12 @@ export function App() {
     return () => { document.removeEventListener('visibilitychange', again); removeEventListener('focus', again) }
   }, [])
   const now = nowOf(state)
-  const onTrip = (trip: Trip) => setState(s => ({ ...s, trip }))
+  const trip = currentTrip(state)
+  const onTrip = (t: Trip) => setState(s => withTrip(s, t))
   const onRatings = (ratings: Rating[]) => setState(s => ({ ...s, ratings }))
-  const liveDay = tripProgress(state.trip, now).dayIndex
+  const liveDay = tripProgress(trip, now).dayIndex
+  const [switching, setSwitching] = useState(false)
+  const [creating, setCreating] = useState(false)
   const theme: Theme = state.theme ?? 'braun'
   const device = DEVICE_THEMES.includes(theme)
   useEffect(() => {
@@ -73,14 +80,16 @@ export function App() {
     <div className="app">
       <main className="sheet" key={tab}>
         <div className="sheet-body">
-          {tab === 'today' && (device ? <ScopeToday trip={state.trip} now={now} demo={!!state.demoNow} onTrip={onTrip} /> : <Today trip={state.trip} now={now} demo={!!state.demoNow} onTrip={onTrip} />)}
-          {tab === 'trip' && (device ? <ScopeTrip trip={state.trip} onTrip={onTrip} ratings={state.ratings} /> : <TripPage trip={state.trip} onTrip={onTrip} />)}
-          {tab === 'party' && <PartyPage trip={state.trip} onTrip={onTrip} demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))} onReset={() => setState(s => ({ ...defaultState(), theme: s.theme, amapKey: s.amapKey, llmProvider: s.llmProvider, llmKeys: s.llmKeys }))} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))} amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
+          {tab === 'today' && (device ? <ScopeToday trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} /> : <Today trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} />)}
+          {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} />)}
+          {tab === 'party' && <PartyPage trip={trip} onTrip={onTrip} demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))} onReset={() => setState(restoreSamples)} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))} amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
             llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))} />}
-          {tab === 'footprint' && <FootprintPage trips={[...(state.history ?? []), state.trip]} />}
-          {tab === 'ratings' && <RatingsPage trip={state.trip} ratings={state.ratings} onRatings={onRatings} dayIndex={liveDay} />}
+          {tab === 'footprint' && <FootprintPage trips={state.trips} />}
+          {tab === 'ratings' && <RatingsPage trip={trip} ratings={state.ratings} onRatings={onRatings} dayIndex={liveDay} />}
         </div>
       </main>
+      <TripsLayer state={state} setState={setState} now={now} switching={switching} creating={creating}
+        onSwitching={setSwitching} onCreating={setCreating} onCreated={() => setTab('trip')} />
       <nav className="tabs" aria-label="页面">
         {TABS.map(t => (
           <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
@@ -91,5 +100,44 @@ export function App() {
     </div>
     </ToastProvider>
     </SettingsCtx.Provider>
+  )
+}
+
+/** 切换行程与新建行程的两个面板；放在 ToastProvider 里面，删除才能给撤销 */
+function TripsLayer({ state, setState, now, switching, creating, onSwitching, onCreating, onCreated }: {
+  state: AppState
+  setState: React.Dispatch<React.SetStateAction<AppState>>
+  now: Date
+  switching: boolean
+  creating: boolean
+  onSwitching: (v: boolean) => void
+  onCreating: (v: boolean) => void
+  onCreated: () => void
+}) {
+  const toast = useToast()
+  // 新行程沿用最近一趟的同行：进行中 > 最近出发的计划中 > 最近去过的
+  const base = sortTrips(state.trips, now)[0]?.party
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const remove = (id: string) => {
+    const before = state
+    const t = state.trips.find(x => x.id === id)
+    setState(s => {
+      const trips = s.trips.filter(x => x.id !== id)
+      return { ...s, trips, currentId: s.currentId === id ? sortTrips(trips, now)[0].id : s.currentId }
+    })
+    toast(`已删除「${t?.title ?? ''}」`, () => setState(before))
+  }
+  return (
+    <>
+      <TripSwitcher open={switching} trips={state.trips} currentId={state.currentId} now={now}
+        onPick={id => { setState(s => ({ ...s, currentId: id })); onSwitching(false) }}
+        onDelete={remove} onNew={() => { onSwitching(false); onCreating(true) }} onClose={() => onSwitching(false)} />
+      <NewTripSheet open={creating} base={base} today={today} onClose={() => onCreating(false)}
+        onCreate={t => {
+          setState(s => ({ ...s, trips: [...s.trips, t], currentId: t.id }))
+          onCreating(false); onCreated()
+          toast(`已建好「${t.title}」`)
+        }} />
+    </>
   )
 }

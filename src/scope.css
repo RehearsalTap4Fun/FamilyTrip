@@ -1,39 +1,7 @@
-/* 同路 · 示波器（户外手持机版）
-   反射式液晶屏：浅灰绿底、深墨字，阳光下越亮越清楚。机壳只剩一圈窄边和底部按键。
+/* 同路 · 设备家族的页面结构（今天 / 行程页的示波器式布局）。目前只有博朗 × 海报一套用它，令牌在 themes.css。
    通道色只代表同行者；橙色是可按的键；琥珀 = 留意，红 = 必改。 */
-:root[data-theme="scope"] {
-  --housing: #353B37;
-  --lcd: #DCE2D3;
-  --lcd-2: #CDD5C3;
-  --lcd-key: #EEF2E8;
-  --grat: #BCC5B2;
-  --grat-hi: #99A48E;
-  --seg: #17201B;
-  --seg-dim: #78847B;
-  --orange: #E2601B;
-  --warn: #A85400;
-  --warn-bg: #F1DDC0;
-  --red: #B82D1C;
-  --red-bg: #F0CFC8;
-  --ok: #2E7A3A;
-  --ch1: #A87C00;
-  --ch2: #00788A;
-  --ch3: #AE3689;
-  --ch4: #3355C2;
-  --mono: "Share Tech Mono", ui-monospace, monospace;
-  --seg-2: #55615A;
-  --tab-ink: #C4CCBF;
-  --tab-on: #fff;
-  --key-edge: #B94A10;
-  --hl: #E9E2C9;
-  --warn-ink: #7E3F00;
-  --red-ink: #8E2213;
-  --on-dim: #B9C2B3;
-  --sheet-depth: inset 0 3px 8px rgba(23, 32, 27, .18);
-  color-scheme: light;
-}
 
-/* 设备家族（示波器、导览折页、博朗、海报）共用：用家族令牌覆盖地图册令牌，共用组件自动换装 */
+/* 设备家族共用：用家族令牌覆盖地图册令牌，共用组件自动换装 */
 :root[data-family="device"] {
   --paper: var(--lcd);
   --ink: var(--seg);

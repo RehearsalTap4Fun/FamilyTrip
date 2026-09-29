@@ -42,12 +42,26 @@ function decode<T>(keys: SyncKeys, rec: RemoteRec): T | null {
   try { return decryptJson<T>(keys, rec.blob) } catch { throw new SyncError('云端数据解不开：码不对，或数据已损坏', 'decrypt') }
 }
 
-type Opts = { fetchImpl?: typeof fetch; apiBase?: string; /** 云端是空的时候：新建（默认）还是当作已被删掉、不再推 */ onEmpty?: 'create' | 'gone' }
+type Opts = { fetchImpl?: typeof fetch; apiBase?: string; /** 云端是空的时候：新建（默认）还是当作已被删掉、不再推 */ onEmpty?: 'create' | 'gone'; /** 每个请求最多等多久（毫秒） */ timeoutMs?: number }
+
+/** 一个请求最多等 15 秒：网络卡住时这一轮算失败、下次再试，而不是一直「同步中」、后面的同步全被挡住 */
+export const SYNC_TIMEOUT_MS = 15000
+
+function timed(f: typeof fetch, ms: number): typeof fetch {
+  return (input, init) => {
+    const c = new AbortController()
+    const t = setTimeout(() => c.abort(), ms)
+    return f(input, { ...init, signal: c.signal })
+      .catch(e => { throw c.signal.aborted ? new Error(`网络太慢，${ms / 1000} 秒没响应，稍后再试`) : e })
+      .finally(() => clearTimeout(t))
+  }
+}
+const fetchOf = (o: Opts) => timed(o.fetchImpl ?? fetch, o.timeoutMs ?? SYNC_TIMEOUT_MS)
 const baseOf = (o: Opts) => (o.apiBase ?? syncApi()).replace(/\/$/, '')
 
 /** 通用的一轮：拉取 → 合并 → 云端没变就不推；推的时候版本冲突就再拉再合并再推 */
 export async function syncBlob<T>(local: T, keys: SyncKeys, merge: (a: T, b: T) => T, fp: (x: T) => string, opts: Opts = {}): Promise<{ merged: T; version: number; pushed: boolean; pulled: boolean }> {
-  const f = opts.fetchImpl ?? fetch
+  const f = fetchOf(opts)
   const base = baseOf(opts)
   let rec = await getRemote(base, keys.id, f)
   let pushed = false
@@ -67,12 +81,12 @@ export async function syncBlob<T>(local: T, keys: SyncKeys, merge: (a: T, b: T) 
 
 /** 只读：加入别人分享的行程时先看看有没有 */
 export async function readBlob<T>(keys: SyncKeys, opts: Opts = {}): Promise<{ value: T | null; version: number }> {
-  const rec = await getRemote(baseOf(opts), keys.id, opts.fetchImpl ?? fetch)
+  const rec = await getRemote(baseOf(opts), keys.id, fetchOf(opts))
   return { value: decode<T>(keys, rec), version: rec.version }
 }
 
 export async function deleteBlob(keys: SyncKeys, opts: Opts = {}): Promise<void> {
-  await (opts.fetchImpl ?? fetch)(`${baseOf(opts)}/sync/${keys.id}`, { method: 'DELETE' })
+  await fetchOf(opts)(`${baseOf(opts)}/sync/${keys.id}`, { method: 'DELETE' })
 }
 
 /** 自己多台设备之间的一轮同步 */

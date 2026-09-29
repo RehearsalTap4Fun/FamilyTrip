@@ -271,3 +271,49 @@ describe('改动触发同步', () => {
     }
   })
 })
+
+describe('偏好逐项合并', () => {
+  const d = defaultState()
+  const start = stamp(emptySync(), d, 1000, 'A')
+  const KM = { name: '昆明', poi: { lng: 102.7, lat: 25 } }
+
+  it('清掉现居地也能同步过去', () => {
+    const a = stamp(start, { ...d, home: KM }, 2000, 'A')
+    expect(applySync(d, a).home).toEqual(KM)
+    const b = stamp(a, { ...d, home: undefined }, 3000, 'B')
+    expect(applySync({ ...d, home: KM }, mergeSync(a, b)).home).toBeUndefined()
+  })
+
+  it('A 设现居地、B 换风格：两项都留下（以前整条后写赢，B 会把 A 的现居地冲掉）', () => {
+    const a = stamp(start, { ...d, home: KM }, 2000, 'A')
+    const b = stamp(start, { ...d, theme: 'atlas' }, 3000, 'B')
+    const out = applySync(d, mergeSync(a, b))
+    expect(out.home).toEqual(KM)
+    expect(out.theme).toBe('atlas')
+  })
+
+  it('从旧版升上来：旧的整条偏好按原来的时刻变成逐项记录，没改过的项不会冲掉别的设备后来改的', () => {
+    const legacy: SyncState = { ...emptySync(), prefs: { v: { theme: 'atlas' }, t: 500, by: 'A' } }
+    const upgraded = stamp(legacy, { ...d, theme: 'atlas' }, 9000, 'B')
+    expect(upgraded.pref!['pref:theme']).toMatchObject({ v: 'atlas', t: 500 })
+    const other = stamp(emptySync(), { ...d, theme: 'braun' }, 800, 'C')
+    expect(applySync(d, mergeSync(upgraded, other)).theme).toBe('braun')
+  })
+
+  it('只有旧版整条偏好的云端照样读', () => {
+    const legacy: SyncState = { ...emptySync(), prefs: { v: { theme: 'atlas', home: KM }, t: 500, by: 'A' } }
+    const out = applySync(d, legacy)
+    expect(out.theme).toBe('atlas')
+    expect(out.home).toEqual(KM)
+  })
+})
+
+describe('网络卡住', () => {
+  it('服务器一直不响应：超时后这一轮报错结束，不会一直「同步中」', async () => {
+    // 只在被中止时才结束的请求
+    const hang: typeof fetch = (_u, init) => new Promise((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))) })
+    const t0 = Date.now()
+    await expect(syncOnce(emptySync(), generateSyncCode(), { fetchImpl: hang, apiBase: 'http://x', timeoutMs: 80 })).rejects.toThrow(/网络太慢/)
+    expect(Date.now() - t0).toBeLessThan(2000)
+  })
+})

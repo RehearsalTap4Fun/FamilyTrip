@@ -1,7 +1,7 @@
 // 云同步什么时候跑（与饮食日记一致）：开启时、打开应用、回到前台、改动后 4 秒。没有定时轮询。
 // 改动后 4 秒先打时间戳（离线也记下改的时刻），再联网；同步途中又改了的，回来时一并打上并进去，不会被云端结果冲掉。
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { applySync, emptySync, fingerprint, mergeSync, peopleDoc, prefsOf, stamp, syncWatch } from './account'
+import { applySync, emptySync, fingerprint, mergeSync, peopleDoc, prefDoc, prefsOf, stamp, syncWatch } from './account'
 import { deleteBlob, deleteRemote, readBlob, syncBlob, SyncError, syncOnce } from './client'
 import { applyShare, mergeShare, shareFp, shareKeys, stampShare, type ShareBlob } from './share'
 import { generateSyncCode, normalizeSyncCode } from './crypto'
@@ -80,7 +80,7 @@ export function useCloudSync(state: AppState, setState: (f: (s: AppState) => App
   const enable = useCallback((code: string, mode: 'new' | 'join') => {
     // 接入已有的同步码：云端的偏好（风格、大模型）和家庭成员优先，本机的行程照样并进去。
     // 本机的家庭成员按时刻 0 记：同一个人以云端为准（新设备上多半是从示例迁移来的旧资料），只有云端没有的人才并进去
-    const base = mode === 'join' ? { ...emptySync(), prefs: { v: prefsOf(stateRef.current), t: 0, by: '' }, people: peopleDoc(stateRef.current.roster, 0, '') } : emptySync()
+    const base = mode === 'join' ? { ...emptySync(), prefs: { v: prefsOf(stateRef.current), t: 0, by: '' }, pref: prefDoc(stateRef.current, 0, ''), people: peopleDoc(stateRef.current.roster, 0, '') } : emptySync()
     setSync(x => ({ ...x, enabled: true, code, base, lastError: undefined, lastSyncAt: undefined, version: undefined }))
     toast(mode === 'new' ? '云同步已开启，正在上传…' : '已接入，正在合并云端的行程…')
     setTimeout(() => run(true), 0)

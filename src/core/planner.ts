@@ -552,7 +552,18 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
         }
         if (best) nodes.splice(0, nodes.length, ...best.list)
         // 怎么排都睡不够：不硬插一段白白拖长一天的休息，照实说
-        else notes.push(`第 ${d + 1} 天午饭后就得赶路，${fmtHM(from)}–${fmtHM(to)} 的午睡只能在车上将就`)
+        else {
+          // 说清是什么占了午睡时段：午饭后在路上 / 午饭吃得晚 / 被景点排满
+          saOf.clear()
+          const slots = await timeline(nodes)
+          const lunch = slots.find(sl => nodes.find(x => x.stop.id === sl.stop.id)?.meal === 'lunch')
+          const road = slots.filter(sl => !lunch || sl.start >= lunch.start).reduce((a, sl) => a + (sl.stop.kind === 'drive' || sl.stop.kind === 'transit' ? ov(sl.start, sl.end) : ov(sl.departAt, sl.start)), 0)
+          const busyBy = [...new Set(slots.filter(sl => (sl.stop.kind === 'sight' || sl.stop.kind === 'food') && ov(sl.start, sl.end) >= 20).map(sl => sl.stop.name))]
+          const win = `${fmtHM(from)}–${fmtHM(to)}`
+          if (road >= 30) notes.push(`第 ${d + 1} 天午饭后就得赶路，${win} 的午睡只能在车上将就`)
+          else if (lunch && lunch.start > from) notes.push(`第 ${d + 1} 天午饭 ${fmtHM(lunch.start)} 才吃，赶不上 ${win} 的午睡；可以饭后找地方补一觉，或者上午少排一点`)
+          else notes.push(`第 ${d + 1} 天 ${win} 排满了${busyBy.length ? `（${busyBy.join('、')}）` : ''}，午睡没地方睡；想睡就删一个点，或者要求这天排松一点`)
+        }
       }
     }
 

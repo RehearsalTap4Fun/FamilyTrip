@@ -394,3 +394,16 @@ describe('起点终点的默认和给模型看的出发地', () => {
     expect(originCity({ ...t, plan: { flow: 'region', styles: [], from: null, origin: '成都' } })).toBeUndefined()
   })
 })
+
+describe('午睡排不进去时照实说原因', () => {
+  it('坐高铁到了接着逛、午饭吃得晚：说午饭几点才吃，不说「午饭后就得赶路」', async () => {
+    const t = { ...base(2), party: { ...base(2).party, mode: 'transit' as const } }
+    const KUNMING = P(102.712, 25.040)
+    const r = await planTrip(t, [cand('大理古城', DALI.古城, { day: 0, durationMin: 90 }), cand('崇圣寺三塔', DALI.三塔, { day: 1 })],
+      fake({ nearby: async (w, p) => (w === 'sight' ? [] : fake().nearby!(w, p)) }), { origin: KUNMING, newId })
+    const nap = r.notes.filter(n => n.startsWith('第 1 天') && n.includes('午睡'))
+    expect(nap).toHaveLength(1)
+    expect(nap[0]).toMatch(/午饭 1[34]:\d\d 才吃/)
+    expect(nap[0]).not.toContain('赶路')
+  })
+})

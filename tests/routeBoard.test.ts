@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boardPins, fitBoard, placeLabels } from '../src/ui/RouteBoard'
+import { boardPins, fitBoard, nearestPin, placeLabels } from '../src/ui/RouteBoard'
 import { seedTrip } from '../src/data/seed'
 import type { Trip } from '@core/types'
 
@@ -21,6 +21,13 @@ describe('路线图', () => {
     expect(Math.abs(x1 - x0)).toBeLessThan(10)
     const g = fitBoard([{ x: 0, y: 0 }, { x: 100, y: 50 }])
     for (const [x, y] of [g.to(0, 0), g.to(100, 50)]) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(340); expect(y).toBeGreaterThanOrEqual(0); expect(y).toBeLessThanOrEqual(240) }
+  })
+
+  it('点击：打开离手指最近的钉（两颗挨得近也分得清）；离得太远不算', () => {
+    const pts = [{ id: 'hl', px: 100, py: 100 }, { id: 'inn', px: 108, py: 104 }]
+    expect(nearestPin(pts, 101, 99, 18)?.id).toBe('hl')
+    expect(nearestPin(pts, 107, 105, 18)?.id).toBe('inn')
+    expect(nearestPin(pts, 160, 160, 18)).toBeNull()
   })
 
   it('标签卡互不重叠、不出界；放不下的就不放', () => {

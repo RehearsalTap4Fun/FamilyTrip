@@ -62,6 +62,13 @@ export function placeLabels(pts: { x: number; y: number; label: string }[], char
   })
 }
 
+/** 离点击处最近、而且在 r 之内的那颗钉 */
+export function nearestPin<T extends { px: number; py: number }>(pts: T[], x: number, y: number, r: number): T | null {
+  let best: T | null = null, bd = r
+  for (const p of pts) { const d = Math.hypot(p.px - x, p.py - y); if (d <= bd) { bd = d; best = p } }
+  return best
+}
+
 /** 两颗钉之间的线：中点往下垂一点（离得越远垂得越多），像线绳 */
 const threadPath = (a: [number, number], b: [number, number]) => {
   const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2
@@ -71,7 +78,8 @@ const threadPath = (a: [number, number], b: [number, number]) => {
 
 const short = (name: string) => { const c = Array.from(name.replace(/[（(].*$/, '').replace(/(景区|风景区|旅游区|国家公园|文化旅游区)$/, '')); return c.length > 8 ? c.slice(0, 8).join('') + '…' : c.join('') }
 
-export function RouteBoard({ trip }: { trip: Trip }) {
+/** onPick：点图钉打开那个站点（第几天、站点 id） */
+export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number, stopId: string) => void }) {
   const pins = useMemo(() => boardPins(trip), [trip])
   const [day, setDay] = useState<number | null>(null)
   const view = useMemo(() => {
@@ -109,7 +117,16 @@ export function RouteBoard({ trip }: { trip: Trip }) {
           {days.map(d => <button key={d} type="button" role="radio" aria-checked={day === d} className={day === d ? 'on' : ''} onClick={() => setDay(day === d ? null : d)}>D{d + 1}</button>)}
         </div>
       </div>
-      <svg className="rb-board" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`按顺序：${pts.map(p => p.name).join(' → ')}`}>
+      <svg className="rb-board" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`按顺序：${pts.map(p => p.name).join(' → ')}`}
+        onClick={onPick ? e => {
+          // 点在哪就打开离手指最近的那颗钉（两颗钉挨得近时，各自加大的点击圈会互相盖住，所以统一在这里判断）
+          const svg = e.currentTarget
+          const m = svg.getScreenCTM()
+          if (!m) return
+          const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse())
+          const hit = nearestPin(pts.filter(p => on(p.day)), pt.x, pt.y, 18)
+          if (hit) onPick(hit.day, hit.id)
+        } : undefined}>
         <defs>
           <pattern id="rb-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" className="rb-grid" /></pattern>
           <clipPath id="rb-clip"><rect width={W} height={H} rx="10" /></clipPath>
@@ -128,7 +145,11 @@ export function RouteBoard({ trip }: { trip: Trip }) {
         {pts.map((p, i) => {
           const b = labels[i]
           return (
-            <g key={p.id} className={'rb-pin-g' + (on(p.day) ? '' : ' dim')}>
+            <g key={p.id} className={'rb-pin-g' + (on(p.day) ? '' : ' dim') + (onPick ? ' tappable' : '')}
+              {...(onPick ? {
+                role: 'button', tabIndex: 0, 'aria-label': `打开${p.name}（第 ${p.day + 1} 天）`,
+                onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(p.day, p.id) } },
+              } : {})}>
               {b && (
                 <g className="rb-card" style={{ ['--s' as string]: i % 2 ? -1 : 1 }}>
                   <rect x={b.x} y={b.y} width={b.w} height={b.h} rx="3" />

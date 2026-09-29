@@ -452,3 +452,6 @@
 :root[data-theme="atlas"] .rb-thread { stroke: var(--hwy); stroke-width: 2; }
 :root[data-theme="atlas"] .rb-pin { fill: var(--hwy); }
 :root[data-theme="atlas"] .rb-card rect { rx: 0; }
+.rb-board { cursor: pointer; }
+.rb-pin-g.tappable { outline: none; }
+.rb-pin-g.tappable:active .rb-pin, .rb-pin-g.tappable:focus-visible .rb-pin { stroke: var(--ink); stroke-width: 2.4; }

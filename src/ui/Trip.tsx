@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
+import { removeStop, StopSheet } from './StopSheet'
 import { useToast } from './kit/Toast'
 import { inRange } from '@core/party'
 import { fmtHM, scheduleDay } from '@core/schedule'
@@ -23,6 +24,9 @@ interface Props { trip: Trip; onTrip: (t: Trip) => void }
 export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount, ratings }: Props & { onSwitch: () => void; onNew: () => void; onPlan: () => void; tripCount: number; ratings: Rating[] }) {
   const [open, setOpen] = useState<number | null>(null)
   const [replanning, setReplanning] = useState<number | null>(null)
+  // 路线图上点的站点：用站点面板打开（地图册的每日编辑是就地展开，这里给一个统一的入口）
+  const [pin, setPin] = useState<{ day: number; id: string } | null>(null)
+  const [pinClosing, setPinClosing] = useState(false)
   const toast = useToast()
   const all = checkTrip(trip)
   const errs = all.filter(i => i.level === 'error').length
@@ -46,7 +50,7 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount, rat
       </header>
       <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
-      <RouteBoard trip={trip} />
+      <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); setPin({ day: d, id }) }} />
 
       <div className="spread">
       <div className="page-l">
@@ -96,6 +100,11 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount, rat
         </section>
       </div>
       </div>
+      {pin && trip.days[pin.day]?.stops.some(s => s.id === pin.id) && (
+        <StopSheet trip={trip} dayIndex={pin.day} id={pin.id} onTrip={onTrip} open={!pinClosing}
+          onClose={() => setPinClosing(true)} onExited={() => { setPin(null); setPinClosing(false) }}
+          onRemove={id => { const before = trip; onTrip(removeStop(trip, pin.day, id)); setPin(null); toast('已删除这一站', () => onTrip(before)) }} />
+      )}
       {replanning != null && (
         <ReplanSheet open trip={trip} dayIndex={replanning} ratings={ratings} onClose={() => setReplanning(null)}
           onApply={(t, summary) => { const before = trip; onTrip(t); setReplanning(null); toast(`已按 AI 重排：${summary}`.slice(0, 40), () => onTrip(before)) }} />

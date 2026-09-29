@@ -90,7 +90,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, trip
       </header>
       <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
-      <RouteBoard trip={trip} />
+      <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); openStop(id) }} />
       <ol className="sweeps">
         {trip.days.map((d, i) => {
           const c = deriveConstraints(partyOnDay(trip.party, i))

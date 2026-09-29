@@ -141,3 +141,16 @@ describe('打卡时记红黑榜', () => {
     expect(aggregate([r!, { ...r!, id: 'r2', name: '喜洲古镇景区', note: '人少' }])).toHaveLength(1)
   })
 })
+
+describe('地图册「今天」页按景点分段上色', () => {
+  it('开往景点的路算那一段；景点后没再开车前的吃饭算这一段；最后一段留住处', async () => {
+    const { sightSegments } = await import('../src/ui/format')
+    const k = (...ks: string[]) => ks.map(kind => ({ kind }))
+    // 开车 → A → 午饭 → 开车 → 服务区 → 开车 → B → 晚饭 → 开车 → 住处
+    expect(sightSegments(k('drive', 'sight', 'food', 'drive', 'rest', 'drive', 'sight', 'food', 'drive', 'lodging'))).toEqual([0, 0, 0, 1, 1, 1, 1, 1, 1, 1])
+    // 三个景点、中间不开车（同一片步行）：各自一段
+    expect(sightSegments(k('sight', 'sight', 'food', 'sight', 'lodging'))).toEqual([0, 1, 1, 2, 2])
+    // 一整天在路上：一段
+    expect(sightSegments(k('drive', 'rest', 'drive', 'lodging'))).toEqual([0, 0, 0, 0])
+  })
+})

@@ -13,7 +13,7 @@ import { fmtHM, scheduleDay, type Slot } from '@core/schedule'
 import type { Stop, Trip } from '@core/types'
 import { checkDay, TAG_LABEL, type Issue } from '@core/validate'
 import { regionName } from '../data/regions'
-import { cityShort, dayTitle, fmtDay, fmtShort, partyLine, routeCode, stripCode, tintOf } from './format'
+import { dayTitle, fmtDay, fmtShort, partyLine, routeCode, segTint, sightSegments, stripCode } from './format'
 import { Legend } from './Legend'
 import { placeIssues } from './placeIssues'
 import { StackTable } from './StackTable'
@@ -41,7 +41,7 @@ function Road({ traveled, first, last, children, badge }: { traveled: boolean; f
 }
 
 /** 图例：节点图标是什么、底色和斜纹是什么意思 */
-function RouteLegend({ cities, nap }: { cities: { name: string; tint: string }[]; nap?: string }) {
+function RouteLegend({ segs, nap }: { segs: { name: string; tint: string }[]; nap?: string }) {
   const kinds: BadgeKind[] = ['sight', 'sa', 'food', 'lodging']
   return (
     <div className="route-legend">
@@ -50,7 +50,8 @@ function RouteLegend({ cities, nap }: { cities: { name: string; tint: string }[]
         <li><Shield code="G5611" />高速、国道</li>
       </ul>
       <p>
-        {cities.length > 0 && <span>底色是所在的城市：{cities.map(c => <span key={c.name} className="tint"><i style={{ background: c.tint }} />{c.name}</span>)}</span>}
+        {segs.length > 1 && <span>底色按景点分段（开往它的路也算）：{segs.map((c, i) => <span key={i} className="tint"><i style={{ background: c.tint }} />{c.name}</span>)}</span>}
+        <span><i className="border-swatch" />点划线是换了城市</span>
         {nap && <span><i className="nap-swatch" />斜纹是{nap}</span>}
       </p>
     </div>
@@ -100,6 +101,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
   const nextId = live ? prog.next?.id : undefined
   const nextIdx = nextId ? day.stops.findIndex(s => s.id === nextId) : -1
   const nowIdx = live ? prog.nowBefore : -1
+  const segs = sightSegments(day.stops)
   const traveledAt = (i: number) => (live ? i < nowIdx : dayIndex < liveDay || (liveDay < 0 && prog.dayIndex >= trip.days.length))
 
   const played = slots.filter(s => s.stop.status === 'done' && (s.stop.kind === 'sight' || s.stop.kind === 'food')).reduce((a, s) => a + s.stop.durationMin, 0)
@@ -158,7 +160,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
       {blockers.map((b, i) => <Note key={'b' + i} issue={b} />)}
 
       <RouteLegend
-        cities={[...new Set(day.stops.map(s => (s.poi?.adcode ? cityOf(s.poi.adcode) : '')).filter(Boolean))].map(code => ({ name: regionName(code) ?? cityShort(code) ?? '当地', tint: tintOf(trip, code) }))}
+        segs={day.stops.filter(s => s.kind === 'sight').map((s, k) => ({ name: s.name, tint: segTint(k) }))}
         nap={c.nap ? `${napWho}午睡 ${fmtHM(c.nap.from)}–${fmtHM(c.nap.to)}` : undefined} />
       <ol className="strip">
         {day.stops.map((stop, i) => {
@@ -170,7 +172,8 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
           const cityChanged = city !== lastCity && city != null
           const border = cityChanged && lastCity != null
           lastCity = city
-          const style = { backgroundColor: tintOf(trip, adcode) }
+          // 底色按景点分段：同一个城市里的几个景点也分得出前后几段；换城市另画点划线
+          const style = { backgroundColor: segTint(segs[i]) }
           const nap = inNap(slot)
           const napLabel = nap && !napLabelShown && c.nap ? `${fmtHM(c.nap.from)}–${fmtHM(c.nap.to)} ${napWho}午睡${stop.kind === 'drive' ? ' · 车上' : ''}` : null
           if (napLabel) napLabelShown = true

@@ -91,6 +91,7 @@ button:disabled { cursor: default; opacity: .4; }
 .route-legend li .shield { transform: scale(.72); transform-origin: left center; margin-right: -14px; }
 .route-legend p { margin-top: 5px; line-height: 1.6; display: flex; flex-direction: column; gap: 2px; }
 .route-legend .tint { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; }
+.route-legend .border-swatch { display: inline-block; width: 22px; height: 0; margin-right: 4px; vertical-align: 3px; border-top: 1.2px dashed var(--ink); }
 .route-legend .tint i, .route-legend .nap-swatch { display: inline-block; width: 14px; height: 10px; border: .75px solid var(--ink2); vertical-align: -1px; }
 .route-legend .nap-swatch { margin-right: 4px; background-image: repeating-linear-gradient(45deg, rgba(47, 127, 193, .55) 0 1px, transparent 1px 4px); }
 .n { font: 700 15px/20px var(--serif); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }

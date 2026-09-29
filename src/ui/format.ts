@@ -70,6 +70,27 @@ export function stripCode(name: string): string {
 
 /** 城市到平涂色的稳定映射：同一个地方在每一天、每一页都是同一种颜色 */
 const TINTS = ['var(--t-yellow)', 'var(--t-green)', 'var(--t-pink)', 'var(--t-violet)']
+/**
+ * 按景点分段（地图册「今天」页的底色）：每个景点一段——开往它的路、它之后没再开车前的吃饭歇脚都算这段；
+ * 第一个景点之前的路算进第一段，最后一个景点之后的留在最后一段。返回每一站在第几段（从 0 起），一天里没有景点就全是 0
+ */
+export function sightSegments(stops: { kind: string }[]): number[] {
+  const sights = stops.map((s, i) => (s.kind === 'sight' ? i : -1)).filter(i => i >= 0)
+  if (!sights.length) return stops.map(() => 0)
+  const out: number[] = []
+  let seg = 0, seen = 0, leaving = false
+  for (let i = 0; i < stops.length; i++) {
+    const k = stops[i].kind
+    if (k === 'sight') { seg = seen++; leaving = false }
+    else if (seen > 0 && (k === 'drive' || k === 'transit') && seen < sights.length) { if (!leaving) { seg = seen; leaving = true } }
+    out.push(seg)
+  }
+  return out
+}
+
+/** 第几段的底色：黄绿粉紫轮流，相邻两段不同色 */
+export const segTint = (i: number) => TINTS[i % TINTS.length]
+
 export function tintOf(trip: Trip, adcode?: string): string {
   if (!adcode) return 'transparent'
   const order: string[] = []

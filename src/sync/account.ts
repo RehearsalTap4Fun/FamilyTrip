@@ -57,6 +57,14 @@ export function rosterOf(doc: TripDoc | undefined): Roster | undefined {
   return { members: pick<Member>('member:'), pets: pick<Pet>('pet:') }
 }
 
+/**
+ * 本机哪些改动要触发同步（改动后 4 秒推一次）：和 stamp 同步的内容一一对应——自己的行程、红黑榜、偏好、家庭成员。
+ * 放在这里和 stamp 挨着，加了新的同步内容别忘了这里
+ */
+export function syncWatch(s: AppState): string {
+  return JSON.stringify([s.trips.filter(t => !t.sample), s.ratings, prefsOf(s), s.roster ?? null])
+}
+
 /** 本机改动打时间戳：和上一次记下的版本比，只有真的变了的记录才换成新时刻 */
 export function stamp(prev: SyncState, s: AppState, now: number, by: string): SyncState {
   const trips: Record<string, TripDoc> = { ...prev.trips }

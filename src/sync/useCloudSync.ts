@@ -1,7 +1,7 @@
 // 云同步什么时候跑（与饮食日记一致）：开启时、打开应用、回到前台、改动后 4 秒。没有定时轮询。
 // 改动后 4 秒先打时间戳（离线也记下改的时刻），再联网；同步途中又改了的，回来时一并打上并进去，不会被云端结果冲掉。
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { applySync, emptySync, fingerprint, mergeSync, peopleDoc, prefsOf, stamp } from './account'
+import { applySync, emptySync, fingerprint, mergeSync, peopleDoc, prefsOf, stamp, syncWatch } from './account'
 import { deleteBlob, deleteRemote, readBlob, syncBlob, SyncError, syncOnce } from './client'
 import { applyShare, mergeShare, shareFp, shareKeys, stampShare, type ShareBlob } from './share'
 import { generateSyncCode, normalizeSyncCode } from './crypto'
@@ -55,8 +55,8 @@ export function useCloudSync(state: AppState, setState: (f: (s: AppState) => App
     }
   }, [setState, setSync, toast])
 
-  // 改动后 4 秒：先打时间戳，再同步
-  const fp = useMemo(() => JSON.stringify([state.trips.filter(t => !t.sample), state.ratings, state.theme, state.llmProvider]), [state.trips, state.ratings, state.theme, state.llmProvider])
+  // 改动后 4 秒：先打时间戳，再同步。要同步的每一样都得列在这里，漏了的改动不会自己推上去（家庭成员、现居地曾经漏过）
+  const fp = useMemo(() => syncWatch(state), [state.trips, state.ratings, state.theme, state.llmProvider, state.roster, state.home]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!sync.enabled) return
     const t = setTimeout(() => {

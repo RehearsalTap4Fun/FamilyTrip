@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applySync, emptySync, fingerprint, liveTrips, mergeSync, peopleDoc, stamp, type SyncState } from '../src/sync/account'
+import { applySync, emptySync, fingerprint, liveTrips, mergeSync, peopleDoc, stamp, syncWatch, type SyncState } from '../src/sync/account'
 import { decryptJson, deriveKeys, encryptJson, generateSyncCode, normalizeSyncCode } from '../src/sync/crypto'
 import { syncOnce, type RemoteRec } from '../src/sync/client'
 import { backupFileName, exportBackup, importBackup } from '../src/store/backup'
@@ -243,5 +243,31 @@ describe('家庭成员逐人合并', () => {
   it('旧版云端数据（家庭成员整份放在偏好里）照样读得出来', () => {
     const legacy: SyncState = { ...emptySync(), prefs: { v: { roster: { members: [{ id: 'x', name: '旧版的人', role: 'adult' }], pets: [] } }, t: 100, by: 'A' } }
     expect(applySync(base, legacy).roster!.members.map(m => m.name)).toEqual(['旧版的人'])
+  })
+})
+
+describe('改动触发同步', () => {
+  it('会触发同步的改动，正好就是同步内容有变化的改动（家庭成员、现居地曾经漏过）', () => {
+    const s0 = withTrips([mine('x', '自己的')])
+    const base = stamp(emptySync(), s0, 1000, 'A')
+    const g = s0.roster!.members[2]
+    const cases: [string, AppState][] = [
+      ['改自己的行程', { ...s0, trips: s0.trips.map(t => (t.id === 'x' ? { ...t, title: '改了' } : t)) }],
+      ['改红黑榜', { ...s0, ratings: [{ id: 'r1', kind: 'food', name: '店', verdict: 'red', at: '2026-09-29' } as never] }],
+      ['换风格', { ...s0, theme: 'atlas' }],
+      ['换大模型', { ...s0, llmProvider: 'deepseek' }],
+      ['改现居地', { ...s0, home: { name: '家', poi: { lng: 102.7, lat: 25 } } }],
+      ['改家庭成员', { ...s0, roster: { ...s0.roster!, members: s0.roster!.members.map(m => (m.id === g.id ? { ...m, age: (m.age ?? 0) + 1 } : m)) } }],
+      ['删家庭成员', { ...s0, roster: { ...s0.roster!, members: s0.roster!.members.filter(m => m.id !== g.id) } }],
+      ['填 Key（不同步）', { ...s0, amapKey: 'k', zhipuKey: 'z' }],
+      ['演示时间（不同步）', { ...s0, demoNow: '2026-10-02T10:00' }],
+      ['切换看哪趟（不同步）', { ...s0, currentId: 'x' }],
+      ['改示例行程（不同步）', { ...s0, trips: s0.trips.map(t => (t.sample ? { ...t, title: '示例改了' } : t)) }],
+    ]
+    for (const [what, s1] of cases) {
+      const watched = syncWatch(s1) !== syncWatch(s0)
+      const synced = fingerprint(stamp(base, s1, 2000, 'A')) !== fingerprint(base)
+      expect({ what, watched }).toEqual({ what, watched: synced })
+    }
   })
 })

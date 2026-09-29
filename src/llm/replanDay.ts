@@ -7,7 +7,7 @@ import type { PlaceVerdict } from '@core/ratings'
 import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, StopKind, Trip } from '@core/types'
 import { checkDay, TAG_LABEL, type Issue } from '@core/validate'
-import { callStructured, type LlmConfig, type StructuredCall, type StructuredResult, type Usage } from './client'
+import { callStructured, cut, type LlmConfig, type StructuredCall, type StructuredResult, type Usage } from './client'
 import { describeLimits, describeMembers } from './routePrompt'
 import type { GroundReport, Grounder } from '../geo/groundDay'
 
@@ -107,7 +107,7 @@ export function mergeDraft(trip: Trip, dayIndex: number, draft: DayDraft, newId:
         driveMin: base.kind === 'drive' || d.driveMin == null ? (base.kind === 'drive' ? undefined : base.driveMin) : clamp(d.driveMin, 0, 600) || undefined,
         start: d.start && HM.test(d.start) ? d.start : undefined,
         priority: ([1, 2, 3] as const).find(p => p === d.priority) ?? base.priority,
-        why: d.why.slice(0, 40) || base.why,
+        why: cut(d.why, 40) || base.why,
       })
     } else {
       out.push({
@@ -116,7 +116,7 @@ export function mergeDraft(trip: Trip, dayIndex: number, draft: DayDraft, newId:
         driveMin: d.kind === 'drive' || d.driveMin == null ? undefined : clamp(d.driveMin, 0, 600) || undefined,
         start: d.start && HM.test(d.start) ? d.start : undefined,
         priority: ([1, 2, 3] as const).find(p => p === d.priority) ?? 2,
-        why: d.why.slice(0, 40) || undefined,
+        why: cut(d.why, 40) || undefined,
       })
     }
   }

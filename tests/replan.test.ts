@@ -129,9 +129,12 @@ describe('DeepSeek 报错带上原因', () => {
     const { callStructured } = await import('../src/llm/client')
     const orig = globalThis.fetch
     try {
-      globalThis.fetch = (async () => ({ ok: false, status: 400, json: async () => ({ error: { message: 'Invalid max_tokens value' } }) })) as unknown as typeof fetch
+      globalThis.fetch = (async () => ({ ok: false, status: 400, text: async () => JSON.stringify({ error: { message: 'Invalid max_tokens value' } }) })) as unknown as typeof fetch
       await expect(callStructured({ provider: 'deepseek', apiKey: 'k' }, { system: 's', user: 'u', schema: DayDraftSchema })).rejects.toThrow('DeepSeek 返回错误（400）：Invalid max_tokens value')
-      globalThis.fetch = (async () => ({ ok: false, status: 402, json: async () => ({}) })) as unknown as typeof fetch
+      // 纯文本的原因也带出来
+      globalThis.fetch = (async () => ({ ok: false, status: 400, text: async () => 'Failed to parse the request body as JSON' })) as unknown as typeof fetch
+      await expect(callStructured({ provider: 'deepseek', apiKey: 'k' }, { system: 's', user: 'u', schema: DayDraftSchema })).rejects.toThrow('：Failed to parse the request body as JSON')
+      globalThis.fetch = (async () => ({ ok: false, status: 402, text: async () => '' })) as unknown as typeof fetch
       await expect(callStructured({ provider: 'deepseek', apiKey: 'k' }, { system: 's', user: 'u', schema: DayDraftSchema })).rejects.toThrow('余额不足')
     } finally { globalThis.fetch = orig }
   })

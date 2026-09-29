@@ -46,9 +46,24 @@ const usd = (p: Provider, u: Omit<Usage, 'usd'>) => {
   return (u.input * r.input + u.output * r.output + u.cacheRead * r.cacheRead + u.cacheWrite * r.cacheWrite) / 1e6
 }
 
+/**
+ * 去掉落单的代理项（半个 emoji）。按长度截断网上的攻略摘要时会把 emoji 从中间切开，
+ * 浏览器照样发得出去，但 DeepSeek 解析请求会报 400「unexpected end of hex escape」（2026-09-29 手机上实际遇到）。
+ */
+export function cleanText(s: string): string {
+  return s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
+}
+
+/** 按字符（不按 UTF-16 单元）截断，emoji 不会被切开 */
+export function cut(s: string, n: number): string {
+  const chars = Array.from(s)
+  return chars.length <= n ? s : chars.slice(0, n).join('')
+}
+
 export async function callStructured<S extends z.ZodType>(cfg: LlmConfig, req: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
   if (!cfg.apiKey) throw new LlmError(`还没有填 ${PROVIDER_LABEL[cfg.provider]} 的 API Key（在「同行」页最下面）`, 'auth')
-  return cfg.provider === 'deepseek' ? viaDeepSeek(cfg.apiKey, req) : viaAnthropic(cfg.apiKey, req)
+  const clean = { ...req, system: cleanText(req.system), user: cleanText(req.user) }
+  return cfg.provider === 'deepseek' ? viaDeepSeek(cfg.apiKey, clean) : viaAnthropic(cfg.apiKey, clean)
 }
 
 /**
@@ -123,7 +138,11 @@ async function viaDeepSeek<S extends z.ZodType>(apiKey: string, req: StructuredC
     if (res.status === 402) throw new LlmError('DeepSeek 账户余额不足，去 platform.deepseek.com 充值', 'auth')
     // 带上接口给的原因，只报状态码没法查
     if (!res.ok) {
-      const why = await res.json().then((j: { error?: { message?: string } }) => j?.error?.message ?? '').catch(() => '')
+      // 原因可能是 JSON（{error:{message}}），也可能是纯文本
+      const raw = await res.text().catch(() => '')
+      let why = raw
+      try { why = (JSON.parse(raw) as { error?: { message?: string } })?.error?.message ?? raw } catch { /* 纯文本就用原文 */ }
+      why = why.trim().slice(0, 200)
       throw new LlmError(`DeepSeek 返回错误（${res.status}）${why ? '：' + why : ''}`, 'other')
     }
     return res.json()

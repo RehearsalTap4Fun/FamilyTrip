@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { deriveConstraints } from '@core/constraints'
 import { partyOnDay } from '@core/party'
 import type { PlanPlace, Trip } from '@core/types'
-import { callStructured, type LlmConfig, type StructuredCall, type StructuredResult, type Usage } from './client'
+import { callStructured, cut, type LlmConfig, type StructuredCall, type StructuredResult, type Usage } from './client'
 import { describeLimits, describeMembers } from './routePrompt'
 
 export const GuideSchema = z.object({
@@ -46,7 +46,7 @@ export function buildGuidePrompt(trip: Trip, text: string): { system: string; us
   const user = [
     `同行者：${describeMembers(everyone, 0)}`,
     '他们的限制：', ...describeLimits(c).map(l => '- ' + l),
-    '', '攻略正文：', text.slice(0, MAX_CHARS),
+    '', '攻略正文：', cut(text, MAX_CHARS),
   ].join('\n')
   return { system, user }
 }

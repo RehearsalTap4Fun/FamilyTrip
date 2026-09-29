@@ -2,6 +2,7 @@
 // 2026-09-29 实测：search_pro_sogou 以携程海外版 / 新浪旅游 / 头条的用户游记为主、摘要最长（≈900 字），
 // search_pro_quark 能补到一些小红书风格的笔记；search_std 与 search_pro 结果一模一样、内容农场多，不用。
 import type { Trip } from '@core/types'
+import { cleanText, cut } from './client'
 import { STYLES } from '@core/trips'
 
 export interface WebRef { title: string; url: string; site: string; content: string; date?: string }
@@ -25,7 +26,7 @@ export async function zhipuSearch(query: string, key: string, engine: (typeof EN
   try {
     res = await fetchImpl(API, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-      body: JSON.stringify({ search_query: query.slice(0, 70), search_engine: engine, search_intent: false, count: 15, content_size: 'medium' }),
+      body: JSON.stringify({ search_query: cut(query, 70), search_engine: engine, search_intent: false, count: 15, content_size: 'medium' }),
     })
   } catch { throw new SearchError('连不上智谱搜索，检查一下网络') }
   const j = await res.json().catch(() => ({}))
@@ -60,7 +61,7 @@ export function pickRefs(lists: WebRef[][], region: string, n = 10): WebRef[] {
       if (!host || BAD.test(host) || seen.has(key) || seen.has(r.title)) return
       seen.add(key); seen.add(r.title)
       const score = (GOOD.test(host) ? 3 : 0) + (words.some(w => (r.title + r.content).includes(w)) ? 2 : 0) + Math.min(r.content.length, 900) / 900 - i * 0.05
-      all.push({ r: { ...r, content: r.content.replace(/<\/?em>/g, '').slice(0, 600) }, score })
+      all.push({ r: { ...r, title: cleanText(r.title), content: cut(cleanText(r.content.replace(/<\/?em>/g, '')), 600) }, score })
     })
   }
   return all.sort((a, b) => b.score - a.score).slice(0, n).map(x => x.r)

@@ -103,7 +103,9 @@ export function extractText(html, url) {
     body = htmlToText(main.replace(/<(header|footer|nav|aside)[\s\S]*?<\/\1>/gi, ' '))
   }
   if (desc && !body.includes(desc.slice(0, 20))) body = desc + '\n' + body
-  const text = body.slice(0, MAX_TEXT)
+  // 按字符截（不把 emoji 切成半个，半个字符发给大模型会被拒）
+  const chars = Array.from(body)
+  const text = chars.length > MAX_TEXT ? chars.slice(0, MAX_TEXT).join('') : body
   // 正文太短多半是要登录才能看全文、或内容在视频里
   return { title, text, partial: text.replace(/\s/g, '').length < 300 }
 }

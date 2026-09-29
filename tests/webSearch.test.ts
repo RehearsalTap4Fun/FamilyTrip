@@ -7,6 +7,25 @@ import type { Trip } from '@core/types'
 const t: Trip = { ...seedTrip(), plan: { flow: 'region', styles: ['family'], region: '滇西北' } }
 const ref = (url: string, title: string, content = '大理古城 洱海 亲子'.repeat(20)): WebRef => ({ url, title, site: '', content })
 
+describe('半个 emoji', () => {
+  it('截断不切开 emoji；发出去之前去掉落单的半个字符，请求体能被严格的 JSON 解析器读', async () => {
+    const { cleanText, cut } = await import('../src/llm/client')
+    const s = '好'.repeat(599) + '🏔️雪山'
+    expect(s.slice(0, 600).endsWith('\ud83c')).toBe(true) // 按 UTF-16 截就会切开
+    expect(cut(s, 600)).toBe('好'.repeat(599) + '🏔')
+    const broken = '看日落\ud83d' + '还有\udc4d单独的后半'
+    expect(cleanText(broken)).toBe('看日落还有单独的后半')
+    expect(cleanText('🏔️🐼完整的不动')).toBe('🏔️🐼完整的不动')
+    // 严格解析器（DeepSeek）会拒绝落单代理项的转义；清理后序列化里不再有
+    expect(JSON.stringify(cleanText(broken))).not.toMatch(/\\ud[89a-f]/i)
+  })
+
+  it('网上搜到的摘要带 emoji 被截断时也不会留下半个', () => {
+    const got = pickRefs([[{ url: 'https://hk.trip.com/1', title: '滇西北🏔️亲子', site: '', content: '滇'.repeat(599) + '🐼熊猫' }]], '滇西北')
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(got[0].content)).toBe(false)
+  })
+})
+
 describe('联网搜攻略', () => {
   it('搜索词带上地区、天数、同行特点、自驾和玩法', () => {
     const [a, b] = searchQueries(t, '滇西北')

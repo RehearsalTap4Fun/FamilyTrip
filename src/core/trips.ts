@@ -1,5 +1,5 @@
 // 多个行程：按日期判断状态、玩法类型的说明、按新建表单生成空行程骨架。
-import type { Party, PlanFlow, Trip, TripStyle, TravelMode } from './types'
+import type { Party, PlaceRef, PlanFlow, Trip, TripStyle, TravelMode } from './types'
 import { LODGING_PLACEHOLDER } from './validate'
 
 export type TripStatus = 'ongoing' | 'planning' | 'done'
@@ -73,6 +73,9 @@ export interface NewTripInput {
   styles: TripStyle[]
   region?: string
   origin?: string
+  /** 起点、终点（默认现居地）；null = 不设 */
+  from?: PlaceRef | null
+  to?: PlaceRef | null
 }
 
 /** 空行程骨架：每天一个住处占位，之后由排程填满或手动加站 */
@@ -86,7 +89,7 @@ export function skeletonTrip(input: NewTripInput, newId: (prefix: string) => str
     startDate: input.startDate,
     party: { ...input.party, mode: input.mode },
     days: Array.from({ length: days }, () => ({ startTime: '09:00', stops: [{ id: newId('s'), kind: 'lodging' as const, name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' as const }] })),
-    plan: { flow: input.flow, styles: input.styles.slice(0, 2), region: input.flow === 'region' ? region : undefined, origin },
+    plan: { flow: input.flow, styles: input.styles.slice(0, 2), region: input.flow === 'region' ? region : undefined, origin, ...(input.from !== undefined ? { from: input.from } : {}), ...(input.to !== undefined ? { to: input.to } : {}) },
   }
 }
 

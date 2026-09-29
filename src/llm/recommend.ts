@@ -65,7 +65,7 @@ export function buildRecommendPrompt({ trip, region, wishes, refs = [] }: Recomm
     '5. 方案之间要有明显区别：路线不同、节奏不同，或者侧重的玩法不同。',
     '6. 住宿一般不用给（排程时会在当晚附近推荐）；餐厅只给当地真有名、适合带老人小孩的。',
     '7. 先在 regionCities 里列出这个地区包含的主要城市 / 片区。每个方案每天的 city 都必须是其中之一，不能换成别的地区。',
-    '8. 出发地只是起点、不是目的地：不要在出发地安排游玩；第一天从出发地出发、当天到达这个地区（路远就把第一天当赶路日，只在到达的城市排一两个点）。不要安排返程那天，除非用户要求。',
+    '8. 出发地只是起点、不是目的地：不要在出发地安排游玩；第一天从出发地出发、当天到达这个地区（路远就把第一天当赶路日，只在到达的城市排一两个点）。写了「最后一天要回去」的，最后一天只排顺路、离出发地近一侧的一两个点，留出返程的时间；没写就不要安排返程。',
     '9. 地区里个别地方超出了同行者的限制（例如海拔），就只把那些地方放进 skipped，同一个城市里不超的照样可以去（例如古城海拔没超，就不要因为附近的雪山超了而不去这个城市）。',
     ...(refs.length ? [
       '10. 下面给了网上搜到的攻略摘要（带编号）。优先采用里面多次出现、适合这群人的地方和路线；摘要里提到但不适合这群人的放进 skipped；在 sources 里写这个方案主要参考了哪几篇（编号）。',
@@ -74,7 +74,7 @@ export function buildRecommendPrompt({ trip, region, wishes, refs = [] }: Recomm
   ].join('\n')
   const user = [
     `地区：${region}（方案都要在这个地区里）`,
-    `天数：${trip.days.length} 天，出行方式：${MODE_CN[trip.party.mode]}${trip.plan?.origin ? `，从${trip.plan.origin}出发` : ''}`,
+    `天数：${trip.days.length} 天，出行方式：${MODE_CN[trip.party.mode]}${originCity(trip) ? `，从${originCity(trip)}出发` : ''}${trip.plan?.to ? '，最后一天要回去' : ''}`,
     `同行者：${describeMembers(everyone, 0)}`,
     '他们的限制：', ...describeLimits(c).map(l => '- ' + l),
     ...(styles.length ? ['想怎么玩：' + styles.map((s, i) => `${STYLES[s].label}${styles.length > 1 ? (i === 0 ? '（主）' : '（辅）') : ''}：偏向${STYLES[s].seek}`).join('；')] : []),
@@ -86,10 +86,17 @@ export function buildRecommendPrompt({ trip, region, wishes, refs = [] }: Recomm
 
 type Caller = <S extends z.ZodType>(cfg: LlmConfig, req: StructuredCall<S>) => Promise<StructuredResult<z.infer<S>>>
 
+/** 出发地给模型看的名字：起点所在的城市（起点可能只叫「家」）；旧行程只有出发地文字 */
+export function originCity(trip: Trip): string | undefined {
+  const f = trip.plan?.from
+  if (f) { const parts = (f.area ?? '').split(/\s+/).filter(Boolean); return parts[1] ?? parts[0] ?? (f.name === '家' ? undefined : f.name) }
+  return f === null ? undefined : trip.plan?.origin
+}
+
 export async function recommend(cfg: LlmConfig, input: RecommendInput, caller: Caller = callStructured): Promise<{ proposals: Proposal[]; usage: Usage }> {
   const { system, user } = buildRecommendPrompt(input)
   const r = await caller(cfg, { system, user, schema: ProposalsSchema, effort: 'medium' })
-  return { proposals: keepInRegion(r.data, input.trip.plan?.origin).slice(0, 3), usage: r.usage }
+  return { proposals: keepInRegion(r.data, originCity(input.trip)).slice(0, 3), usage: r.usage }
 }
 
 /** 模型常被出发地带跑（「滇西北」给出昆明、楚雄的方案）：一半以上的天不在它自己列的地区城市里、或在出发地游玩的方案丢掉；全被丢掉就原样交回，让人自己看 */

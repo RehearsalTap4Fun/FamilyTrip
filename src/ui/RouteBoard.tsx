@@ -10,19 +10,28 @@ const H = 240
 const PAD = 26
 const project = (lng: number, lat: number): [number, number] => [(lng * map.k - map.minX) * map.scale, (-lat - map.minY) * map.scale]
 
-export interface BoardPin { id: string; name: string; kind: 'sight' | 'lodging'; day: number; n: number; x: number; y: number }
+export interface BoardPin { id: string; name: string; kind: 'sight' | 'lodging' | 'end'; day: number; n: number; x: number; y: number
+  /** 和起点同一处的终点：只钉不贴卡片 */
+  quiet?: boolean
+}
 
-/** 定了位的景点和住处，按天、按顺序；同一个住处连住几晚只钉一次 */
+/** 定了位的景点和住处，按天、按顺序；同一个住处连住几晚只钉一次。起点（第一天从哪出发）、回到的终点钉成小房子 */
 export function boardPins(trip: Trip): BoardPin[] {
   const out: BoardPin[] = []
   let n = 0
+  const from = trip.plan?.from
+  if (from && trip.days[0]?.stops.some(s => s.kind === 'sight' || s.kind === 'lodging')) {
+    const [x, y] = project(from.poi.lng, from.poi.lat)
+    out.push({ id: 'from', name: from.name === '家' ? '家' : from.name, kind: 'end', day: 0, n: 0, x, y })
+  }
   trip.days.forEach((d, day) => {
     for (const s of d.stops) {
       if (!s.poi || (s.kind !== 'sight' && s.kind !== 'lodging') || s.status === 'skipped') continue
       const [x, y] = project(s.poi.lng, s.poi.lat)
       const prev = out[out.length - 1]
       if (prev && Math.hypot(prev.x - x, prev.y - y) < 1e-6) continue
-      out.push({ id: s.id, name: s.name, kind: s.kind as BoardPin['kind'], day, n: s.kind === 'sight' ? ++n : 0, x, y })
+      const back = s.home && out[0]?.id === 'from' && Math.hypot(out[0].x - x, out[0].y - y) < 1e-6
+      out.push({ id: s.id, name: s.home ? s.name.replace(/^回到/, '') : s.name, kind: s.home ? 'end' : s.kind as BoardPin['kind'], day, n: s.kind === 'sight' ? ++n : 0, x, y, ...(back ? { quiet: true } : {}) })
     }
   })
   return out
@@ -90,7 +99,7 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
     const fit = fitBoard(focus.length >= 2 ? focus : pins)
     const pts = pins.map(p => { const [x, y] = fit.to(p.x, p.y); return { ...p, px: x, py: y } })
     // 只给看的那几颗钉贴卡片；画面外的不贴
-    const inView = (i: number) => focusIdx.includes(i) && pts[i].px > 0 && pts[i].px < W && pts[i].py > 0 && pts[i].py < H
+    const inView = (i: number) => !pts[i].quiet && focusIdx.includes(i) && pts[i].px > 0 && pts[i].px < W && pts[i].py > 0 && pts[i].py < H
     const idx = pts.map((_, i) => i).filter(inView)
     const placed = placeLabels(idx.map(i => ({ x: pts[i].px, y: pts[i].py, label: short(pts[i].name) })))
     const labels: (ReturnType<typeof placeLabels>[number])[] = pts.map(() => null)
@@ -125,7 +134,7 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
           if (!m) return
           const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse())
           const hit = nearestPin(pts.filter(p => on(p.day)), pt.x, pt.y, 18)
-          if (hit) onPick(hit.day, hit.id)
+          if (hit && hit.id !== 'from') onPick(hit.day, hit.id)
         } : undefined}>
         <defs>
           <pattern id="rb-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" className="rb-grid" /></pattern>
@@ -145,8 +154,8 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
         {pts.map((p, i) => {
           const b = labels[i]
           return (
-            <g key={p.id} className={'rb-pin-g' + (on(p.day) ? '' : ' dim') + (onPick ? ' tappable' : '')}
-              {...(onPick ? {
+            <g key={p.id} className={'rb-pin-g' + (on(p.day) ? '' : ' dim') + (onPick && p.id !== 'from' ? ' tappable' : '')}
+              {...(onPick && p.id !== 'from' ? {
                 role: 'button', tabIndex: 0, 'aria-label': `打开${p.name}（第 ${p.day + 1} 天）`,
                 onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(p.day, p.id) } },
               } : {})}>
@@ -158,14 +167,16 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
               )}
               {p.kind === 'lodging'
                 ? <rect x={p.px - 6} y={p.py - 6} width="12" height="12" rx="2.5" className="rb-pin lodge" />
-                : <circle cx={p.px} cy={p.py} r="7.5" className="rb-pin" />}
-              {p.kind !== 'lodging' && <text x={p.px} y={p.py + 3.2} className="rb-n">{p.n}</text>}
+                : p.kind === 'end'
+                  ? <path d={`M${p.px - 7} ${p.py - 1}L${p.px} ${p.py - 8}L${p.px + 7} ${p.py - 1}V${p.py + 7}H${p.px - 7}Z`} className="rb-pin lodge end" strokeLinejoin="round" />
+                  : <circle cx={p.px} cy={p.py} r="7.5" className="rb-pin" />}
+              {p.kind === 'sight' && <text x={p.px} y={p.py + 3.2} className="rb-n">{p.n}</text>}
             </g>
           )
         })}
         </g>
       </svg>
-      <p className="rb-legend"><span><i className="dot" />景点（数字是顺序）</span><span><i className="sq" />住处</span>{day != null && <span>第 {day + 1} 天</span>}</p>
+      <p className="rb-legend"><span><i className="dot" />景点（数字是顺序）</span><span><i className="sq" />住处</span>{pts.some(p => p.kind === 'end') && <span><i className="hm" />起点 / 终点</span>}{day != null && <span>第 {day + 1} 天</span>}</p>
     </section>
   )
 }

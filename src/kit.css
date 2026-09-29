@@ -249,6 +249,10 @@
 .loc { font: 700 14px var(--sans); }
 .loc.on { color: var(--ok, var(--ink)); }
 .loc.off { color: var(--ink2); font-weight: 500; }
+.loc-row .loc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loc-acts { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.plan-ends summary { display: flex; align-items: center; gap: 8px; }
+.plan-ends summary small { margin-left: auto; font: 600 12.5px var(--sans); color: var(--k-accent); }
 .tabs button { min-width: 0; }
 
 /* ——— 让 AI 重排 ——— */
@@ -436,6 +440,7 @@
 .rb-pin-g { transition: opacity .2s; }
 .rb-pin { fill: var(--k-accent); stroke: var(--k-surface); stroke-width: 1.6; filter: drop-shadow(0 1px 1.2px rgba(0, 0, 0, .3)); }
 .rb-pin.lodge { fill: var(--ink); }
+.rb-pin.end { fill: var(--k-surface); stroke: var(--ink); stroke-width: 2; }
 .rb-n { fill: #fff; font: 800 9px var(--mono, var(--sans)); text-anchor: middle; pointer-events: none; }
 .rb-card { transform-box: fill-box; transform-origin: center; transform: rotate(calc(var(--rb-tilt) * var(--s, 1))); }
 .rb-card rect { fill: var(--k-surface); stroke: var(--k-line); stroke-width: 0.8; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .12)); }
@@ -444,6 +449,7 @@
 .rb-legend i { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; background: var(--k-accent); }
 .rb-legend i.dot { border-radius: 50%; }
 .rb-legend i.sq { background: var(--ink); border-radius: 2px; }
+.rb-legend i.hm { background: var(--ink); clip-path: polygon(50% 0, 100% 45%, 100% 100%, 0 100%, 0 45%); }
 .rb-empty { margin: -2px 2px 12px; }
 /* 博朗：液晶面板上的橙键，卡片几乎不歪；地图册：纸面红线，卡片歪得像钉上去的纸条 */
 :root[data-theme="braun"] .rb { --rb-tilt: 0.6deg; }

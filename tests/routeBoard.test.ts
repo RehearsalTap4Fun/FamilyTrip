@@ -15,6 +15,17 @@ describe('路线图', () => {
     expect(pins.map(p => [p.name, p.kind, p.n, p.day])).toEqual([['A', 'sight', 1, 0], ['客栈', 'lodging', 0, 0], ['B', 'sight', 2, 1], ['客栈', 'lodging', 0, 1]])
   })
 
+  it('有起点终点：起点钉在最前、回到家钉在最后，都是小房子，不编序号', () => {
+    const t = seedTrip()
+    const home = { lng: 102.7, lat: 25.0 }
+    const trip: Trip = { ...t, plan: { flow: 'places', styles: [], from: { name: '家', poi: home }, to: { name: '家', poi: home } }, days: [
+      { stops: [{ id: 'a', kind: 'sight', name: 'A', durationMin: 60, poi: { lng: 100.1, lat: 26.8 } }, { id: 'h', kind: 'lodging', name: '客栈', durationMin: 0, poi: { lng: 100.2, lat: 26.9 } }] },
+      { stops: [{ id: 'b', kind: 'sight', name: 'B', durationMin: 60, poi: { lng: 100.3, lat: 27 } }, { id: 'e', kind: 'lodging', name: '回到家', durationMin: 0, poi: home, home: true }] },
+    ] }
+    expect(boardPins(trip).map(p => [p.id, p.name, p.kind, p.n])).toEqual([['from', '家', 'end', 0], ['a', 'A', 'sight', 1], ['h', '客栈', 'lodging', 0], ['b', 'B', 'sight', 2], ['e', '家', 'end', 0]])
+    expect(boardPins(trip)[4].quiet).toBe(true) // 和起点同一处，只钉不再贴一张「家」
+  })
+
   it('点太集中时不放得过大；放下的点都在画板里', () => {
     const f = fitBoard([{ x: 10, y: 10 }, { x: 10.01, y: 10.01 }])
     const [x0] = f.to(10, 10), [x1] = f.to(10.01, 10.01)

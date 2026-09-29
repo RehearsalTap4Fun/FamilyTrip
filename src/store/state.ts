@@ -1,6 +1,6 @@
 // 整份状态存一个 localStorage key。读写都包 try/catch：隐私窗口、存储被禁时照常能用，只是不保存。
 import type { Rating } from '@core/ratings'
-import type { Trip } from '@core/types'
+import type { PlaceRef, Trip } from '@core/types'
 import { SEED_NOW, seedTrip } from '../data/seed'
 import { seedHistory } from '../data/seedHistory'
 
@@ -20,6 +20,8 @@ export interface AppState {
   /** 路线推荐用哪家大模型，以及各家的 API Key（只存本机） */
   llmProvider?: 'anthropic' | 'deepseek'
   llmKeys?: { anthropic?: string; deepseek?: string }
+  /** 现居地：新行程的起点、终点默认用它（跟着自己多设备同步，不随行程分享） */
+  home?: PlaceRef
   /** 智谱开放平台的 API Key：联网搜索攻略用（只存本机，不同步、不导出） */
   zhipuKey?: string
 }

@@ -150,7 +150,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, trip
                               {st.kind === 'drive' ? <>{code && <span className="code mono">{code}</span>}{stripCode(st.name)}</> : st.name}
                               {mine.map((x, k) => <span key={k} role="button" tabIndex={0} className="chip-tap" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setIssue(x) }} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setIssue(x) } }}><Chip issue={x} /></span>)}
                             </span>
-                            <span className="dur mono">{st.kind === 'lodging' ? '住' : `${st.durationMin}′`}</span>
+                            <span className="dur mono">{st.kind === 'lodging' ? (st.home ? '到家' : '住') : `${st.durationMin}′`}</span>
                           </div>
                         ),
                         actions: [

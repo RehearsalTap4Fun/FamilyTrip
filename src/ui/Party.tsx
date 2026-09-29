@@ -6,10 +6,11 @@ import { deriveConstraints, limitRules } from '@core/constraints'
 import { whoForAll } from '@core/explain'
 import { kidBand, partyOnDay } from '@core/party'
 import { fmtHM } from '@core/schedule'
-import type { DayRange, Member, Mobility, Party, Pet, Role, Trip } from '@core/types'
+import type { DayRange, Member, Mobility, Party, Pet, PlaceRef, Role, Trip } from '@core/types'
 import { THEME_LABEL, uid, type Theme } from '../store/state'
 import { PROVIDER_LABEL, type Provider } from '../llm/client'
 import { fmtShort, MODE_LABEL } from './format'
+import { PlaceField } from './Endpoints'
 import { daysLabel, partyImpact } from './impact'
 import { PartyImpactView } from './ImpactView'
 import { Chips, DayStrip, Field, Segmented, Stepper, Tiles, Toggle } from './kit/controls'
@@ -34,6 +35,8 @@ interface Props {
   onLlm: (p: Provider, keys: { anthropic?: string; deepseek?: string }) => void
   zhipuKey: string
   onZhipuKey: (k: string) => void
+  home?: PlaceRef
+  onHome: (h?: PlaceRef) => void
   /** 设置下面再放的区块（存档与同步） */
   extra?: ReactNode
   /** 「这趟旅程」里的分享卡片 */
@@ -98,7 +101,7 @@ const colorFor = (trip: Trip, id: string) => {
 
 type Editing = { kind: 'member' | 'pet'; id: string } | { kind: 'add' } | { kind: 'reset' } | null
 
-export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, zhipuKey, onZhipuKey, extra, shareSlot }: Props) {
+export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, zhipuKey, onZhipuKey, home, onHome, extra, shareSlot }: Props) {
   const p = trip.party
   const n = trip.days.length
   const toast = useToast()
@@ -185,6 +188,7 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
         {/* 演示时间只对示例行程生效：自己建的行程永远按真实时间 */}
         {trip.sample && <Toggle on={!!demoNow} onChange={v => onDemoNow(v ? `${trip.startDate}T10:00` : null)} label="演示时间" hint="示例行程用一个假的「现在」看旅途中的样子" />}
         {trip.sample && demoNow && <input className="kinput" type="datetime-local" value={demoNow} onChange={e => onDemoNow(e.target.value || null)} aria-label="演示时间" />}
+        <PlaceField label="现居地" hint="新行程默认从这出发、回到这" value={home} empty="还没设" onChange={onHome} />
         <Field label="风格">
           <Chips label="视觉风格" values={[theme]} onChange={v => { const t = v.find(x => x !== theme); if (t) onTheme(t as Theme) }}
             options={(Object.keys(THEME_LABEL) as Theme[]).map(t => ({ value: t, label: THEME_LABEL[t] }))} />

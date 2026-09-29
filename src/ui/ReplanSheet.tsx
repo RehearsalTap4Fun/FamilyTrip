@@ -117,7 +117,7 @@ export function ReplanSheet({ open, trip, dayIndex, ratings, onApply, onClose }:
                   <span className="t mono">{fmtHM(sl.start)}</span>
                   <LineIcon name={s.kind} size={18} />
                   <span className="b"><b>{s.name}</b>{isNew && <em>新</em>}{s.why && <small>{s.why}</small>}</span>
-                  <span className="dur mono">{s.kind === 'lodging' ? '住' : `${s.durationMin}′`}</span>
+                  <span className="dur mono">{s.kind === 'lodging' ? (s.home ? '到家' : '住') : `${s.durationMin}′`}</span>
                 </li>
               )
             })}

@@ -4,13 +4,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { deriveConstraints } from '@core/constraints'
 import { partyOnDay } from '@core/party'
 import { addDays, carryParty, pickStyles, skeletonTrip, STYLE_ORDER, STYLES } from '@core/trips'
-import type { Party, PlanFlow, TravelMode, Trip, TripStyle } from '@core/types'
+import type { Party, PlaceRef, PlanFlow, TravelMode, Trip, TripStyle } from '@core/types'
 import { describeLimits } from '../llm/routePrompt'
 import { uid } from '../store/state'
+import { homeRef, TripEnds } from './Endpoints'
 import { MODE_LABEL } from './format'
 import { Chips, Field, Segmented, Stepper } from './kit/controls'
 import { Sheet } from './kit/Sheet'
 import { memberLine } from './Party'
+import { useSettings } from './Settings'
 
 interface Props {
   open: boolean
@@ -36,7 +38,9 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
   const [startDate, setStartDate] = useState(() => addDays(today, 7))
   const [days, setDays] = useState(3)
   const [mode, setMode] = useState<TravelMode>(base?.mode ?? 'selfDrive')
-  const [origin, setOrigin] = useState('')
+  const { home } = useSettings()
+  const [from, setFrom] = useState<PlaceRef | undefined>(homeRef(home))
+  const [to, setTo] = useState<PlaceRef | undefined>(homeRef(home))
   const [styles, setStyles] = useState<TripStyle[]>([])
   const [flow, setFlow] = useState<PlanFlow | null>(null)
   const [region, setRegion] = useState('')
@@ -46,7 +50,7 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
   useEffect(() => {
     if (!open) return
     setStep(0); setKeep(everyone); setStartDate(addDays(today, 7)); setDays(3); setMode(base?.mode ?? 'selfDrive')
-    setOrigin(''); setStyles([]); setFlow(null); setRegion(''); setTitle('')
+    setFrom(homeRef(home)); setTo(homeRef(home)); setStyles([]); setFlow(null); setRegion(''); setTitle('')
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const party = carryParty(base, new Set(keep))
@@ -56,7 +60,7 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
 
   const next = () => {
     if (!last) { setStep(step + 1); return }
-    onCreate(skeletonTrip({ title, startDate, days, mode, party, flow: flow!, styles, region, origin }, uid))
+    onCreate(skeletonTrip({ title, startDate, days, mode, party, flow: flow!, styles, region, from: from ?? null, to: to ?? null }, uid))
   }
 
   return (
@@ -101,11 +105,8 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
             <Segmented label="出行方式" value={mode} onChange={setMode}
               options={(['selfDrive', 'transit', 'tour'] as TravelMode[]).map(m => ({ value: m, label: MODE_LABEL[m] }))} />
           </Field>
-          {mode !== 'tour' && (
-            <Field label="从哪出发" hint="可以不填；第一天从这里算车程">
-              <input className="kinput" value={origin} onChange={e => setOrigin(e.target.value)} placeholder="比如：昆明" />
-            </Field>
-          )}
+          <TripEnds from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t) }} />
+          {!home && <p className="sheet-note">在「同行」页设好现居地，以后新行程默认从家出发、回到家。</p>}
         </>
       )}
 

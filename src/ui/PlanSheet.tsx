@@ -5,12 +5,13 @@ import { useEffect, useRef, useState } from 'react'
 import { planTrip, type PlanResult } from '@core/planner'
 import type { Rating } from '@core/ratings'
 import { fmtHM, scheduleDay } from '@core/schedule'
-import type { DayTweak, PlanPlace, Poi, Trip } from '@core/types'
+import type { DayTweak, PlaceRef, PlanPlace, Poi, Trip } from '@core/types'
 import { cityOf } from '@core/footprint'
 import { AmapError, searchPlaces, type Place } from '../geo/amap'
 import { namesMatch } from '../geo/groundDay'
 import { makePlanTools } from '../geo/planTools'
 import { uid } from '../store/state'
+import { endsLine, homeRef, TripEnds } from './Endpoints'
 import { fmtShort } from './format'
 import { Field, Segmented, Toggle } from './kit/controls'
 import { Sheet } from './kit/Sheet'
@@ -43,7 +44,13 @@ export function splitNames(text: string): string[] {
 }
 
 export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
-  const { amapKey, llm } = useSettings()
+  const { amapKey, llm, home } = useSettings()
+  // 起点终点：行程里存了就用（null 是明确不设）；没存过（旧行程）默认现居地，旧版只存了出发地文字的先空着、排的时候再定位
+  const endsOf = (t: Trip): { from?: PlaceRef; to?: PlaceRef } => ({
+    from: t.plan?.from === null ? undefined : t.plan?.from ?? (t.plan?.origin ? undefined : homeRef(home)),
+    to: t.plan?.to === null ? undefined : t.plan?.to ?? homeRef(home),
+  })
+  const [ends, setEnds] = useState(() => endsOf(trip))
   const [places, setPlaces] = useState<PlanPlace[]>(trip.plan?.places ?? [])
   const [stage, setStage] = useState<Stage>({ kind: 'list' })
   const [q, setQ] = useState('')
@@ -62,7 +69,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
   useEffect(() => {
     if (!open) return
     setPlaces(trip.plan?.places ?? []); setStage({ kind: 'list' }); setQ(''); setFound({ kind: 'idle' })
-    setBulk(false); setImporting(false); setRecommending(regionFirst); setTweaks(trip.plan?.tweaks ?? []); setLastAsk(null); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length)
+    setBulk(false); setImporting(false); setRecommending(regionFirst); setTweaks(trip.plan?.tweaks ?? []); setLastAsk(null); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length); setEnds(endsOf(trip))
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 搜索优先在已经加过的点所在城市附近
@@ -99,16 +106,20 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
     const useTweaks = over?.tweaks ?? tweaks
     setStage({ kind: 'running', msg: '准备' })
     try {
-      // 出发地是文字：先在高德里定位
-      let origin: Poi | undefined
-      if (trip.plan?.origin && amapKey) origin = (await searchPlaces(trip.plan.origin, amapKey))[0]?.poi
+      // 旧版的出发地只有文字：先在高德里定位
+      let origin: Poi | undefined = ends.from?.poi
+      let from = ends.from
+      if (!origin && trip.plan?.from === undefined && trip.plan?.origin && amapKey) {
+        const hit = (await searchPlaces(trip.plan.origin, amapKey))[0]
+        if (hit) { origin = hit.poi; from = { name: trip.plan.origin, poi: hit.poi } }
+      }
       const base: Trip = {
         ...trip,
         days: Array.from({ length: nDays }, (_, i) => trip.days[i] ?? { startTime: '09:00', stops: [] }),
-        plan: { flow: 'places', styles: [], ...trip.plan, places: usePlaces, tweaks: useTweaks.filter(t => t.day < nDays) },
+        plan: { flow: 'places', styles: [], ...trip.plan, places: usePlaces, tweaks: useTweaks.filter(t => t.day < nDays), from: from ?? null, to: ends.to ?? null },
       }
       const tools = makePlanTools(amapKey, ratings, msg => { if (my === run.current) setStage({ kind: 'running', msg }) })
-      const r = await planTrip(base, usePlaces, tools, { origin, newId: uid })
+      const r = await planTrip(base, usePlaces, tools, { origin, end: ends.to, newId: uid })
       if (my === run.current) setStage({ kind: 'done', r })
     } catch (e) {
       if (my === run.current) setStage({ kind: 'error', msg: e instanceof AmapError ? e.message : '排程失败：' + (e instanceof Error ? e.message : String(e)) })
@@ -153,7 +164,11 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
       {(stage.kind === 'list' || stage.kind === 'error') && (
         <>
           {!amapKey && <p className="sheet-note">先在「同行」页最下面填上高德 Key，才能搜地点、算真实车程。</p>}
-          <p className="sheet-note">列出想去的地方，会按同行人的限制分到每天，排好开车、吃饭、午睡和住处。{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发{trip.plan?.origin ? ` · 从${trip.plan.origin}` : ''}</p>
+          <p className="sheet-note">列出想去的地方，会按同行人的限制分到每天，排好开车、吃饭、午睡和住处。{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发</p>
+          <details className="more plan-ends">
+            <summary>{endsLine({ ...trip, plan: { flow: 'places', styles: [], ...trip.plan, from: ends.from ?? null, to: ends.to ?? null } }) || '起点、终点：不设'}<small>改</small></summary>
+            <div><TripEnds from={ends.from} to={ends.to} onChange={(from, to) => setEnds({ from, to })} /><p className="sheet-note">第一天从起点出发、最后一天回到终点，这两段路算进当天；不自驾的长途按高铁、飞机粗估。</p></div>
+          </details>
           {recommending ? (
             <Recommend trip={trip} autoRun={regionFirst} onCancel={() => setRecommending(false)} onAdd={list => {
               // AI 推荐的吃饭、住处还没人确认：带上「推荐」标记
@@ -308,7 +323,7 @@ function PlanResultView({ r, days, onMoreDays, canAsk, lastAsk, onAsk }: {
                   <span className="t mono">{fmtHM(sl.start)}</span>
                   <LineIcon name={sl.stop.kind} size={18} />
                   <span className="b"><b>{sl.stop.name}</b>{sl.stop.why && <small>{sl.stop.why}</small>}</span>
-                  <span className="dur mono">{sl.stop.kind === 'lodging' ? '住' : `${sl.stop.durationMin}′`}</span>
+                  <span className="dur mono">{sl.stop.kind === 'lodging' ? (sl.stop.home ? '到家' : '住') : `${sl.stop.durationMin}′`}</span>
                 </li>
               ))}
             </ol>

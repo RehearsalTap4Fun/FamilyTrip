@@ -1,9 +1,10 @@
 // 排程引擎（流程一，也是流程二和导入攻略的公共后半段）：给一组要去的点，按同行人的限制排成每天的行程。
 //   分天（地理成串 → 按每天可玩时长切段，靠近当晚住处）→ 放不下就砍「想去」→ 天内顺路 → 固定时刻就位
 //   → 插午饭晚饭 → 留午睡 → 真实车程、超连开拆段插服务区 → 住处。
+// 有起点终点（默认现居地）时：第一天从起点出发、最后一天以回到终点收尾，这两段路程算进当天；不自驾的长途按高铁、飞机估。
 // 车程、周边搜索由调用方注入（网页用高德），这里只管排；没有工具时用直线估算和占位，照样能出一版。
 import { deriveConstraints, type Constraints } from './constraints'
-import { distanceKm, estDriveMin } from './geo'
+import { distanceKm, estDriveMin, estLegMin, LONG_HAUL_KM, longHaul } from './geo'
 import { partyOnDay } from './party'
 import { fmtHM, parseHM, scheduleDay } from './schedule'
 import type { DayTweak, PlanPlace, Poi, Stop, Trip, TripStyle } from './types'
@@ -130,19 +131,25 @@ function twoOpt<T extends { poi: Poi }>(path: T[], from?: Poi, to?: Poi): T[] {
 }
 
 /** 一天的额度：景点可用分钟（游玩上限 − 两顿饭）、全天可用分钟（出发到最晚回住处） */
-interface DayBudget { cap: number; span: number; from?: Poi; to?: Poi }
+interface DayBudget {
+  cap: number; span: number; from?: Poi; to?: Poi
+  /** 两点之间要走多久（按出行方式粗估） */
+  est: (a: Poi, b: Poi) => number
+  /** 分天时点该靠近的两头：只算在当地的（从家出发、回家那头离得远，不拿来比远近） */
+  near: Poi[]
+}
 
 /** 按估算车程串起来的一段路要开多久 */
-function estPath(points: Poi[]): number {
+function estPath(points: Poi[], est: (a: Poi, b: Poi) => number = estDriveMin): number {
   let m = 0
-  for (let i = 1; i < points.length; i++) m += estDriveMin(points[i - 1], points[i])
+  for (let i = 1; i < points.length; i++) m += est(points[i - 1], points[i])
   return m
 }
 
 /** 这一天超出了多少（景点超时、或加上开车全天放不下，取大的那个，单位分钟） */
 function excessOf(b: DayBudget, sights: Candidate[], pace: Pace): number {
   const load = sights.reduce((a, s) => a + durOf(s, pace), 0)
-  const drive = estPath([b.from, ...sights.map(s => s.poi), b.to].filter((p): p is Poi => !!p))
+  const drive = estPath([b.from, ...sights.map(s => s.poi), b.to].filter((p): p is Poi => !!p), b.est)
   return Math.max(load - b.cap, load + 2 * pace.mealMin + drive - b.span)
 }
 
@@ -164,7 +171,7 @@ function splitDays(order: Candidate[], budgets: DayBudget[], pinned: Candidate[]
     let far = 0, off = 0
     for (let k = i; k < j; k++) {
       const p = order[k].poi
-      const near = Math.min(b.from ? distanceKm(p, b.from) : Infinity, b.to ? distanceKm(p, b.to) : Infinity)
+      const near = Math.min(...b.near.map(q => distanceKm(p, q)))
       if (Number.isFinite(near)) far += near / 30
       // 想在哪天：偏离一天罚一点，比放不下、全天超时轻得多
       const pd = order[k].prefDay
@@ -196,7 +203,7 @@ interface Node { stop: Stop; poi?: Poi; meal?: 'lunch' | 'dinner' }
 
 const MEAL_AT = { lunch: LUNCH, dinner: DINNER }
 
-export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanTools, opts: { origin?: Poi; newId: (prefix: string) => string }): Promise<PlanResult> {
+export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanTools, opts: { origin?: Poi; end?: { name: string; poi: Poi }; newId: (prefix: string) => string }): Promise<PlanResult> {
   const days = trip.days.length
   const pace = paceOf(trip.plan?.styles)
   const cons: Constraints[] = trip.days.map((_, i) => deriveConstraints(partyOnDay(trip.party, i)))
@@ -227,13 +234,18 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   for (const l of lodgings) { const d = clampDay(l.prefDay); if (l.day == null && d != null && !night[d]) night[d] = l }
   const looseLodging = lodgings.filter(l => clampDay(l.day ?? l.prefDay) == null)
   if (looseLodging.length === 1 && lodgings.length === 1) for (let d = 0; d < days; d++) night[d] = looseLodging[0]
+  // 最后一天回终点，不住了
+  const endPoi = opts.end?.poi
+  if (endPoi) night[days - 1] = undefined
+  const mode = trip.party.mode
+  const est = (a: Poi, b: Poi) => estLegMin(a, b, mode)
+  const local = (q?: Poi) => (q && sights.some(s => distanceKm(s.poi, q) <= 80) ? q : undefined)
   // 没住处的晚上：沿用前一晚（多半是连住）；第一晚没有就留空，排完再在附近找
-  const budgets = (): DayBudget[] => cons.map((c, d) => ({
-    cap: capOf(d),
-    span: Math.max(120, c.endBy.value - parseHM(startOf(d))),
-    from: d === 0 ? opts.origin : night[d - 1]?.poi,
-    to: night[d]?.poi,
-  }))
+  const budgets = (): DayBudget[] => cons.map((c, d) => {
+    const from = d === 0 ? opts.origin : night[d - 1]?.poi
+    const to = d === days - 1 && endPoi ? endPoi : night[d]?.poi
+    return { cap: capOf(d), span: Math.max(120, c.endBy.value - parseHM(startOf(d))), from, to, est, near: [local(from), local(to)].filter((q): q is Poi => !!q) }
+  })
 
   // —— 分天，放不下就砍 ——
   progress('分天')
@@ -258,7 +270,12 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     const c = cons[worst]
     // 说清楚卡在哪：每天在外多少小时、两顿饭占多少，景点还剩多少
     const cap = Math.round(b[worst].cap)
-    unplaced.push({ candidate: drop, reason: `第 ${worst + 1} 天放不下：每天在外 ${c.activeMin.value / 60} 小时（两顿饭占 ${2 * pace.mealMin} 分），留给景点 ${cap} 分；${fmtHM(c.endBy.value)} 前回住处` })
+    // 去程、返程那天：路上的时间也说出来
+    const leg = worst === days - 1 && endPoi ? '返程' : worst === 0 && opts.origin ? '去程' : ''
+    const road = leg ? estPath([b[worst].from, ...daySights[worst].map(x => x.poi), b[worst].to].filter((q): q is Poi => !!q), est) : 0
+    unplaced.push({ candidate: drop, reason: leg
+      ? `第 ${worst + 1} 天放不下：这天${leg}路上约 ${Math.round(road / 6) / 10} 小时，${fmtHM(c.endBy.value)} 前要${leg === '返程' ? '到家' : '到住处'}`
+      : `第 ${worst + 1} 天放不下：每天在外 ${c.activeMin.value / 60} 小时（两顿饭占 ${2 * pace.mealMin} 分），留给景点 ${cap} 分；${fmtHM(c.endBy.value)} 前回住处` })
     free = free.filter(x => x !== drop)
     const pi = pinnedAll.indexOf(drop)
     if (pi >= 0) pinnedAll.splice(pi, 1)
@@ -338,16 +355,17 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     // 这天的游玩上限：要求排松一点就打八折
     const activeCap = c.activeMin.value * (tw?.lighter ? 0.8 : 1)
     const limit = trip.party.mode === 'selfDrive' && Number.isFinite(c.driveBreakMin.value) ? c.driveBreakMin.value : Infinity
-    // 今晚住处：指定的，或没指定晚上的候选里离今天的点近的
+    // 最后一天回终点（家）；其余天今晚住处：指定的，或没指定晚上的候选里离今天的点近的
+    const endHere = d === days - 1 && !!opts.end
     let lodge = night[d]
-    if (!lodge && looseLodging.length && daySights[d].length) {
+    if (!endHere && !lodge && looseLodging.length && daySights[d].length) {
       const last = daySights[d][daySights[d].length - 1].poi
       lodge = [...looseLodging].sort((a, b) => distanceKm(a.poi, last) - distanceKm(b.poi, last))[0]
     }
 
     // 天内顺路（前一晚住处 → 今晚住处），再把固定时刻的点按估算时间插到对得上的位置
     const fixed = daySights[d].filter(s => s.start).sort((a, b) => parseHM(a.start!) - parseHM(b.start!))
-    const seq = twoOpt(chain(daySights[d].filter(s => !s.start), prevNight), prevNight, lodge?.poi)
+    const seq = twoOpt(chain(daySights[d].filter(s => !s.start), prevNight), prevNight, endHere ? endPoi : lodge?.poi)
     for (const f of fixed) {
       let t = startMin, at = prevNight, k = 0
       for (; k < seq.length; k++) {
@@ -367,14 +385,25 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       let at = prevNight
       for (let gi = 0; gi < list.length; gi++) {
         const x = list[gi]
-        if (x.poi && at) {
+        // 这段路的去向：路过的服务区（歇脚、吃饭）不算，写真正要去的那站；回家写终点名
+        const dest = list.slice(gi).find(n => !n.stop.tags?.includes('restroom')) ?? x
+        const toName = dest.stop.home ? opts.end!.name : dest.stop.name
+        if (x.poi && at && mode !== 'selfDrive' && distanceKm(at, x.poi) > LONG_HAUL_KM) {
+          // 不自驾的城际长途（去程、返程、换城市）：按高铁或飞机估一段，班次自己查
+          const h = longHaul(at, x.poi)
+          out.push({
+            id: opts.newId('s'), kind: 'transit', name: `${h.by === 'rail' ? '高铁' : '飞机'} → ${toName}（估）`, durationMin: h.min, status: 'planned',
+            why: h.by === 'rail' ? '按高铁粗估，含进出站约 1 小时；具体班次自己查' : '按飞机粗估，含往返机场、值机候机约 3 小时；具体航班自己查',
+          })
+          out.push({ ...x.stop, driveMin: undefined })
+        } else if (x.poi && at) {
           const raw = await driveMin(at, x.poi)
           const m = trip.party.mode === 'transit' ? Math.round(raw * 1.4) : raw
           if (m > limit) {
             const parts = Math.ceil(m / (limit - 5))
             const each = Math.round(m / parts)
             for (let i = 0; i < parts; i++) {
-              out.push({ id: opts.newId('s'), kind: 'drive', name: `开车 → ${x.stop.name}`, durationMin: i === parts - 1 ? m - each * (parts - 1) : each, status: 'planned' })
+              out.push({ id: opts.newId('s'), kind: 'drive', name: `开车 → ${toName}`, durationMin: i === parts - 1 ? m - each * (parts - 1) : each, status: 'planned' })
               if (i < parts - 1) {
                 const mid = { lng: at.lng + (x.poi.lng - at.lng) * (i + 1) / parts, lat: at.lat + (x.poi.lat - at.lat) * (i + 1) / parts }
                 const sa = await pick('serviceArea', mid, true)
@@ -392,7 +421,27 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     }
     const timeline = async (list: Node[]) => scheduleDay({ startTime: startOf(d), stops: await expand(list) })
 
-    // —— 午饭、晚饭：挑最接近饭点的空档；落在路上就在那个服务区吃 ——
+    // —— 收尾：最后一天回到终点；其余天今晚住处（候选里的，或在最后一站附近找一个）。先放上，饭和午睡都排在它前面 ——
+    let tail: Node
+    if (endHere) {
+      tail = { poi: endPoi, stop: { id: opts.newId('s'), kind: 'lodging', name: `回到${opts.end!.name}`, durationMin: 0, status: 'planned', poi: endPoi, home: true, why: '行程终点' } }
+    } else {
+      // 今天没景点（一整天在路上）：住处找在明天第一站附近
+      const lastPoi = [...nodes].reverse().find(x => x.poi)?.poi ?? daySights[d + 1]?.[0]?.poi ?? prevNight
+      if (lodge) tail = { poi: lodge.poi, stop: { ...toStop(lodge), durationMin: 0 } }
+      else if (prevLodge?.poi && lastPoi && distanceKm(prevLodge.poi, lastPoi) <= 10) {
+        // 今天还在前一晚附近：连住，不换酒店
+        tail = { poi: prevLodge.poi, stop: { ...prevLodge.stop, id: opts.newId('s'), why: '连住，不用换酒店' } }
+      } else {
+        const p = lastPoi ? await pick('lodging', lastPoi) : undefined
+        tail = p
+          ? { poi: p.poi, stop: { id: opts.newId('s'), kind: 'lodging', name: p.name, durationMin: 0, status: 'planned', poi: p.poi, suggested: true, why: `离最后一站近${p.rating ? ` · 评分 ${p.rating}` : ''}；订之前确认电梯、能不能带宠物` } }
+          : { stop: { id: opts.newId('s'), kind: 'lodging', name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' } }
+      }
+    }
+    nodes.push(tail)
+
+    // —— 午饭、晚饭：挑最接近饭点的空档（收尾那站之前）；落在路上就在那个服务区吃 ——
     const mine = [...dayFoods[d]]
     const meal = async (which: 'lunch' | 'dinner') => {
       const label = which === 'lunch' ? '午饭' : '晚饭'
@@ -401,10 +450,12 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       saOf.clear()
       const slots = await timeline(nodes)
       if (slots.some(sl => sl.stop.kind === 'food' && Math.abs(sl.start - target) < 90)) return
+      // 最后一天 19:30 前到家：晚饭回家吃
+      if (which === 'dinner' && endHere && slots[slots.length - 1].start <= 19 * 60 + 30) { tail.stop = { ...tail.stop, why: '行程终点 · 到家吃晚饭' }; return }
       const endOf = (i: number) => (i === 0 ? startMin : slots.find(sl => sl.stop.id === nodes[i - 1].stop.id)!.end)
       type Opt = { gap: number; t: number; sa?: { poi?: Poi; name: string; id: string } }
       const opts2: Opt[] = []
-      for (let i = 0; i <= nodes.length; i++) opts2.push({ gap: i, t: endOf(i) })
+      for (let i = 0; i < nodes.length; i++) opts2.push({ gap: i, t: endOf(i) })
       for (const sl of slots) { const sa = saOf.get(sl.stop.id); if (sa) opts2.push({ gap: sa.gap, t: sl.start, sa: { ...sa, id: sl.stop.id } }) }
       const inWin = opts2.filter(o => o.t >= lo && o.t <= hi)
       const gaps = opts2.filter(o => !o.sa)
@@ -450,8 +501,10 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       }
       nodes.splice(o.gap, 0, food)
     }
-    if (daySights[d].length || mine.length) { await meal('lunch'); await meal('dinner') }
-    for (const f of mine) nodes.push({ stop: toStop(f), poi: f.poi })
+    // 去程、返程那天就算没景点，路上也要吃饭
+    const travelDay = (d === 0 && !!opts.origin) || endHere
+    if (daySights[d].length || mine.length || travelDay) { await meal('lunch'); await meal('dinner') }
+    for (const f of mine) nodes.splice(nodes.length - 1, 0, { stop: toStop(f), poi: f.poi })
 
     // —— 午睡：窗口里能睡的时间（路上、休息、住处、空档）不够一小时，就留一段。
     // 放午饭后还是午饭前、睡多久，逐个试：先保午饭不晚于 13:30，再求睡够，其次睡得久
@@ -471,7 +524,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       if (base.got < 60) {
         const li = nodes.findIndex(x => x.meal === 'lunch')
         const home = lodge?.poi ?? prevNight
-        const spots = li >= 0 ? [li + 1, li] : [nodes.length]
+        const spots = li >= 0 ? [li + 1, li] : [nodes.length - 1]
         let best: { list: Node[]; got: number } | undefined
         for (const k of spots) {
           const here = nodes[k - 1]?.poi
@@ -495,25 +548,11 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       }
     }
 
-    // —— 今晚住处：候选里的，或在最后一站附近找一个 ——
-    const lastPoi = [...nodes].reverse().find(x => x.poi)?.poi ?? prevNight
-    let lodgeNode: Node
-    if (lodge) lodgeNode = { poi: lodge.poi, stop: { ...toStop(lodge), durationMin: 0 } }
-    else if (prevLodge?.poi && lastPoi && distanceKm(prevLodge.poi, lastPoi) <= 10) {
-      // 今天还在前一晚附近：连住，不换酒店
-      lodgeNode = { poi: prevLodge.poi, stop: { ...prevLodge.stop, id: opts.newId('s'), why: '连住，不用换酒店' } }
-    } else {
-      const p = lastPoi ? await pick('lodging', lastPoi) : undefined
-      lodgeNode = p
-        ? { poi: p.poi, stop: { id: opts.newId('s'), kind: 'lodging', name: p.name, durationMin: 0, status: 'planned', poi: p.poi, suggested: true, why: `离最后一站近${p.rating ? ` · 评分 ${p.rating}` : ''}；订之前确认电梯、能不能带宠物` } }
-        : { stop: { id: opts.newId('s'), kind: 'lodging', name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' } }
-    }
-    nodes.push(lodgeNode)
-
     // 饭点来得太早（逛完了才下午三点）：最后再定，到饭点再吃。前面插了午睡、拆了长途都已经算进去了
     for (const which of ['lunch', 'dinner'] as const) {
       const m = nodes.find(x => x.meal === which)
-      if (!m || m.stop.start) continue
+      // 最后一天晚饭在回家路上吃，不为等饭点拖晚到家
+      if (!m || m.stop.start || (endHere && which === 'dinner')) continue
       saOf.clear()
       const sl = (await timeline(nodes)).find(x => x.stop.id === m.stop.id)!
       if (sl.start < MEAL_AT[which] - 45) m.stop.start = fmtHM(MEAL_AT[which] - 30)
@@ -577,9 +616,14 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
 
     progress(`第 ${d + 1} 天查车程`)
     saOf.clear()
-    outDays.push({ startTime: startOf(d), stops: await expand(nodes) })
-    prevNight = lodgeNode.poi ?? prevNight
-    prevLodge = lodgeNode
+    const stops = await expand(nodes)
+    outDays.push({ startTime: startOf(d), stops })
+    if (travelDay) {
+      const road = stops.reduce((a, s) => a + (s.kind === 'drive' || s.kind === 'transit' ? s.durationMin : s.driveMin ?? 0), 0)
+      if (road > 8 * 60) notes.push(`第 ${d + 1} 天${endHere ? '返程' : '去程'}路上约 ${Math.round(road / 6) / 10} 小时，太累的话考虑早点出发或中途住一晚`)
+    }
+    prevNight = tail.poi ?? prevNight
+    prevLodge = tail
   }
 
   const out: Trip = { ...trip, days: outDays }

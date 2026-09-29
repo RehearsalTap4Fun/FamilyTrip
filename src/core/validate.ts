@@ -49,7 +49,7 @@ function overlapLen(a0: number, a1: number, b0: number, b1: number): number {
 
 function napFriendly(s: Slot): boolean {
   const k = s.stop.kind
-  return k === 'drive' || k === 'rest' || k === 'lodging' || (s.stop.tags ?? []).includes('napOk')
+  return k === 'drive' || k === 'transit' || k === 'rest' || k === 'lodging' || (s.stop.tags ?? []).includes('napOk')
 }
 
 export function checkDay(trip: Trip, dayIndex: number): Issue[] {
@@ -153,6 +153,8 @@ export function checkDay(trip: Trip, dayIndex: number): Issue[] {
       }
     }
     if (st.kind !== 'lodging' && !NEEDS_APPLY.includes(st.kind)) continue
+    // 回到家不是住宿，不用问电梯、能不能带宠物
+    if (st.home) continue
     const needs = st.kind === 'lodging' ? c.lodgingNeeds : st.kind === 'food' ? new Map([...c.needs, ...fNeeds]) : c.needs
     // 还没定的住处（新建行程、加一天时放的「住处」占位，没搜过地点；或排程工具推荐、还没人确认的）：只提示要满足什么，不算问题。
     // 手写了名字（「客栈」）就算定了，照常按缺项报

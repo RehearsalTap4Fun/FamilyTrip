@@ -95,6 +95,8 @@ export interface Stop {
   suggested?: boolean
   /** 这里怎么玩最好（AI 写的亮点介绍，src/llm/highlights.ts） */
   highlight?: StopHighlight
+  /** 行程终点（回到家）：不是住宿，不按住宿的条件检查 */
+  home?: boolean
 }
 
 export interface StopHighlight {
@@ -116,6 +118,13 @@ export interface Day {
 
 /** 玩法类型：决定推荐偏向与排程节奏，是偏好不是限制——和同行人的硬限制冲突时以限制为准 */
 export type TripStyle = 'scenic' | 'family' | 'active' | 'heritage' | 'resort' | 'food'
+
+/** 一个定了位的地方（现居地、行程起点终点） */
+export interface PlaceRef {
+  name: string; poi: Poi
+  /** 高德给的「省 市 区」 */
+  area?: string
+}
 
 /** 要去的一个点：流程一你列的、流程二推荐的、导入攻略提炼的，最后都是这个，交给排程引擎（core/planner.ts） */
 export interface PlanPlace {
@@ -153,8 +162,12 @@ export interface TripPlan {
   styles: TripStyle[]
   /** 流程二的大致地区，例如「滇西北」 */
   region?: string
-  /** 出发地（自驾、公共交通时填），第一天从这里出发 */
+  /** 出发地的文字（旧版只存了文字；新版用 from） */
   origin?: string
+  /** 起点：第一天从这里出发（默认现居地）；null = 明确不设 */
+  from?: PlaceRef | null
+  /** 终点：最后一天回到这里（默认现居地）；null = 明确不设 */
+  to?: PlaceRef | null
   /** 上次排程用的地点，回来改了再排 */
   places?: PlanPlace[]
   /** 按要求对某几天的调整（「第二天晚点出发、洱海边吃晚饭」），再排时照样生效 */

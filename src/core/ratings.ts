@@ -98,9 +98,9 @@ export function rankForParty(list: PlaceVerdict[], p: DayParty): PlaceVerdict[] 
 const STOP_TO_RATING: Partial<Record<StopKind, RatingKind>> = { food: 'food', lodging: 'lodging', sight: 'sight', rest: 'sight' }
 
 /** 行程点命中了黑榜就返回那条；规则层和 LLM 提示词都会用到 */
-export function blacklistHit(stop: { kind: StopKind; name: string; poi?: Poi }, city: string | undefined, list: PlaceVerdict[]): PlaceVerdict | undefined {
+export function blacklistHit(stop: { kind: StopKind; name: string; poi?: Poi; home?: boolean }, city: string | undefined, list: PlaceVerdict[]): PlaceVerdict | undefined {
   const kind = STOP_TO_RATING[stop.kind]
-  if (!kind) return undefined
+  if (!kind || stop.home) return undefined
   const key = placeKey({ kind, name: stop.name, city, poi: stop.poi })
   return list.find(v => v.key === key && v.verdict === 'black')
 }

@@ -305,3 +305,69 @@ describe('粘贴一串地名', () => {
     expect(splitNames('1. 大理古城、双廊，喜洲古镇\n2) 丽江古城；束河古镇、双廊、A')).toEqual(['大理古城', '双廊', '喜洲古镇', '丽江古城', '束河古镇'])
   })
 })
+
+describe('起点终点（现居地）：第一天排去程、最后一天排返程', () => {
+  const KUNMING = P(102.712, 25.040) // 昆明，离大理直线约 260 km
+  const HOME = { name: '家', poi: KUNMING }
+  const cands = () => [cand('大理古城', DALI.古城), cand('崇圣寺三塔', DALI.三塔), cand('喜洲古镇', DALI.喜洲), cand('双廊', DALI.双廊)]
+  const road = (t: Trip, d: number) => t.days[d].stops.reduce((a, s) => a + (s.kind === 'drive' || s.kind === 'transit' ? s.durationMin : s.driveMin ?? 0), 0)
+
+  it('自驾：第一天从家开过去（超连开拆段进服务区），最后一天不住店、以回到家收尾', async () => {
+    const r = await planTrip(base(3), cands(), fake(), { origin: KUNMING, end: HOME, newId })
+    const d0 = r.trip.days[0].stops, last = r.trip.days[2].stops
+    expect(road(r.trip, 0)).toBeGreaterThan(300) // 昆明到大理的路程算进了第一天
+    expect(d0.some(s => s.kind === 'rest' && s.tags?.includes('restroom'))).toBe(true)
+    expect(d0.filter(s => s.kind === 'drive').every(s => !s.name.includes('服务区'))).toBe(true) // 写真正去哪
+    expect(last[last.length - 1]).toMatchObject({ kind: 'lodging', home: true, name: '回到家' })
+    expect(last.filter(s => s.kind === 'lodging' && !s.home)).toHaveLength(0)
+    expect(road(r.trip, 2)).toBeGreaterThan(300) // 返程也算进最后一天
+    // 路上的两天景点少，中间那天多
+    const n = (d: number) => r.trip.days[d].stops.filter(s => s.kind === 'sight' && !s.suggested).length
+    expect(n(1)).toBeGreaterThanOrEqual(Math.max(n(0), n(2)))
+    // 回家那站不按住宿查电梯、宠物
+    expect(checkDay(r.trip, 2).some(i => i.message.includes('回到家'))).toBe(false)
+  })
+
+  it('公共交通：远的去程返程按高铁估，不按开车', async () => {
+    const t = { ...base(3), party: { ...base(3).party, mode: 'transit' as const } }
+    const r = await planTrip(t, cands(), fake(), { origin: KUNMING, end: HOME, newId })
+    const rail = r.trip.days.flatMap(d => d.stops).filter(s => s.kind === 'transit')
+    expect(rail.map(s => s.name)).toEqual(['高铁 → ' + r.trip.days[0].stops[1].name + '（估）', '高铁 → 家（估）'])
+    expect(rail[0].durationMin).toBeGreaterThan(90)
+    expect(rail[0].durationMin).toBeLessThan(240)
+  })
+
+  it('很远的按飞机估；一整天在路上的第一天也有饭吃、住处找在第二天第一站附近', async () => {
+    const BEIJING = P(116.40, 39.90)
+    const t = { ...base(2), party: { ...base(2).party, mode: 'transit' as const } }
+    const r = await planTrip(t, [cand('大理古城', DALI.古城, { day: 1 })], fake(), { origin: BEIJING, end: { name: '家', poi: BEIJING }, newId })
+    const d0 = r.trip.days[0].stops
+    expect(d0[0].name).toMatch(/^飞机 → /)
+    expect(d0.filter(s => s.kind === 'food').length).toBeGreaterThanOrEqual(1)
+    const lodge = d0.find(s => s.kind === 'lodging')!
+    expect(distanceKm(lodge.poi!, DALI.古城)).toBeLessThan(10)
+  })
+
+  it('最后一天早到家：晚饭回家吃，不在外面等饭点', async () => {
+    const r = await planTrip(base(2), [cand('大理古城', DALI.古城), cand('崇圣寺三塔', DALI.三塔)], fake(), { end: { name: '家', poi: P(100.30, 25.60) }, newId })
+    const last = r.trip.days[1].stops
+    expect(last[last.length - 1].why).toContain('到家吃晚饭')
+    expect(last.filter(s => s.kind === 'food')).toHaveLength(1) // 只有午饭
+  })
+})
+
+describe('起点终点的默认和给模型看的出发地', () => {
+  it('新建时带上起点终点；null 表示明确不设', () => {
+    const home = { name: '家', poi: P(102.7, 25.0), area: '云南省 昆明市 五华区' }
+    const t = skeletonTrip({ title: 't', startDate: '2026-11-01', days: 2, mode: 'tour', party: family, flow: 'places', styles: [], from: home, to: null }, newId)
+    expect(t.plan?.from).toEqual(home)
+    expect(t.plan?.to).toBeNull()
+  })
+  it('推荐方案里的出发地用起点所在城市（起点只叫「家」时）', async () => {
+    const { originCity } = await import('../src/llm/recommend')
+    const t = base(2)
+    expect(originCity({ ...t, plan: { flow: 'region', styles: [], from: { name: '家', poi: P(102.7, 25.0), area: '云南省 昆明市 五华区' } } })).toBe('昆明市')
+    expect(originCity({ ...t, plan: { flow: 'region', styles: [], origin: '成都' } })).toBe('成都')
+    expect(originCity({ ...t, plan: { flow: 'region', styles: [], from: null, origin: '成都' } })).toBeUndefined()
+  })
+})

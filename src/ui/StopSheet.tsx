@@ -60,7 +60,7 @@ function StopFields({ s, onChange }: { s: Stop; onChange: (p: Partial<Stop>) => 
   return (
     <>
       <Field label={drive ? '开多久' : s.kind === 'lodging' ? '住下' : '停多久'}>
-        {s.kind === 'lodging' ? <p className="sheet-note">住宿是一天的终点，不计时长。</p> :
+        {s.kind === 'lodging' ? <p className="sheet-note">{s.home ? '行程终点：回到这里就结束了。' : '住宿是一天的终点，不计时长。'}</p> :
           <Stepper label="时长" value={s.durationMin} step={drive ? 5 : 15} min={0} max={720} onChange={durationMin => onChange({ durationMin })} format={dur} />}
       </Field>
       {!drive && (

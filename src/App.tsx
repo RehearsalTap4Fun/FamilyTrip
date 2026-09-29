@@ -116,7 +116,7 @@ function AppInner() {
   }, [theme, device])
 
   return (
-    <SettingsCtx.Provider value={{ amapKey: state.amapKey ?? '', llm: { provider: state.llmProvider ?? 'anthropic', apiKey: state.llmKeys?.[state.llmProvider ?? 'anthropic'] ?? '' }, zhipuKey: state.zhipuKey ?? '' }}>
+    <SettingsCtx.Provider value={{ amapKey: state.amapKey ?? '', llm: { provider: state.llmProvider ?? 'anthropic', apiKey: state.llmKeys?.[state.llmProvider ?? 'anthropic'] ?? '' }, zhipuKey: state.zhipuKey ?? '', home: state.home }}>
     <div className="app">
       <main className="sheet" key={tab}>
         <div className="sheet-body">
@@ -125,6 +125,7 @@ function AppInner() {
           {tab === 'party' && <PartyPage trip={trip} onTrip={onTrip} demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))} onReset={() => setState(restoreSamples)} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))} amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
             llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))}
             zhipuKey={state.zhipuKey ?? ''} onZhipuKey={k => setState(s => ({ ...s, zhipuKey: k || undefined }))}
+            home={state.home} onHome={h => setState(s => ({ ...s, home: h }))}
             shareSlot={<ShareCard trip={trip} status={cloud.sync.shares?.[trip.id]} syncing={cloud.share.syncing.includes(trip.id)}
               onShare={() => { cloud.share.shareTrip(trip.id); toast('已生成分享码，复制邀请发给同行的人') }} onSyncNow={() => cloud.share.syncNow(trip.id)} onStop={del => cloud.share.stopShare(trip.id, del)} />}
             extra={<StorageSection sync={cloud.sync} syncing={cloud.syncing} onEnable={cloud.enable} onDisable={cloud.disable} onSyncNow={cloud.syncNow} onExport={doExport} onImport={doImport} />} />}

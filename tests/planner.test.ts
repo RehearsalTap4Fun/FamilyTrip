@@ -376,8 +376,11 @@ describe('起点终点（现居地）：第一天排去程、最后一天排返�
   it('最后一天早到家：晚饭回家吃，不在外面等饭点', async () => {
     const r = await planTrip(base(2), [cand('大理古城', DALI.古城), cand('崇圣寺三塔', DALI.三塔)], fake(), { end: { name: '家', poi: P(100.30, 25.60) }, newId })
     const last = r.trip.days[1].stops
-    expect(last[last.length - 1].why).toContain('到家吃晚饭')
-    expect(last.filter(s => s.kind === 'food')).toHaveLength(1) // 只有午饭
+    const home = scheduleDay(r.trip.days[1]).slice(-1)[0]
+    // 早到家：饭都回家吃，不在外面等饭点；中午前到的写「到家吃午饭」
+    expect(last[last.length - 1].why).toMatch(/到家吃(午|晚)饭/)
+    expect(last.filter(s => s.kind === 'food' && s.name.includes('晚饭'))).toHaveLength(0)
+    if (home.start <= 12 * 60 + 30) expect(last.filter(s => s.kind === 'food')).toHaveLength(0)
   })
 })
 
@@ -601,7 +604,7 @@ describe('路上的服务区沿真实路线找', () => {
       },
     })
     // 从 A 出发、往东开到 B：只有这一段长途
-    const r = await planTrip(base(1), [cand('终点景点', B, { durationMin: 60 })], tools, { origin: A, newId })
+    const r = await planTrip(base(1), [cand('终点景点', B, { durationMin: 60, must: true })], tools, { origin: A, newId })
     return { r, seen }
   }
 

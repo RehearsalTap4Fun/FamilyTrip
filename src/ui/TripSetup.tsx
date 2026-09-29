@@ -21,7 +21,7 @@ export function partyLine(p: Party): string {
   return `${MODE_LABEL[p.mode]} · ${p.members.length} 人${p.pets.length ? ` + ${p.pets.length} 只宠物` : ''}（${names.slice(0, 5).join('、')}${names.length > 5 ? '…' : ''}）`
 }
 
-/** 行程页上的摘要卡片：出行方式、几个人、几天、哪天出发、起点终点各一个胶囊，名字小字列在下面；点开改 */
+/** 行程页上的摘要卡片：出行方式、几个人、几天、哪天出发各一个胶囊，名字小字列在下面；点开改（起点终点不外显，在面板里） */
 export function TripSetupCard({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
   const p = trip.party
   const ends = endsLine(trip)
@@ -34,7 +34,6 @@ export function TripSetupCard({ trip, onOpen }: { trip: Trip; onOpen: () => void
           <span className="ts-pill">{p.members.length} 人{p.pets.length ? ` + ${p.pets.length} 宠物` : ''}</span>
           <span className="ts-pill">{trip.days.length} 天</span>
           <span className="ts-pill">{fmtShort(trip.startDate, 0)} 出发</span>
-          {ends && <span className="ts-pill">{ends}</span>}
         </span>
         <span className="csub ts-names">{names.join('、')}</span>
       </span>

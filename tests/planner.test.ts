@@ -282,6 +282,29 @@ describe('下午别空着', () => {
     expect(added).toContain('远一点的公园')
   })
 
+  it('下午补景点不补景区里的小点、设施、评分低的、名字带已排景点的；评分差不多挑近的', async () => {
+    const at = (k: number) => P(DALI.古城.lng + 0.02 * k, DALI.古城.lat)
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城, { durationMin: 90 })], fake({
+      nearby: async (w, p) => (w === 'sight' ? [
+        { name: '五华楼-鼓楼', poi: at(1), rating: 4.6 }, { name: '古城游览车招呼站', poi: at(1.2), rating: 4.5 },
+        { name: '水车', poi: at(1.4), rating: 3.6 }, { name: '大理古城国家级旅游度假区', poi: at(1.6), rating: 4.9 },
+        { name: '洱海公园', poi: at(2), rating: 4.4 }, { name: '远处的名山', poi: at(12), rating: 4.8 },
+      ] : fake().nearby!(w, p)),
+    }), { newId })
+    const added = r.trip.days[0].stops.filter(s => s.suggested && s.kind === 'sight').map(s => s.name)
+    expect(added).toEqual(['洱海公园'])
+  })
+
+  it('公共交通：下午照样补景点，补的不把晚饭挤晚', async () => {
+    const t = { ...base(1), party: { ...base(1).party, mode: 'transit' as const } }
+    const far = fake({ nearby: async (w, p) => (w === 'sight' ? [{ name: '洱海公园', poi: P(p.lng + 0.06, p.lat), rating: 4.6 }] : fake().nearby!(w, p)) })
+    const r = await planTrip(t, [cand('大理古城', DALI.古城, { durationMin: 90 })], far, { newId })
+    expect(r.trip.days[0].stops.some(s => s.name === '洱海公园' && s.suggested)).toBe(true)
+    const slots = scheduleDay(r.trip.days[0])
+    const dinner = slots.filter(sl => sl.stop.kind === 'food').pop()!
+    expect(dinner.start).toBeLessThanOrEqual(parseHM('17:35'))
+  })
+
   it('自己给了时长的景点不去拉长', async () => {
     const r = await planTrip(base(1), [cand('大理古城', DALI.古城, { durationMin: 60 }), cand('崇圣寺三塔', DALI.三塔, { durationMin: 60 })], fake({ nearby: async (w, at) => (w === 'sight' ? [] : fake().nearby!(w, at)) }), { newId })
     expect(r.trip.days[0].stops.filter(s => s.kind === 'sight').map(s => s.durationMin)).toEqual([60, 60])

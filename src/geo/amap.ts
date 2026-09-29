@@ -103,11 +103,20 @@ export async function searchPlaces(keywords: string, key: string, opts: { city?:
 // 下午空着就近补的景点：风景名胜 110000、博物馆 140100
 export const AMAP_TYPES = { food: '050100|050200|050300', lodging: '100000', serviceArea: '180300', sight: '110000|140100' } as const
 
+/**
+ * 一个城市里的景区，按高德的重要程度排（v5 place/text 只给分类不给关键字）。
+ * 下午补景点用：周边搜索按距离排，大景区旁边最近的几十个全是园区里的小点，这里排在前面的是洱海公园、苍山这种
+ */
+export async function searchCitySights(adcode: string, key: string, fetchImpl: typeof fetch = fetch): Promise<Place[]> {
+  const j = await call('v5/place/text', { types: AMAP_TYPES.sight, region: adcode.slice(0, 4) + '00', city_limit: 'true', page_size: '25', page_num: '1', show_fields: 'business' }, key, fetchImpl)
+  return parsePlaces(j)
+}
+
 /** 周边搜索（v5 place/around）：按距离排，带评分。radius 单位米，高德上限 50 km */
-export async function searchAround(center: Poi, key: string, opts: { types?: string; keywords?: string; radius?: number; fetchImpl?: typeof fetch } = {}): Promise<Place[]> {
+export async function searchAround(center: Poi, key: string, opts: { types?: string; keywords?: string; radius?: number; pageSize?: number; page?: number; fetchImpl?: typeof fetch } = {}): Promise<Place[]> {
   const j = await call('v5/place/around', {
     location: `${center.lng},${center.lat}`, types: opts.types ?? '', keywords: opts.keywords ?? '',
-    radius: String(Math.min(50000, opts.radius ?? 3000)), sortrule: 'distance', page_size: '10', page_num: '1', show_fields: 'business',
+    radius: String(Math.min(50000, opts.radius ?? 3000)), sortrule: 'distance', page_size: String(opts.pageSize ?? 10), page_num: String(opts.page ?? 1), show_fields: 'business',
   }, key, opts.fetchImpl ?? fetch)
   return parsePlaces(j)
 }

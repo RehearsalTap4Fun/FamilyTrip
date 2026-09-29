@@ -50,6 +50,8 @@ const DINNER = 18 * 60
 const REST_MIN = 20
 /** 吃饭、住处推荐只认这个范围内的 */
 const NEAR_KM = { food: 2.5, lodging: 6, serviceArea: 20, sight: 15 }
+/** 周边搜出来的「景点」里其实是设施的 */
+const SIGHT_JUNK = /(停车|招呼站|候车|吸烟|售票|厕所|卫生间|游客中心|服务中心|入口|出口|山门|大门|检票|码头|观光车|游览车)/
 /** 景点最多延长到默认停留的这么多倍、不超过这么多分钟 */
 const STRETCH_X = 2
 const STRETCH_MAX = 240
@@ -312,6 +314,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   // 已经在要去的地方里的不再被推荐一遍（免得同一家吃两顿、下午补的景点和要去的重复）
   const used = new Set<string>(candidates.map(c => c.name))
   const sightPois = candidates.filter(c => c.kind === 'sight').map(c => c.poi)
+  const sightNames = candidates.filter(c => c.kind === 'sight').map(c => c.name.replace(/[（(].*$/, '').replace(/(景区|风景区|旅游区|文化旅游区)$/, '')).filter(n => n.length >= 2)
   const whyText = candidates.map(c => c.why ?? '').join(' ')
   // 用户（或攻略、方案）给了时长的站：补空档时不去拉长它
   const fixedDur = new Set<string>()
@@ -324,9 +327,14 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     try { list = await tools.nearby(what, at) } catch { return undefined }
     const red = (p: NearbyPlace) => (tools.verdictOf?.(p) === 'red' ? 1 : 0)
     // 下午补景点：别补已经排进去的景区里面的点（离已有景点 1.2 公里内、或名字写在园区顺序里，例如都江堰景区里的宝瓶口）
-    const inside = (p: NearbyPlace) => what === 'sight' && (sightPois.some(q => distanceKm(q, p.poi) < 1.2) || whyText.includes(p.name.replace(/[（(].*$/, '')))
-    const ok = list.filter(p => distanceKm(at, p.poi) <= NEAR_KM[what] && tools.verdictOf?.(p) !== 'black' && (what === 'serviceArea' || !used.has(p.name)) && !inside(p))
-    ok.sort((a, b) => red(b) - red(a) || (b.rating ?? 0) - (a.rating ?? 0))
+    // 名字里带着已排的景点也算（「大理古城国家级旅游度假区」）
+    const inside = (p: NearbyPlace) => what === 'sight' && (sightPois.some(q => distanceKm(q, p.poi) < 1.2) || whyText.includes(p.name.replace(/[（(].*$/, '')) || sightNames.some(n => p.name.includes(n)))
+    // 补的景点不要景区里的小点（名字带「-」的子景点）、设施（招呼站、停车场、售票处），也不要评分低于 4 的
+    const junk = (p: NearbyPlace) => what === 'sight' && (/[\u4e00-\u9fa5）)][-—－][\u4e00-\u9fa5]/.test(p.name) || SIGHT_JUNK.test(p.name) || (p.rating != null && p.rating > 0 && p.rating < 4))
+    const ok = list.filter(p => distanceKm(at, p.poi) <= NEAR_KM[what] && tools.verdictOf?.(p) !== 'black' && (what === 'serviceArea' || !used.has(p.name)) && !inside(p) && !junk(p))
+    // 景点评分和远近一起看（每远 10 公里抵 1 分），免得为了高 0.1 分跑老远；吃饭住处只看评分
+    const score = (p: NearbyPlace) => (p.rating ?? 0) - (what === 'sight' ? distanceKm(at, p.poi) / 10 : 0)
+    ok.sort((a, b) => red(b) - red(a) || score(b) - score(a))
     const got = ok[0]
     if (got && what !== 'serviceArea') used.add(got.name)
     nearbyCache.set(key, got)
@@ -597,9 +605,10 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
           progress(`第 ${d + 1} 天下午空着，就近找一个`)
           const p = await pick('sight', from)
           if (!p) { done = true; break }
-          const legIn = estDriveMin(from, p.poi)
+          // 按出行方式估（公共交通比开车慢），免得补的景点把晚饭挤晚
+          const legIn = est(from, p.poi)
           const to = nodes[next].poi ?? p.poi
-          const dur = Math.floor(Math.min(150, avail - legIn - estDriveMin(p.poi, to) - 10, left) / 5) * 5
+          const dur = Math.floor(Math.min(150, avail - legIn - est(p.poi, to) - 10, left) / 5) * 5
           if (dur < 45) continue
           const at = freeFrom + legIn
           nodes.splice(next, 0, { poi: p.poi, stop: {
@@ -608,6 +617,16 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
             ...(at > slots[i - 1].end + legIn + 5 ? { start: fmtHM(Math.ceil(at / 5) * 5) } : {}),
             why: `下午空着，就近加一个${p.rating ? ` · 评分 ${p.rating}` : ''}；不想去可以删`,
           } })
+          // 按真实车程再排一遍：后面那站（多半是晚饭）被推迟了多少，补的就缩短多少；缩到 45 分钟以下就不补了
+          const added = nodes[next]
+          saOf.clear()
+          const after = (await timeline(nodes)).find(sl => sl.stop.id === slots[i].stop.id)!
+          const over = after.start - slots[i].start
+          if (over > 0) {
+            const cut = Math.floor((dur - over) / 5) * 5
+            if (cut < 45) { nodes.splice(next, 1); continue }
+            added.stop = { ...added.stop, durationMin: cut }
+          }
           done = true
         }
         if (!done) break

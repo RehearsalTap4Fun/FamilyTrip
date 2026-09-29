@@ -1,13 +1,16 @@
 // 自己多台设备之间的同步（与饮食日记同一套：同步码派生 id 与密钥，服务器只存密文）。
-// 同步的是：自己建的行程、红黑榜、两项偏好（风格、用哪家大模型）。不同步：各种 Key、示例行程、当前看的是哪趟、演示时间。
+// 同步的是：自己建的行程、红黑榜、家庭成员、偏好（风格、用哪家大模型、现居地）。不同步：各种 Key、示例行程、当前看的是哪趟、演示时间。
+// 家庭成员逐人合并：每人一条记录各自后写赢（两台设备分别改了外婆和朵朵，两边的改动都留下），删掉的留墓碑。
 //
 // 行程不整份覆盖：每趟拆成扁平记录（tripDoc.ts），每条各自后写赢；删掉一趟留墓碑。
 // 时间戳在本机改完 4 秒内打上（stamp），离线也照打，所以离线改的东西按改的时刻参与合并，而不是按联网那一刻。
 import type { Rating } from '@core/ratings'
-import type { Trip } from '@core/types'
+import type { Roster } from '@core/roster'
+import type { Member, Pet, Trip } from '@core/types'
 import { sampleTrips, type AppState, type Theme } from '../store/state'
 import { diffInto, docToTrip, mergeDocs, tripToDoc, type Rec, type TripDoc } from './tripDoc'
 
+/** roster 只在旧版（2026-09-29 逐人合并以前）的偏好里出现：读的时候兜底，不再写 */
 export interface Prefs { theme?: Theme; llmProvider?: 'anthropic' | 'deepseek'; home?: AppState['home']; roster?: AppState['roster'] }
 
 export interface SyncState {
@@ -19,6 +22,8 @@ export interface SyncState {
   /** 红黑榜：rating:<id> → 记录 */
   ratings: TripDoc
   prefs?: Rec<Prefs>
+  /** 家庭成员：member:<id> / pet:<id> → 这个人的资料和排第几 */
+  people?: TripDoc
   /** 分享出去 / 加入的行程：自己几台设备之间只同步「有这一趟、分享码是什么」，内容走分享那一路（share.ts）；null 是退出了 */
   shared?: Record<string, Rec<SharedRef | null>>
 }
@@ -31,7 +36,26 @@ const newer = (a: { t: number; by: string }, b: { t: number; by: string }) => a.
 const lastEdit = (doc: TripDoc) => Object.values(doc).reduce((m, r) => Math.max(m, r.t), 0)
 const ownTrips = (s: AppState) => s.trips.filter(t => !t.sample)
 const ratingsDoc = (rs: Rating[], t: number, by: string): TripDoc => Object.fromEntries(rs.map(r => [`rating:${r.id}`, { v: r, t, by }]))
-export const prefsOf = (s: AppState): Prefs => ({ ...(s.theme ? { theme: s.theme } : {}), ...(s.llmProvider ? { llmProvider: s.llmProvider } : {}), ...(s.home ? { home: s.home } : {}), ...(s.roster ? { roster: s.roster } : {}) })
+export const prefsOf = (s: AppState): Prefs => ({ ...(s.theme ? { theme: s.theme } : {}), ...(s.llmProvider ? { llmProvider: s.llmProvider } : {}), ...(s.home ? { home: s.home } : {}) })
+
+type Person<T> = T & { order: number }
+
+/** 家庭成员拆成一人一条；order 记排第几，合并后按它排回去 */
+export function peopleDoc(r: Roster | undefined, t: number, by: string): TripDoc {
+  if (!r) return {}
+  return Object.fromEntries([
+    ...r.members.map((m, i) => [`member:${m.id}`, { v: { ...m, order: i }, t, by }]),
+    ...r.pets.map((x, i) => [`pet:${x.id}`, { v: { ...x, order: i }, t, by }]),
+  ])
+}
+
+/** 合并后的家庭成员；一条都没有就返回 undefined（交给旧版偏好兜底） */
+export function rosterOf(doc: TripDoc | undefined): Roster | undefined {
+  if (!doc || !Object.keys(doc).length) return undefined
+  const pick = <T,>(prefix: string) => Object.entries(doc).filter(([k, r]) => k.startsWith(prefix) && r.v !== null).map(([, r]) => r.v as Person<T> & { id: string })
+    .sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : 1)).map(({ order: _o, ...x }) => x as unknown as T)
+  return { members: pick<Member>('member:'), pets: pick<Pet>('pet:') }
+}
 
 /** 本机改动打时间戳：和上一次记下的版本比，只有真的变了的记录才换成新时刻 */
 export function stamp(prev: SyncState, s: AppState, now: number, by: string): SyncState {
@@ -63,7 +87,8 @@ export function stamp(prev: SyncState, s: AppState, now: number, by: string): Sy
   const ratings = diffInto(prev.ratings, ratingsDoc(s.ratings, now, by), now, by)
   const p = prefsOf(s)
   const prefs = prev.prefs && JSON.stringify(prev.prefs.v) === JSON.stringify(p) ? prev.prefs : { v: p, t: now, by }
-  return { v: 1, trips, gone, ratings, prefs, ...(Object.keys(shared).length ? { shared } : {}) }
+  const people = diffInto(prev.people ?? {}, peopleDoc(s.roster, now, by), now, by)
+  return { v: 1, trips, gone, ratings, prefs, ...(Object.keys(people).length ? { people } : {}), ...(Object.keys(shared).length ? { shared } : {}) }
 }
 
 export function mergeSync(a: SyncState, b: SyncState): SyncState {
@@ -74,7 +99,8 @@ export function mergeSync(a: SyncState, b: SyncState): SyncState {
   const prefs = !a.prefs ? b.prefs : !b.prefs ? a.prefs : newer(b.prefs, a.prefs) ? b.prefs : a.prefs
   const shared = { ...(a.shared ?? {}) }
   for (const [id, r] of Object.entries(b.shared ?? {})) if (!shared[id] || newer(r, shared[id])) shared[id] = r
-  return { v: 1, trips, gone, ratings: mergeDocs(a.ratings, b.ratings), ...(prefs ? { prefs } : {}), ...(Object.keys(shared).length ? { shared } : {}) }
+  const people = mergeDocs(a.people ?? {}, b.people ?? {})
+  return { v: 1, trips, gone, ratings: mergeDocs(a.ratings, b.ratings), ...(prefs ? { prefs } : {}), ...(Object.keys(people).length ? { people } : {}), ...(Object.keys(shared).length ? { shared } : {}) }
 }
 
 /** 还活着的行程：没有墓碑，或墓碑早于最后一次改动 */
@@ -102,9 +128,13 @@ export function applySync(s: AppState, st: SyncState): AppState {
     ...all.filter(t => !s.trips.some(x => x.id === t.id)),
   ]
   const ratings = Object.values(st.ratings).filter(r => r.v !== null).map(r => r.v as Rating)
-  const prefs = st.prefs?.v ?? {}
+  // 旧版把家庭成员整份放在偏好里：逐人记录还没有时才用它
+  const { roster: legacyRoster, ...prefs } = st.prefs?.v ?? {}
+  // 逐人记录全是接入时按时刻 0 记下的本机旧资料、云端却有旧版的整份：以云端为准
+  const onlyLocal = Object.values(st.people ?? {}).every(r => r.t === 0)
+  const roster = (onlyLocal && legacyRoster) || rosterOf(st.people) || legacyRoster || s.roster
   // 一趟都不剩（示例也被删光了）：放回示例，不去复活删掉的
-  const out: AppState = { ...s, trips: trips.length ? trips : sampleTrips(), ratings, ...prefs }
+  const out: AppState = { ...s, trips: trips.length ? trips : sampleTrips(), ratings, ...prefs, ...(roster ? { roster } : {}) }
   if (!out.trips.some(t => t.id === out.currentId)) out.currentId = out.trips[0].id
   return out
 }

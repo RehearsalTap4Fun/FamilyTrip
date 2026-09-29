@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applySync, emptySync, fingerprint, liveTrips, mergeSync, stamp, type SyncState } from '../src/sync/account'
+import { applySync, emptySync, fingerprint, liveTrips, mergeSync, peopleDoc, stamp, type SyncState } from '../src/sync/account'
 import { decryptJson, deriveKeys, encryptJson, generateSyncCode, normalizeSyncCode } from '../src/sync/crypto'
 import { syncOnce, type RemoteRec } from '../src/sync/client'
 import { backupFileName, exportBackup, importBackup } from '../src/store/backup'
@@ -136,6 +136,27 @@ describe('两台设备走一遍', () => {
     expect(r4).toMatchObject({ pushed: false, pulled: false })
   })
 
+  it('家庭成员：A 改外婆、B 改朵朵，各自推拉一轮后两台都是两处改动', async () => {
+    const srv = fakeServer()
+    const code = generateSyncCode()
+    const opts = { fetchImpl: srv.f, apiBase: 'http://x' }
+    const d = defaultState()
+    const idOf = (n: string) => d.roster!.members.find(m => m.name === n)!.id
+    const put = (id: string, age: number): AppState => ({ ...d, roster: { ...d.roster!, members: d.roster!.members.map(m => (m.id === id ? { ...m, age } : m)) } })
+    const A0 = stamp(emptySync(), d, 1000, 'A')
+    const B0 = (await syncOnce(A0, code, opts), (await syncOnce(emptySync(), code, opts)).merged)
+    const A1 = stamp(A0, put(idOf('外婆'), 80), 2000, 'A')
+    const B1 = stamp(B0, put(idOf('朵朵'), 3), 2100, 'B')
+    await syncOnce(A1, code, opts)
+    const rb = await syncOnce(B1, code, opts)
+    const ra = await syncOnce(A1, code, opts)
+    for (const st of [rb.merged, ra.merged]) {
+      const ages = applySync(d, st).roster!.members
+      expect(ages.find(m => m.id === idOf('外婆'))!.age).toBe(80)
+      expect(ages.find(m => m.id === idOf('朵朵'))!.age).toBe(3)
+    }
+  })
+
   it('推的时候版本冲突：再拉、再合并、再推', async () => {
     const srv = fakeServer()
     const code = generateSyncCode()
@@ -173,3 +194,54 @@ describe('存档', () => {
 
 // 类型用一下，免得 SyncState 只作类型导入被报未用
 export type _S = SyncState
+
+describe('家庭成员逐人合并', () => {
+  const base = defaultState() // 示例里的一家：我、小林、外婆、朵朵 + 豆包
+  const edit = (s: AppState, id: string, patch: Record<string, unknown>): AppState => ({ ...s, roster: { ...s.roster!, members: s.roster!.members.map(m => (m.id === id ? { ...m, ...patch } : m)) } })
+  const names = (s: AppState) => s.roster!.members.map(m => `${m.name}${m.age != null ? m.age : ''}`)
+  const gm = () => base.roster!.members.find(m => m.name === '外婆')!.id
+  const kid = () => base.roster!.members.find(m => m.name === '朵朵')!.id
+  const start = stamp(emptySync(), base, 1000, 'A')
+
+  it('两台设备分别改了不同的人：两边的改动都留下，顺序不变', () => {
+    const a = stamp(start, edit(base, gm(), { age: 80 }), 2000, 'A')
+    const b = stamp(start, edit(base, kid(), { age: 3 }), 3000, 'B')
+    const out = applySync(base, mergeSync(a, b))
+    expect(names(out)).toEqual(names(base).map(n => n.replace(/^外婆\d+/, '外婆80').replace(/^朵朵\d+/, '朵朵3')))
+  })
+
+  it('两台设备改了同一个人：后改的那台为准', () => {
+    const a = stamp(start, edit(base, gm(), { age: 80 }), 3000, 'A')
+    const b = stamp(start, edit(base, gm(), { age: 81, mobility: 'cane' }), 2000, 'B')
+    const g = applySync(base, mergeSync(a, b)).roster!.members.find(m => m.id === gm())!
+    expect(g.age).toBe(80)
+    expect(g.mobility).toBe(base.roster!.members.find(m => m.id === gm())!.mobility) // 整个人以 A 为准，不拼字段
+  })
+
+  it('A 删了一个人、B 加了一个人：删的删掉，加的加上', () => {
+    const del: AppState = { ...base, roster: { ...base.roster!, members: base.roster!.members.filter(m => m.id !== kid()) } }
+    const a = stamp(start, del, 2000, 'A')
+    const add: AppState = { ...base, roster: { ...base.roster!, members: [...base.roster!.members, { id: 'grandpa', name: '外公', role: 'elder', age: 78 }] } }
+    const b = stamp(start, add, 2500, 'B')
+    const out = applySync(base, mergeSync(a, b))
+    expect(out.roster!.members.map(m => m.name)).not.toContain('朵朵')
+    const ns = out.roster!.members.map(m => m.name)
+    expect(ns[ns.length - 1]).toBe('外公')
+  })
+
+  it('新设备接入：本机从示例迁移来的旧资料不盖掉云端改过的；云端没有的人照样并进去', () => {
+    const cloud = stamp(start, edit(base, gm(), { age: 80 }), 5000, 'A')
+    const local: AppState = { ...base, roster: { ...base.roster!, members: [...base.roster!.members, { id: 'aunt', name: '小姨', role: 'adult' }] } }
+    // 接入时的起点：本机的家庭成员按时刻 0 记（useCloudSync.enable 的 join）
+    const joinBase = { ...emptySync(), people: peopleDoc(local.roster, 0, '') }
+    const mineNow = stamp(joinBase, local, 9000, 'B')
+    const out = applySync(local, mergeSync(cloud, mineNow))
+    expect(out.roster!.members.find(m => m.id === gm())!.age).toBe(80)
+    expect(out.roster!.members.map(m => m.name)).toContain('小姨')
+  })
+
+  it('旧版云端数据（家庭成员整份放在偏好里）照样读得出来', () => {
+    const legacy: SyncState = { ...emptySync(), prefs: { v: { roster: { members: [{ id: 'x', name: '旧版的人', role: 'adult' }], pets: [] } }, t: 100, by: 'A' } }
+    expect(applySync(base, legacy).roster!.members.map(m => m.name)).toEqual(['旧版的人'])
+  })
+})

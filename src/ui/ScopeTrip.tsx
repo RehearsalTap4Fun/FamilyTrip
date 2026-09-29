@@ -17,7 +17,7 @@ import { AddStopSheet, IssueSheet, removeStop, setStop, StopSheet } from './Stop
 import { AmapError, driveBetween } from '../geo/amap'
 import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
-import { TripActions } from './TripSwitcher'
+import { PlanCta, TripBar } from './TripSwitcher'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
@@ -83,13 +83,12 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSe
 
   return (
     <div className="scope-trip">
+      <TripBar count={tripCount} onSwitch={onSwitch} onNew={onNew} />
       <header className="bez-top">
-        <button type="button" className="trip-switch" onClick={onSwitch} aria-haspopup="dialog" aria-label={`${trip.title}，切换或新建行程`}>
-          <h1>{trip.title}<svg className="caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg><small>{fmtShort(trip.startDate, 0)}–{fmtShort(trip.startDate, trip.days.length - 1)} {MODE_LABEL[trip.party.mode]}</small></h1>
-        </button>
+        <h1>{trip.title}<small>{fmtShort(trip.startDate, 0)}–{fmtShort(trip.startDate, trip.days.length - 1)} {MODE_LABEL[trip.party.mode]}</small></h1>
         <span className={'run' + (fails ? ' fail' : warns ? ' hold' : '')}>{fails || warns ? `${fails ? `${fails} 必改 ` : ''}${warns} 留意` : '没问题'}</span>
       </header>
-      <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
+      <PlanCta trip={trip} onPlan={onPlan} />
       <TripSetupCard trip={trip} onOpen={onSetup} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
       <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); openStop(id) }} />

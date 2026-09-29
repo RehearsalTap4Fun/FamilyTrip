@@ -9,7 +9,7 @@ import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, StopKind, StopStatus, Tag, Trip } from '@core/types'
 import { checkDay, checkTrip, LODGING_PLACEHOLDER, TAG_LABEL } from '@core/validate'
 import { uid } from '../store/state'
-import { TripActions } from './TripSwitcher'
+import { PlanCta, TripBar } from './TripSwitcher'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
@@ -41,15 +41,14 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, onSetup, tripC
 
   return (
     <div className="trip">
+      <TripBar count={tripCount} onSwitch={onSwitch} onNew={onNew} />
       <header className="head">
         <div>
-          <button type="button" className="trip-switch" onClick={onSwitch} aria-haspopup="dialog" aria-label={`${trip.title}，切换或新建行程`}>
-            <h1 className="title">{trip.title}<svg className="caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg></h1>
-          </button>
+          <h1 className="title">{trip.title}</h1>
           <p className="sub">{fmtShort(trip.startDate, 0)}–{fmtShort(trip.startDate, Math.max(0, last))} · {trip.days.length} 天 · {MODE_LABEL[trip.party.mode]} · {errs || warns ? `检查 ${errs} 处必改、${warns} 处留意` : '检查没有问题'}</p>
         </div>
       </header>
-      <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
+      <PlanCta trip={trip} onPlan={onPlan} />
       <TripSetupCard trip={trip} onOpen={onSetup} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
       <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); setPin({ day: d, id }) }} />

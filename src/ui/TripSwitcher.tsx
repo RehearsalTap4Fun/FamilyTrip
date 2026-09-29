@@ -65,16 +65,23 @@ export function TripSwitcher({ open, trips, currentId, now, onPick, onDelete, on
 }
 
 /** 行程页首屏的入口：看全部行程、新建（这一页的主操作，放在最显眼处）；新建时定过排法的行程再给一个「排这趟」 */
-export function TripActions({ count, onSwitch, onNew, trip, onPlan }: { count: number; onSwitch: () => void; onNew: () => void; trip?: Trip; onPlan?: () => void }) {
+/** 页面最上面的工具栏：看全部行程（切换就在这）、新建一趟。和「当前这趟」分开，不是它的子项 */
+export function TripBar({ count, onSwitch, onNew }: { count: number; onSwitch: () => void; onNew: () => void }) {
+  return (
+    <div className="trip-actions trip-bar" role="toolbar" aria-label="行程">
+      <button type="button" className="kbtn" onClick={onSwitch} aria-haspopup="dialog">我的行程<span className="n mono">{count}</span></button>
+      <button type="button" className="kbtn primary" onClick={onNew}>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>新建行程
+      </button>
+    </div>
+  )
+}
+
+/** 当前这趟的「排这趟」入口（按进度提示接着来） */
+export function PlanCta({ trip, onPlan }: { trip?: Trip; onPlan?: () => void }) {
   const flow = trip?.plan?.flow
   return (
     <>
-      <div className="trip-actions">
-        <button type="button" className="kbtn" onClick={onSwitch}>我的行程<span className="n mono">{count}</span></button>
-        <button type="button" className="kbtn primary" onClick={onNew}>
-          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>新建行程
-        </button>
-      </div>
       {onPlan && (flow === 'places' || flow === 'region') && (() => {
         // 有没做完的进度：排好了没采用 / 推荐过 / 列了一半，就说接着来
         const d = trip?.plan?.draft

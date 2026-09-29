@@ -133,6 +133,8 @@ export interface PlanPlace {
   prefDay?: number
   /** AI 推荐出来的（还没人确认）：排进行程后带「推荐」标记，住处缺条件只作待核 */
   suggested?: boolean
+  /** 给这一站的一句说明，排进行程后写在站点上（例如合并的园区：「园内按这个顺序：…」） */
+  why?: string
   /** 固定开始时刻 HH:MM（门票预约之类） */
   start?: string
   durationMin?: number

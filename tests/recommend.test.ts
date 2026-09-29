@@ -68,7 +68,7 @@ describe('AI 推荐方案', () => {
 
   it('方案转成导入攻略的格式：分天成了「想在哪天」，没写城市的用当天的城市', async () => {
     const g = proposalToGuide(proposal('x'), 3)
-    expect(g.days).toBe(2)
+    expect(g.days).toBe(3)
     expect(g.places[0]).toMatchObject({ name: '大理古城', city: '大理', day: 1, durationMin: 150 })
     expect(system0()).toContain('上午、下午都要有安排')
     const seen: string[] = []

@@ -32,7 +32,7 @@ export function PickPlaces({ head, places, missing, dayLabel, tips, backLabel, o
                 <LineIcon name={p.kind} size={18} />
                 <span className="b">
                   <b>{p.name}{p.prefDay != null && <em>{dayLabel}第 {p.prefDay + 1} 天</em>}</b>
-                  {p.note && <small>{p.note}</small>}
+                  {p.note && <small>{p.note}{p.durationMin ? ` · 约 ${p.durationMin >= 60 ? `${Math.round(p.durationMin / 30) / 2} 小时` : `${p.durationMin} 分`}` : ''}</small>}
                   {p.avoid && <small className="avoid">不适合：{p.avoid}</small>}
                   {p.caution && <small className="caution">留意：{p.caution}</small>}
                 </span>

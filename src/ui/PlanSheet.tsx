@@ -157,13 +157,13 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
           {recommending ? (
             <Recommend trip={trip} autoRun={regionFirst} onCancel={() => setRecommending(false)} onAdd={list => {
               // AI 推荐的吃饭、住处还没人确认：带上「推荐」标记
-              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, ...p }) => (p.kind === 'sight' ? p : { ...p, suggested: true }))])
+              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, parts: _p, ...p }) => (p.kind === 'sight' ? p : { ...p, suggested: true }))])
               setRecommending(false)
             }} />
           ) : importing ? (
             <GuideImport trip={trip} onCancel={() => setImporting(false)} onAdd={list => {
               // 攻略里的点并进来：同一个高德地点不重复；原文说法、顾虑只在勾选时看，不存
-              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, ...p }) => p)])
+              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, parts: _p, ...p }) => p)])
               setImporting(false)
             }} />
           ) : amapKey && (bulk ? (

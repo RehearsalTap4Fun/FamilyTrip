@@ -109,11 +109,12 @@ export function keepInRegion(p: Proposals, origin?: string): Proposal[] {
 export function proposalToGuide(p: Proposal, tripDays: number): Guide {
   return {
     title: p.title,
-    days: Math.min(tripDays, Math.max(1, ...p.days.map(d => d.day))),
+    // 方案就是按这趟的天数出的：分天照用（作偏好）
+    days: tripDays,
     summary: p.pitch,
     tips: [],
     places: p.days.flatMap(d => d.places.map(pl => ({
-      name: pl.name, city: pl.city || d.city, kind: pl.kind, day: d.day, durationMin: pl.kind === 'sight' ? pl.durationMin ?? null : null, note: pl.note, avoid: null, caution: null,
+      name: pl.name, city: pl.city || d.city, kind: pl.kind, day: d.day, durationMin: pl.kind === 'sight' ? pl.durationMin ?? null : null, note: pl.note, area: null, avoid: null, caution: null,
     }))),
   }
 }

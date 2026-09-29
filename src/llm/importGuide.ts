@@ -16,7 +16,8 @@ export const GuideSchema = z.object({
     city: z.string().describe('所在城市，例如「大理」「丽江」'),
     kind: z.enum(['sight', 'food', 'lodging']).describe('sight 景点或体验；food 有名字的具体餐厅；lodging 有名字的具体住处'),
     day: z.number().int().nullable().describe('原文安排在第几天（从 1 起）；没说填 null'),
-    durationMin: z.number().int().nullable().describe('原文说玩多久（分钟）；没说填 null'),
+    durationMin: z.number().int().nullable().catch(null).describe('建议停留多久（分钟）：原文说了按原文，没说按一般游客估；大景区里的小景点一般 15–40 分钟'),
+    area: z.string().nullable().catch(null).describe('它属于哪个大景区（例如伏龙观、宝瓶口属于「都江堰景区」，上清宫、天师洞属于「青城山前山」）；本身就是一个独立景点填 null'),
     note: z.string().describe('原文怎么说这个地方，20 字以内'),
     avoid: z.string().nullable().describe('明显不适合这群人时写原因（20 字以内）：超过他们的限制（海拔、步行、驾驶）、刺激项目、禁止带宠物等。例如「海拔 4680 米，超过外婆的上限」；没有填 null'),
     caution: z.string().nullable().describe('能去但要留意的小事（20 字以内），例如「石板路推车不方便」；没有填 null'),
@@ -42,6 +43,7 @@ export function buildGuidePrompt(trip: Trip, text: string): { system: string; us
     '5. 对照下面这群同行者的限制判断：只有真的超出限制或明显不适合（海拔超上限、步行远超上限、骑马漂流这类刺激项目、禁止带宠物）才写 avoid；',
     '   能去只是要留意的（推车不方便、要防晒、人多）写 caution；两者都没有就都填 null。大部分地方应该两个都是 null，不要泛泛地写「注意安全」「宠物牵绳」。',
     '6. 原文按天写了就填 day；没分天就填 null。',
+    '7. 大景区里的小景点（园中园、景区里的一个个点）照样一个个列出来，但都要填 area（所属大景区的正式名称），durationMin 按在园里看这一处的时间估。',
   ].join('\n')
   const user = [
     `同行者：${describeMembers(everyone, 0)}`,
@@ -58,7 +60,7 @@ export async function extractGuide(cfg: LlmConfig, trip: Trip, text: string, cal
 }
 
 /** 核实后的一个地点：排程引擎的输入，外加原文说法、「不适合」和「要留意」，给人勾选时看 */
-export interface ImportedPlace extends PlanPlace { note: string; avoid?: string; caution?: string }
+export interface ImportedPlace extends PlanPlace { note: string; avoid?: string; caution?: string; /** 合并成一站时，园区里包含的小景点（按原文顺序） */ parts?: string[] }
 
 export interface SearchHit { name: string; area: string; poi: PlanPlace['poi']; type?: string }
 
@@ -68,14 +70,44 @@ const rank = (h: SearchHit) => (h.type && NOT_PLACE.test(h.type) ? 1 : 0)
 
 /**
  * 逐个在高德里找：先在它所在的城市找，找不到再带上城市名搜一次；名字要对得上（两个连着的字相同）。
- * 原文按天写、而且天数不超过这趟行程，就把原文的日子记成「想在哪天」（只是偏好，排程放不下或那天空了会挪）；否则交给排程引擎自己分天。
+ * 原文按天写、而且天数和这趟一样，就把原文的日子记成「想在哪天」（只是偏好，排程放不下或那天空了会挪）；否则交给排程引擎自己分天。
  */
 export async function resolveGuide(guide: Guide, tripDays: number, search: (keyword: string, city?: string) => Promise<SearchHit[]>, match: (q: string, found: string) => boolean, onProgress?: (i: number, n: number, name: string) => void): Promise<{ places: ImportedPlace[]; missing: string[] }> {
   const places: ImportedPlace[] = []
   const missing: string[] = []
-  const keepDays = guide.days != null && guide.days <= tripDays
+  // 原文天数和这趟一样才沿用它的分天；原文是一日游、这趟有两天，照搬等于全挤在第一天（2026-09-29 都江堰青城山那篇就是这样）
+  const keepDays = guide.days != null && guide.days === tripDays
   const seen = new Set<string>()
+  // 同一个大景区里的小景点合成一站：园区一口气逛完，时长加起来（15–40 分一处），说明里写园内顺序
+  const groups = new Map<string, Guide['places']>()
+  for (const p of guide.places) if (p.kind === 'sight' && p.area) groups.set(p.area, [...(groups.get(p.area) ?? []), p])
+  const merged = new Set<Guide['places'][number]>()
+  for (const [area, list] of groups) {
+    if (list.length < 2) continue
+    list.forEach(p => merged.add(p))
+    onProgress?.(0, guide.places.length, area)
+    const city = list[0].city
+    let hit: SearchHit | undefined = (await search(area, city)).filter(h => match(area, h.name)).sort((a, b) => rank(a) - rank(b))[0]
+    if (!hit) for (const p of list) { hit = (await search(p.name, p.city)).find(h => match(p.name, h.name)); if (hit) break }
+    if (!hit) { missing.push(area); continue }
+    const key = hit.poi.amapId ?? `${hit.poi.lng},${hit.poi.lat}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const minutes = list.reduce((a, p) => a + Math.min(90, Math.max(10, p.durationMin ?? 30)), 0)
+    const day = list.map(p => p.day).find(d => d != null)
+    places.push({
+      id: 'ga-' + key, name: hit.name, kind: 'sight', poi: hit.poi, area: hit.area,
+      ...(keepDays && day != null && day >= 1 ? { prefDay: Math.min(tripDays, day) - 1 } : {}),
+      durationMin: Math.min(300, Math.max(60, Math.round(minutes / 10) * 10)),
+      why: '园内按这个顺序：' + list.map(p => p.name.replace(area, '').replace(/^[-·\s]+/, '') || p.name).join(' → '),
+      note: `含 ${list.length} 处：${list.map(p => p.name.replace(area, '').replace(/^[-·\s]+/, '') || p.name).join('、')}`,
+      parts: list.map(p => p.name),
+      ...(list.find(p => p.avoid)?.avoid ? { avoid: list.find(p => p.avoid)!.avoid! } : {}),
+      ...(list.find(p => p.caution)?.caution ? { caution: list.find(p => p.caution)!.caution! } : {}),
+    })
+  }
   for (const [i, p] of guide.places.entries()) {
+    if (merged.has(p)) continue
     onProgress?.(i + 1, guide.places.length, p.name)
     const pickHit = (list: SearchHit[]) => list.filter(h => match(p.name, h.name)).sort((a, b) => rank(a) - rank(b))[0]
     let hit = pickHit(await search(p.name, p.city))

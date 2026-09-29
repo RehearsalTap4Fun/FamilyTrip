@@ -207,7 +207,16 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   const tweakOf = (d: number): DayTweak | undefined => trip.plan?.tweaks?.find(t => t.day === d)
   const startOf = (d: number) => tweakOf(d)?.start ?? pace.start
 
-  const sights = candidates.filter(c => c.kind === 'sight')
+  // 单个景点比任何一天留给景点的额度还长（带宝宝一天只剩两三个小时，青城山估了 170 分）：压到能放下、说一声，别整个砍掉
+  const capOf = (d: number) => Math.max(60, (cons[d].activeMin.value - 2 * pace.mealMin) * (tweakOf(d)?.lighter ? 0.75 : 1))
+  const maxCap = Math.max(...trip.days.map((_, d) => capOf(d)))
+  const sights = candidates.filter(c => c.kind === 'sight').map(c => {
+    const dur = durOf(c, pace)
+    if (dur <= maxCap) return c
+    const fit = Math.floor(maxCap / 10) * 10
+    notes.push(`${c.name}估的要玩 ${dur} 分钟，按你们的节奏一天最多 ${fit} 分钟，挑重点逛`)
+    return { ...c, durationMin: fit }
+  })
   const foods = candidates.filter(c => c.kind === 'food')
   const lodgings = candidates.filter(c => c.kind === 'lodging')
 
@@ -220,7 +229,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   if (looseLodging.length === 1 && lodgings.length === 1) for (let d = 0; d < days; d++) night[d] = looseLodging[0]
   // 没住处的晚上：沿用前一晚（多半是连住）；第一晚没有就留空，排完再在附近找
   const budgets = (): DayBudget[] => cons.map((c, d) => ({
-    cap: Math.max(60, (c.activeMin.value - 2 * pace.mealMin) * (tweakOf(d)?.lighter ? 0.75 : 1)),
+    cap: capOf(d),
     span: Math.max(120, c.endBy.value - parseHM(startOf(d))),
     from: d === 0 ? opts.origin : night[d - 1]?.poi,
     to: night[d]?.poi,
@@ -247,7 +256,9 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     if (!pool.length) break
     const drop = pool.reduce((a, x) => (durOf(x, pace) > durOf(a, pace) ? x : a))
     const c = cons[worst]
-    unplaced.push({ candidate: drop, reason: `第 ${worst + 1} 天按每天游玩 ${c.activeMin.value / 60} 小时、${fmtHM(c.endBy.value)} 前回住处放不下` })
+    // 说清楚卡在哪：每天在外多少小时、两顿饭占多少，景点还剩多少
+    const cap = Math.round(b[worst].cap)
+    unplaced.push({ candidate: drop, reason: `第 ${worst + 1} 天放不下：每天在外 ${c.activeMin.value / 60} 小时（两顿饭占 ${2 * pace.mealMin} 分），留给景点 ${cap} 分；${fmtHM(c.endBy.value)} 前回住处` })
     free = free.filter(x => x !== drop)
     const pi = pinnedAll.indexOf(drop)
     if (pi >= 0) pinnedAll.splice(pi, 1)
@@ -283,6 +294,8 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   }
   // 已经在要去的地方里的不再被推荐一遍（免得同一家吃两顿、下午补的景点和要去的重复）
   const used = new Set<string>(candidates.map(c => c.name))
+  const sightPois = candidates.filter(c => c.kind === 'sight').map(c => c.poi)
+  const whyText = candidates.map(c => c.why ?? '').join(' ')
   // 用户（或攻略、方案）给了时长的站：补空档时不去拉长它
   const fixedDur = new Set<string>()
   const nearbyCache = new Map<string, NearbyPlace | undefined>()
@@ -293,7 +306,9 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     let list: NearbyPlace[] = []
     try { list = await tools.nearby(what, at) } catch { return undefined }
     const red = (p: NearbyPlace) => (tools.verdictOf?.(p) === 'red' ? 1 : 0)
-    const ok = list.filter(p => distanceKm(at, p.poi) <= NEAR_KM[what] && tools.verdictOf?.(p) !== 'black' && (what === 'serviceArea' || !used.has(p.name)))
+    // 下午补景点：别补已经排进去的景区里面的点（离已有景点 1.2 公里内、或名字写在园区顺序里，例如都江堰景区里的宝瓶口）
+    const inside = (p: NearbyPlace) => what === 'sight' && (sightPois.some(q => distanceKm(q, p.poi) < 1.2) || whyText.includes(p.name.replace(/[（(].*$/, '')))
+    const ok = list.filter(p => distanceKm(at, p.poi) <= NEAR_KM[what] && tools.verdictOf?.(p) !== 'black' && (what === 'serviceArea' || !used.has(p.name)) && !inside(p))
     ok.sort((a, b) => red(b) - red(a) || (b.rating ?? 0) - (a.rating ?? 0))
     const got = ok[0]
     if (got && what !== 'serviceArea') used.add(got.name)
@@ -308,7 +323,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   }
   const toStopWith = (c: Candidate, id: string): Stop => ({
     id, kind: c.kind, name: c.name, durationMin: durOf(c, pace), status: 'planned', poi: c.poi,
-    priority: c.must ? 1 : 2, ...(c.start ? { start: c.start } : {}), ...(c.suggested ? { suggested: true } : {}), ...(c.tags ? { tags: c.tags } : {}),
+    priority: c.must ? 1 : 2, ...(c.start ? { start: c.start } : {}), ...(c.suggested ? { suggested: true } : {}), ...(c.why ? { why: c.why } : {}), ...(c.tags ? { tags: c.tags } : {}),
     ...(c.walkKm != null ? { walkKm: c.walkKm } : {}), ...(c.altitudeM != null ? { altitudeM: c.altitudeM } : {}),
   })
 

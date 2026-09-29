@@ -128,6 +128,7 @@ describe('排程引擎：放不下、固定时刻、红黑榜、没有高德', (
     expect(r.unplaced.every(u => !u.candidate.must)).toBe(true)
     expect(r.unplaced[0].candidate.name).toBe('点7')
     expect(r.unplaced[0].reason).toContain('放不下')
+    expect(r.unplaced[0].reason).toMatch(/每天在外 \d+ 小时（两顿饭占 \d+ 分），留给景点 \d+ 分/)
     const mustOnly = Array.from({ length: 6 }, (_, i) => cand(`必${i}`, P(100.16 + i * 0.01, 25.69), { durationMin: 120, must: true }))
     const r2 = await planTrip(base(1), mustOnly, fake(), { newId })
     expect(r2.unplaced).toEqual([])
@@ -258,6 +259,27 @@ describe('下午别空着', () => {
     expect(lunch.start).toBeLessThanOrEqual(12 * 60 + 30)
     expect(sl.some(x => x.stop.kind === 'sight' && !x.stop.suggested && x.start > lunch.start)).toBe(true)
     expect(checkDay(r.trip, 0).map(x => x.code)).not.toContain('noNap')
+  })
+
+  it('单个景点比一天的额度还长：压到能放下并说明，不整个砍掉', async () => {
+    const r = await planTrip(base(1), [cand('青城山', DALI.古城, { durationMin: 400 })], fake(), { newId })
+    expect(r.unplaced).toEqual([])
+    const s = r.trip.days[0].stops.find(x => x.name === '青城山')!
+    expect(s.durationMin).toBeLessThanOrEqual(240)
+    expect(r.notes.join()).toContain('青城山估的要玩 400 分钟')
+  })
+
+  it('下午补景点不补已经排进去的景区里面的点', async () => {
+    const park = DALI.古城
+    const r = await planTrip(base(1), [cand('都江堰景区', park, { durationMin: 90, why: '园内按这个顺序：伏龙观 → 宝瓶口' })], fake({
+      nearby: async (w, at) => (w === 'sight'
+        ? [{ name: '宝瓶口', poi: P(park.lng + 0.02, park.lat), rating: 4.9 }, { name: '园边小景', poi: P(park.lng + 0.004, park.lat), rating: 4.8 }, { name: '远一点的公园', poi: P(park.lng + 0.05, park.lat), rating: 4.5 }]
+        : fake().nearby!(w, at)),
+    }), { newId })
+    const added = r.trip.days[0].stops.filter(s => s.suggested && s.kind === 'sight').map(s => s.name)
+    expect(added).not.toContain('宝瓶口')
+    expect(added).not.toContain('园边小景')
+    expect(added).toContain('远一点的公园')
   })
 
   it('自己给了时长的景点不去拉长', async () => {

@@ -58,6 +58,7 @@ describe('导入攻略', () => {
     const { system, user } = buildGuidePrompt(t, '第1天 玉龙雪山冰川公园'.repeat(2000))
     expect(system).toContain('不要自己补充原文没有的地点')
     expect(system).toContain('avoid')
+    expect(system).toContain('都要填 area')
     expect(system).toContain('大部分地方应该两个都是 null')
     expect(user).toContain('76 岁老人')
     expect(user).toContain('海拔不超过')
@@ -75,11 +76,11 @@ describe('导入攻略', () => {
   const guide = (days: number | null): Guide => ({
     title: '大理丽江', days, summary: '丽江进大理出', tips: ['雪山要提前预约'],
     places: [
-      { name: '束河古镇', city: '丽江', kind: 'sight', day: 1, durationMin: 120, note: '人少', avoid: null, caution: null },
-      { name: '玉龙雪山冰川公园', city: '丽江', kind: 'sight', day: 2, durationMin: null, note: '坐索道', avoid: '海拔 4506 米，外婆不适合', caution: null },
-      { name: '三塔', city: '大理', kind: 'sight', day: 3, durationMin: null, note: '倒影好看', avoid: null, caution: null },
-      { name: '不存在的地方', city: '大理', kind: 'sight', day: null, durationMin: null, note: '', avoid: null, caution: null },
-      { name: '束河古镇', city: '丽江', kind: 'sight', day: 3, durationMin: null, note: '又去', avoid: null, caution: null },
+      { name: '束河古镇', city: '丽江', kind: 'sight', day: 1, durationMin: 120, note: '人少', area: null, avoid: null, caution: null },
+      { name: '玉龙雪山冰川公园', city: '丽江', kind: 'sight', day: 2, durationMin: null, note: '坐索道', area: null, avoid: '海拔 4506 米，外婆不适合', caution: null },
+      { name: '三塔', city: '大理', kind: 'sight', day: 3, durationMin: null, note: '倒影好看', area: null, avoid: null, caution: null },
+      { name: '不存在的地方', city: '大理', kind: 'sight', day: null, durationMin: null, note: '', area: null, avoid: null, caution: null },
+      { name: '束河古镇', city: '丽江', kind: 'sight', day: 3, durationMin: null, note: '又去', area: null, avoid: null, caution: null },
     ],
   })
   const P = (lng: number, lat: number, id: string) => ({ lng, lat, adcode: '530000', amapId: id })
@@ -91,7 +92,7 @@ describe('导入攻略', () => {
   }
 
   it('高德核实：名字对不上不认；找不到再带城市名搜；同一个地方只收一次；顾虑带上', async () => {
-    const r = await resolveGuide(guide(3), 4, search, namesMatch)
+    const r = await resolveGuide(guide(3), 3, search, namesMatch)
     expect(r.places.map(p => p.name)).toEqual(['束河古镇', '玉龙雪山冰川公园', '崇圣寺三塔文化旅游区'])
     expect(r.missing).toEqual(['不存在的地方'])
     expect(r.places[1].avoid).toContain('4506')
@@ -100,7 +101,7 @@ describe('导入攻略', () => {
   })
 
   it('同名时村委会、公司这类排到后面', async () => {
-    const g: Guide = { title: 'x', days: null, summary: '', tips: [], places: [{ name: '马久邑', city: '大理', kind: 'sight', day: null, durationMin: null, note: '', avoid: null, caution: null }] }
+    const g: Guide = { title: 'x', days: null, summary: '', tips: [], places: [{ name: '马久邑', city: '大理', kind: 'sight', day: null, durationMin: null, note: '', area: null, avoid: null, caution: null }] }
     const r = await resolveGuide(g, 3, async () => [
       { name: '马久邑村村委会', area: '大理', poi: P(1, 1, 'gov'), type: '政府机构及社会团体;政府机关;乡镇级政府及事业单位' },
       { name: '马久邑', area: '大理', poi: P(1, 1, 'spot'), type: '风景名胜;风景名胜;风景名胜' },
@@ -113,8 +114,25 @@ describe('导入攻略', () => {
     expect(bus.places[0].poi.amapId).toBe('park')
   })
 
-  it('原文天数不超过这趟才记下原文分天（作偏好）；超了交给排程引擎分', async () => {
-    expect((await resolveGuide(guide(3), 4, search, namesMatch)).places.map(p => p.prefDay)).toEqual([0, 1, 2])
+  it('同一个大景区里的小景点合成一站：时长加起来，说明里写园内顺序；独立景点照旧', async () => {
+    const sub = (name: string, dur: number | null) => ({ name, city: '都江堰', kind: 'sight' as const, day: 1, durationMin: dur, area: '都江堰景区', note: '', avoid: null, caution: null })
+    const g: Guide = { title: 'x', days: 2, summary: '', tips: [], places: [
+      sub('都江堰景区-伏龙观', 30), sub('宝瓶口', 20), sub('飞沙堰', null), sub('鱼嘴分水堤', 40),
+      { name: '青城山前山', city: '都江堰', kind: 'sight', day: 2, durationMin: 240, area: null, note: '', avoid: null, caution: null },
+    ] }
+    const r = await resolveGuide(g, 2, async k => [{ name: k, area: '都江堰', poi: P(103.6, 31 + k.length / 100, k), type: '风景名胜;风景名胜;风景名胜' }], namesMatch)
+    expect(r.places.map(p => p.name)).toEqual(['都江堰景区', '青城山前山'])
+    const dj = r.places[0]
+    expect(dj.durationMin).toBe(120) // 30 + 20 + 30(没说) + 40
+    expect(dj.why).toBe('园内按这个顺序：伏龙观 → 宝瓶口 → 飞沙堰 → 鱼嘴分水堤')
+    expect(dj.parts).toHaveLength(4)
+    expect(dj.prefDay).toBe(0)
+    expect(r.places[1]).toMatchObject({ durationMin: 240, prefDay: 1 })
+  })
+
+  it('原文天数和这趟一样才记下原文分天（作偏好）；不一样交给排程引擎分', async () => {
+    expect((await resolveGuide(guide(3), 3, search, namesMatch)).places.map(p => p.prefDay)).toEqual([0, 1, 2])
+    expect((await resolveGuide(guide(3), 4, search, namesMatch)).places.every(p => p.prefDay === undefined)).toBe(true) // 原文比这趟短：不照搬
     expect((await resolveGuide(guide(5), 3, search, namesMatch)).places.every(p => p.prefDay === undefined)).toBe(true)
     expect((await resolveGuide(guide(null), 3, search, namesMatch)).places.every(p => p.prefDay === undefined)).toBe(true)
   })

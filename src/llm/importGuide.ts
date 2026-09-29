@@ -62,8 +62,8 @@ export interface ImportedPlace extends PlanPlace { note: string; avoid?: string;
 
 export interface SearchHit { name: string; area: string; poi: PlanPlace['poi']; type?: string }
 
-/** 高德里这些分类不是玩的地方（「马久邑」会搜到「马久邑村村委会」）：同名时排到后面 */
-const NOT_PLACE = /^(政府机构|公司企业|商务住宅|金融保险|科教文化服务;学校|公共设施;公共厕所|交通设施服务;停车场)/
+/** 高德里这些分类不是玩的地方（「马久邑」会搜到「马久邑村村委会」、「离堆公园」会搜到「离堆公园站」公交站）：同名时排到后面 */
+const NOT_PLACE = /^(政府机构|公司企业|商务住宅|金融保险|科教文化服务;学校|公共设施;公共厕所|交通设施服务;(停车场|公交车站|地铁站|火车站|长途汽车站|港口码头))/
 const rank = (h: SearchHit) => (h.type && NOT_PLACE.test(h.type) ? 1 : 0)
 
 /**

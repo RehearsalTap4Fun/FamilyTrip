@@ -106,6 +106,11 @@ describe('导入攻略', () => {
       { name: '马久邑', area: '大理', poi: P(1, 1, 'spot'), type: '风景名胜;风景名胜;风景名胜' },
     ], namesMatch)
     expect(r.places[0].poi.amapId).toBe('spot')
+    const bus = await resolveGuide({ ...g, places: [{ ...g.places[0], name: '离堆公园' }] }, 3, async () => [
+      { name: '离堆公园站', area: '都江堰', poi: P(1, 1, 'bus'), type: '交通设施服务;公交车站;公交车站相关' },
+      { name: '离堆公园', area: '都江堰', poi: P(1, 1, 'park'), type: '风景名胜;公园广场;公园' },
+    ], namesMatch)
+    expect(bus.places[0].poi.amapId).toBe('park')
   })
 
   it('原文天数不超过这趟才记下原文分天（作偏好）；超了交给排程引擎分', async () => {

@@ -17,7 +17,7 @@ const DATA = process.env.DATA_DIR || '/var/lib/trip/sync'
 const MAX_BLOB = 2 * 1024 * 1024
 const ORIGINS = new Set(['https://47.109.97.108', 'http://47.109.97.108', 'http://localhost:5321', 'http://127.0.0.1:5321'])
 /** 只认这些攻略平台（含子域名）。短链接跳转的每一跳都要在这里面 */
-export const HOSTS = ['xiaohongshu.com', 'xhslink.com', 'mafengwo.cn', 'ctrip.com', 'qyer.com', 'douyin.com', 'iesdouyin.com', 'mp.weixin.qq.com', 'zhihu.com', 'dianping.com']
+export const HOSTS = ['xiaohongshu.com', 'xhslink.com', 'xhslink.cn', 'mafengwo.cn', 'ctrip.com', 'qyer.com', 'douyin.com', 'iesdouyin.com', 'mp.weixin.qq.com', 'zhihu.com', 'dianping.com']
 const MAX_BYTES = 3 * 1024 * 1024
 const TIMEOUT_MS = 12000
 const MAX_TEXT = 20000
@@ -81,9 +81,10 @@ export function extractText(html, url) {
   const title = meta(html, 'og:title') || decode(/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? '').trim()
   const desc = meta(html, 'og:description') || meta(html, 'description')
   let body = ''
-  if (host.includes('xiaohongshu') || host.includes('xhslink')) {
+  let noteTitle = ''
+  if (host.includes('xiaohongshu') || host.includes('xhslink')) {  // 分享链接跳过来的页面带 xsec_token，不登录也有笔记正文
     const n = xhsNote(html)
-    if (n) body = [n.title, n.desc].filter(Boolean).join('\n')
+    if (n) { body = [n.title, n.desc].filter(Boolean).join('\n'); noteTitle = n.title }
   }
   if (!body && host.includes('weixin')) {
     const m = /<div[^>]+id=["']js_content["'][^>]*>([\s\S]*?)<\/div>\s*<script/i.exec(html)
@@ -107,7 +108,7 @@ export function extractText(html, url) {
   const chars = Array.from(body)
   const text = chars.length > MAX_TEXT ? chars.slice(0, MAX_TEXT).join('') : body
   // 正文太短多半是要登录才能看全文、或内容在视频里
-  return { title, text, partial: text.replace(/\s/g, '').length < 300 }
+  return { title: noteTitle || title, text, partial: text.replace(/\s/g, '').length < 300 }
 }
 
 async function fetchPage(start) {

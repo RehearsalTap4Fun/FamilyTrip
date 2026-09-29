@@ -10,7 +10,7 @@ const t = seedTrip()
 
 describe('取正文服务', () => {
   it('只认攻略平台（含子域名、短链接域名），别的一律拒绝', () => {
-    for (const u of ['https://you.ctrip.com/travels/1.html', 'http://xhslink.com/a/b', 'https://www.xiaohongshu.com/explore/1', 'https://mp.weixin.qq.com/s/x', 'https://m.mafengwo.cn/i/1.html'])
+    for (const u of ['https://you.ctrip.com/travels/1.html', 'http://xhslink.com/a/b', 'https://xhslink.cn/o/4uxq0HahLcY', 'https://www.xiaohongshu.com/explore/1', 'https://mp.weixin.qq.com/s/x', 'https://m.mafengwo.cn/i/1.html'])
       expect(allowed(u)).toBe(true)
     for (const u of ['http://127.0.0.1:22/', 'https://evil.com/ctrip.com', 'https://ctrip.com.evil.com/', 'file:///etc/passwd', 'https://weixin.qq.com.cn/', 'not a url'])
       expect(allowed(u)).toBe(false)
@@ -34,6 +34,7 @@ describe('取正文服务', () => {
     const xhs = `<html><script>window.__INITIAL_STATE__=${JSON.stringify(note).replace('"短"', 'undefined')}</script></html>`
     const a = extractText(xhs, 'https://www.xiaohongshu.com/explore/1')
     expect(a.text.startsWith('丽江亲子 3 天')).toBe(true)
+    expect(a.title).toBe('丽江亲子 3 天') // 用笔记自己的标题，不是笼统的「小红书」
     expect(a.text).toContain('玉龙雪山蓝月谷')
     const wx = `<html><meta property="og:title" content="滇西北自驾"><div id="js_content"><p>D1 昆明到大理</p>${'<p>内容</p>'.repeat(200)}</div><script>var a=1</script></html>`
     const b = extractText(wx, 'https://mp.weixin.qq.com/s/x')

@@ -265,6 +265,16 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     }
     return driveCache.get(k)!
   }
+  // 真实路线（带沿途的点），同一段只要一次：长途拆天找落脚点、路上找服务区都沿它
+  const routeCache = new Map<string, Promise<Awaited<ReturnType<NonNullable<PlanTools['route']>>>>>()
+  const routeOf = (a: Poi, b: Poi) => {
+    if (!tools.route) return Promise.resolve(null)
+    const k = `${a.lng},${a.lat}>${b.lng},${b.lat}`
+    if (!routeCache.has(k)) routeCache.set(k, tools.route(a, b).catch(() => null))
+    return routeCache.get(k)!
+  }
+  /** 沿真实路线开到第 m 分钟时在哪 */
+  const along = (r: { points: { lng: number; lat: number; t: number }[] }, m: number): Poi => { const q = r.points.find(p => p.t >= m) ?? r.points[r.points.length - 1]; return { lng: q.lng, lat: q.lat } }
   // 已经在要去的地方里的不再被推荐一遍（免得同一家吃两顿、下午补的景点和要去的重复）
   const used = new Set<string>(candidates.map(c => c.name))
   const sightPois = candidates.filter(c => c.kind === 'sight').map(c => c.poi)
@@ -273,7 +283,8 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   // 用户（或攻略、方案）给了时长的站：补空档时不去拉长它
   const fixedDur = new Set<string>()
   const nearbyCache = new Map<string, NearbyPlace | undefined>()
-  const pick = async (what: NearbyKind, at: Poi, reuse = false): Promise<NearbyPlace | undefined> => {
+  /** heading：服务区用，这一点上行车的方向（经纬度差），挑右手边那个（两个方向各一个、名字一样） */
+  const pick = async (what: NearbyKind, at: Poi, reuse = false, heading?: { dx: number; dy: number }): Promise<NearbyPlace | undefined> => {
     if (!tools.nearby) return undefined
     const key = `${what}@${at.lng.toFixed(4)},${at.lat.toFixed(4)}`
     if (reuse && nearbyCache.has(key)) return nearbyCache.get(key)
@@ -285,9 +296,14 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     const inside = (p: NearbyPlace) => what === 'sight' && (sightPois.some(q => distanceKm(q, p.poi) < 1.2) || whyText.includes(p.name.replace(/[（(].*$/, '')) || sightNames.some(n => p.name.includes(n)))
     // 补的景点不要景区里的小点（名字带「-」的子景点）、设施（招呼站、停车场、售票处），也不要评分低于 4 的
     const junk = (p: NearbyPlace) => what === 'sight' && (/[\u4e00-\u9fa5）)][-—－][\u4e00-\u9fa5]/.test(p.name) || SIGHT_JUNK.test(p.name) || (p.rating != null && p.rating > 0 && p.rating < 4))
-    const ok = list.filter(p => distanceKm(at, p.poi) <= NEAR_KM[what] && tools.verdictOf?.(p) !== 'black' && (what === 'serviceArea' || !used.has(p.name)) && !inside(p) && !junk(p))
-    // 景点评分和远近一起看（每远 10 公里抵 1 分），免得为了高 0.1 分跑老远；吃饭住处只看评分
-    const score = (p: NearbyPlace) => (p.rating ?? 0) - (what === 'sight' ? distanceKm(at, p.poi) / 10 : 0)
+    // 还没开的服务区（高德名字里写着「建设中」「未开通」）到了也停不了
+    const closed = (p: NearbyPlace) => /建设中|未开通|暂停|停用|关闭|停业/.test(p.name)
+    const ok = list.filter(p => distanceKm(at, p.poi) <= NEAR_KM[what] && tools.verdictOf?.(p) !== 'black' && (what === 'serviceArea' || !used.has(p.name)) && !inside(p) && !junk(p) && !closed(p))
+    // 景点评分和远近一起看（每远 10 公里抵 1 分），免得为了高 0.1 分跑老远；吃饭住处只看评分；
+    // 服务区只看远近：at 是路上的那个点，最近的才在这条路上（远一点的可能在另一条高速上）
+    // 靠右行驶：服务区在行车方向右手边的才能进（对向那个名字一样、位置几乎重合，差一点就算抵 2 公里）
+    const wrongSide = (p: NearbyPlace) => (heading ? heading.dx * (p.poi.lat - at.lat) - heading.dy * (p.poi.lng - at.lng) > 0 : false)
+    const score = (p: NearbyPlace) => (what === 'serviceArea' ? -distanceKm(at, p.poi) - (wrongSide(p) ? 2 : 0) : (p.rating ?? 0) - (what === 'sight' ? distanceKm(at, p.poi) / 10 : 0))
     ok.sort((a, b) => red(b) - red(a) || score(b) - score(a))
     const got = ok[0]
     if (got && what !== 'serviceArea') used.add(got.name)
@@ -337,13 +353,10 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     const outTo = opts.origin ? nearest(opts.origin) : undefined
     const backFrom = endPoi ? nearest(endPoi) : undefined
     // 有真实路线就用它（总用时准、沿途的点在路上）；没有就用车程加直线
-    const routeOf = async (a: Poi, b: Poi) => { if (!tools.route) return null; try { return await tools.route(a, b) } catch { return null } }
     const outRoute = opts.origin && outTo ? await routeOf(opts.origin, outTo) : null
     const backRoute = endPoi && backFrom ? await routeOf(backFrom, endPoi) : null
     const outTotal = opts.origin && outTo ? outRoute?.minutes ?? await driveMin(opts.origin, outTo) : 0
     const backTotal = endPoi && backFrom ? backRoute?.minutes ?? await driveMin(backFrom, endPoi) : 0
-    /** 沿真实路线开到第 m 分钟时在哪 */
-    const along = (r: NonNullable<typeof outRoute>, m: number): Poi => { const q = r.points.find(p => p.t >= m) ?? r.points[r.points.length - 1]; return { lng: q.lng, lat: q.lat } }
     // 每天开 x 分钟时：去程要几个整天赶路（到的那天开剩下的、接着玩），返程要几个整天赶路（开得完一天的就和玩的那天合在一起）
     const layout = (x: number) => ({ out: outTotal > x ? Math.ceil(outTotal / x) - 1 : 0, back: backTotal > x ? Math.ceil(backTotal / x) : 0 })
     const base = Math.min(...trip.days.map((_, d) => cap(d)))
@@ -527,11 +540,16 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
           if (m > limit) {
             const parts = Math.ceil(m / (limit - 5))
             const each = Math.round(m / parts)
+            // 歇脚的地方沿真实路线找（没有路线才用两点连线上的点：绕山路时连线上的点不在路上，找到的服务区在别的高速上）
+            const r = await routeOf(at, x.poi)
             for (let i = 0; i < parts; i++) {
               out.push({ id: opts.newId('s'), kind: 'drive', name: `开车 → ${toName}`, durationMin: i === parts - 1 ? m - each * (parts - 1) : each, status: 'planned' })
               if (i < parts - 1) {
-                const mid = { lng: at.lng + (x.poi.lng - at.lng) * (i + 1) / parts, lat: at.lat + (x.poi.lat - at.lat) * (i + 1) / parts }
-                const sa = await pick('serviceArea', mid, true)
+                const mid = r?.points.length ? along(r, ((i + 1) * each * r.minutes) / m) : { lng: at.lng + (x.poi.lng - at.lng) * (i + 1) / parts, lat: at.lat + (x.poi.lat - at.lat) * (i + 1) / parts }
+                // 路上这一点的走向：沿路线前后各一分钟
+                const tm = r?.points.length ? ((i + 1) * each * r.minutes) / m : 0
+                const heading = r?.points.length ? (() => { const a = along(r, Math.max(0, tm - 1)), b = along(r, tm + 1); return { dx: b.lng - a.lng, dy: b.lat - a.lat } })() : { dx: x.poi.lng - at.lng, dy: x.poi.lat - at.lat }
+                const sa = await pick('serviceArea', mid, true, heading)
                 const id = opts.newId('s')
                 const key = `rest${restNo++}`
                 saOf.set(id, { gap: gi, poi: sa?.poi, name: sa?.name ?? '路上服务区', key })

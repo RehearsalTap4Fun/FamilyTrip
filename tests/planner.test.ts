@@ -622,3 +622,39 @@ describe('赶路日的饭', () => {
     }
   })
 })
+
+describe('路上的服务区沿真实路线找', () => {
+  const A = P(100.0, 26.0), B = P(103.0, 26.0) // 往东开约 5 小时
+  const via = P(101.5, 27.0) // 真实路线往北绕
+  const pts = (a: Poi, b: Poi, t0: number, t1: number) => Array.from({ length: 31 }, (_, i) => ({ lng: a.lng + (b.lng - a.lng) * i / 30, lat: a.lat + (b.lat - a.lat) * i / 30, t: t0 + (t1 - t0) * i / 30 }))
+  const run = async (withRoute: boolean) => {
+    const seen: Poi[] = []
+    const tools = fake({
+      ...(withRoute ? { route: async () => ({ minutes: 300, points: [...pts(A, via, 0, 150), ...pts(via, B, 150, 300)] }) } : {}),
+      nearby: async (w, at) => {
+        if (w !== 'serviceArea') return w === 'sight' ? [] : fake().nearby!(w, at)
+        seen.push(at)
+        // 同名的两个：一个在路北、一个在路南
+        return [{ name: '最近服务区(建设中)', poi: at }, { name: '同名服务区(北侧)', poi: P(at.lng, at.lat + 0.002) }, { name: '同名服务区(南侧)', poi: P(at.lng, at.lat - 0.002) }]
+      },
+    })
+    // 从 A 出发、往东开到 B：只有这一段长途
+    const r = await planTrip(base(1), [cand('终点景点', B, { durationMin: 60 })], tools, { origin: A, newId })
+    return { r, seen }
+  }
+
+  it('有真实路线：在绕行的那段路上找，不在两点连线上找', async () => {
+    const { seen } = await run(true)
+    expect(seen.length).toBeGreaterThan(0)
+    // 连线在北纬 26 度上；绕行路线往北到 27 度
+    expect(Math.max(...seen.map(p => p.lat))).toBeGreaterThan(26.3)
+  })
+
+  it('同名的两个服务区挑行车方向右手边的（往东开，挑南侧）；建设中的不要', async () => {
+    const { r } = await run(false)
+    const sas = r.trip.days[0].stops.filter(s => s.name.startsWith('同名服务区'))
+    expect(sas.length).toBeGreaterThan(0)
+    expect(sas.every(s => s.name.includes('南侧'))).toBe(true)
+    expect(r.trip.days[0].stops.some(s => s.name.includes('建设中'))).toBe(false)
+  })
+})

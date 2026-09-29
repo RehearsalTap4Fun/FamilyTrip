@@ -15,7 +15,7 @@ import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
 import { dayTitle, driveHours, fmtShort, MODE_LABEL, tintOf } from './format'
 import { StackTable } from './StackTable'
-import { IconDown, IconUp, IconX, LevelMark, PetGlyph, StopSymbol } from './symbols'
+import { badgeKind, IconDown, IconUp, IconX, LevelMark, PetGlyph, RouteBadge } from './symbols'
 
 const KIND_LABEL: Record<StopKind, string> = { sight: '景点', food: '吃饭', lodging: '住宿', drive: '开车', transit: '换乘', rest: '休息' }
 const TAGS = Object.keys(TAG_LABEL) as Tag[]
@@ -163,7 +163,7 @@ export function DayEditor({ trip, dayIndex, onTrip, onRemoved, onReplan }: Props
           return (
             <li key={s.id} className={'stop' + (open ? ' open' : '') + (s.status === 'skipped' ? ' skipped' : '')}>
               <div className="stop-hd">
-                <svg className="sym" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><StopSymbol kind={s.kind} name={s.name} done={s.status === 'done'} /></svg>
+                <RouteBadge kind={badgeKind(s)} done={s.status === 'done'} size={24} />
                 <span className="num t">{slot ? fmtHM(slot.start) : ''}</span>
                 <button type="button" className="nm" onClick={() => setEdit(open ? null : s.id)} aria-expanded={open}>{s.name}<small>{KIND_LABEL[s.kind]} · {s.durationMin} 分</small></button>
                 <span className="ops">

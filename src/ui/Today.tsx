@@ -13,11 +13,11 @@ import { fmtHM, scheduleDay, type Slot } from '@core/schedule'
 import type { Stop, Trip } from '@core/types'
 import { checkDay, TAG_LABEL, type Issue } from '@core/validate'
 import { regionName } from '../data/regions'
-import { dayTitle, fmtDay, fmtShort, partyLine, routeCode, stripCode, tintOf } from './format'
+import { cityShort, dayTitle, fmtDay, fmtShort, partyLine, routeCode, stripCode, tintOf } from './format'
 import { Legend } from './Legend'
 import { placeIssues } from './placeIssues'
 import { StackTable } from './StackTable'
-import { LevelMark, ParkMark, Shield, SightMark, StopSymbol } from './symbols'
+import { badgeKind, BADGE_LABEL, LevelMark, ParkMark, RouteBadge, Shield, type BadgeKind } from './symbols'
 
 interface Props {
   trip: Trip
@@ -30,11 +30,29 @@ interface Props {
 
 const PRIORITY = { 1: '必去', 2: '', 3: '可去' } as const
 
-function Road({ traveled, first, last, children }: { traveled: boolean; first?: boolean; last?: boolean; children?: React.ReactNode }) {
+function Road({ traveled, first, last, children, badge }: { traveled: boolean; first?: boolean; last?: boolean; children?: React.ReactNode; badge?: React.ReactNode }) {
   return (
-    <div className={'road' + (traveled ? ' traveled' : '') + (first ? ' first' : '') + (last ? ' last' : '')} aria-hidden="true">
-      <i />
-      {children && <svg className="sym" viewBox="0 0 20 20">{children}</svg>}
+    <div className={'road' + (traveled ? ' traveled' : '') + (first ? ' first' : '') + (last ? ' last' : '')}>
+      <i aria-hidden="true" />
+      {children && <svg className="sym" viewBox="0 0 20 20" aria-hidden="true">{children}</svg>}
+      {badge && <span className="sym-badge">{badge}</span>}
+    </div>
+  )
+}
+
+/** 图例：节点图标是什么、底色和斜纹是什么意思 */
+function RouteLegend({ cities, nap }: { cities: { name: string; tint: string }[]; nap?: string }) {
+  const kinds: BadgeKind[] = ['sight', 'sa', 'food', 'lodging']
+  return (
+    <div className="route-legend">
+      <ul>
+        {kinds.map(k => <li key={k}><RouteBadge kind={k} size={18} />{BADGE_LABEL[k]}</li>)}
+        <li><Shield code="G5611" />高速、国道</li>
+      </ul>
+      <p>
+        {cities.length > 0 && <span>底色是所在的城市：{cities.map(c => <span key={c.name} className="tint"><i style={{ background: c.tint }} />{c.name}</span>)}</span>}
+        {nap && <span><i className="nap-swatch" />斜纹是{nap}</span>}
+      </p>
     </div>
   )
 }
@@ -139,6 +157,9 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
       )}
       {blockers.map((b, i) => <Note key={'b' + i} issue={b} />)}
 
+      <RouteLegend
+        cities={[...new Set(day.stops.map(s => (s.poi?.adcode ? cityOf(s.poi.adcode) : '')).filter(Boolean))].map(code => ({ name: regionName(code) ?? cityShort(code) ?? '当地', tint: tintOf(trip, code) }))}
+        nap={c.nap ? `${napWho}午睡 ${fmtHM(c.nap.from)}–${fmtHM(c.nap.to)}` : undefined} />
       <ol className="strip">
         {day.stops.map((stop, i) => {
           const slot = slotOf.get(stop.id)
@@ -182,7 +203,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
                 {nowRow}
                 <li className={cls + ' drive-row'} style={{ ...style, minHeight: Math.max(40, Math.min(76, stop.durationMin * 0.36)) }}>
                   <span className={'t num' + (delay && stop.status !== 'done' ? ' est' : '')} title={delay ? `计划 ${slot ? fmtHM(slot.start) : ''}` : undefined}>{shown(slot, stop)}</span>
-                  <Road traveled={traveled}>{null}</Road>
+                  <Road traveled={traveled} badge={code ? undefined : <RouteBadge kind="road" size={22} />} />
                   {code && <span className="shield-on-road"><Shield code={code} /></span>}
                   <div className="body">
                     {regionEl}
@@ -203,13 +224,11 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
               {nowRow}
               <li className={cls} style={style}>
                 <span className={'t num' + (delay && stop.status !== 'done' ? ' est' : '')} title={delay ? `计划 ${slot ? fmtHM(slot.start) : ''}` : undefined}>{shown(slot, stop)}</span>
-                <Road traveled={traveled} first={i === 0} last={i === day.stops.length - 1}>
-                  <StopSymbol kind={stop.kind} name={stop.name} done={stop.status === 'done'} />
-                </Road>
+                <Road traveled={traveled} first={i === 0} last={i === day.stops.length - 1} badge={<RouteBadge kind={badgeKind(stop)} done={stop.status === 'done'} />} />
                 <div className="body">
                   {regionEl}
                   <div className={'n k-' + stop.kind + (stop.priority === 1 ? ' must' : '')}>
-                    {stop.kind === 'sight' && <SightMark />}{stop.name}
+                    {stop.name}
                     {stop.priority && PRIORITY[stop.priority] && <span className="prio">{PRIORITY[stop.priority]}</span>}
                   </div>
                   <div className="m">

@@ -15,7 +15,7 @@ export function ParkMark({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" aria-label="服务区">
       <rect x=".5" y=".5" width="13" height="13" rx="2" fill="var(--sign-green)" stroke="#fff" />
-      <text x="7" y="10.6" textAnchor="middle" fontFamily="var(--num)" fontWeight="700" fontSize="10" fill="#fff">P</text>
+      <text x="7" y="10.4" textAnchor="middle" fontFamily="var(--sans)" fontWeight="900" fontSize="8.5" fill="#fff">服</text>
     </svg>
   )
 }
@@ -67,31 +67,58 @@ export function Shield({ code }: { code: string }) {
   )
 }
 
-/** 路线上的站点符号，画在 20×20 的格子里，圆心在 (10,10) */
-export function StopSymbol({ kind, name, done }: { kind: StopKind; name: string; done: boolean }) {
-  const fill = done ? 'var(--ink)' : '#fff'
-  switch (kind) {
-    case 'lodging':
-      return <path d="M3 17 h14 v-8 l-7 -6 l-7 6 z" fill={fill} stroke="var(--ink)" strokeWidth="1.3" />
-    case 'food':
-      return (
-        <g>
-          <circle cx="10" cy="10" r="6.5" fill={done ? 'var(--ink)' : '#fff'} stroke="var(--ink)" strokeWidth="1.3" />
-          <path d="M8 6.5v3.5M10 6.5v3.5M8 10h2M9 10v4" stroke={done ? '#fff' : 'var(--ink)'} strokeWidth="1" fill="none" />
-          <path d="M12.5 6.5c-1 1-1 3 0 3.6V14" stroke={done ? '#fff' : 'var(--ink)'} strokeWidth="1" fill="none" />
-        </g>
-      )
-    case 'rest':
-      if (name.includes('服务区')) return <g transform="translate(3 3)"><rect x=".5" y=".5" width="13" height="13" rx="2" fill="var(--sign-green)" stroke="#fff" /><text x="7" y="10.6" textAnchor="middle" fontFamily="var(--num)" fontWeight="700" fontSize="10" fill="#fff">P</text></g>
-      return <circle cx="10" cy="10" r="5" fill={fill} stroke="var(--ink)" strokeWidth="1.3" />
-    case 'transit':
-      return <g><rect x="4" y="3" width="12" height="13" rx="3" fill={fill} stroke="var(--ink)" strokeWidth="1.3" /><path d="M6 17l-2 2M14 17l2 2M4 10h12" stroke="var(--ink)" strokeWidth="1.2" /></g>
-    case 'sight':
-      return <rect x="3" y="3" width="14" height="14" transform="rotate(45 10 10)" fill={fill} stroke="var(--ink)" strokeWidth="1.3" />
-    case 'drive':
-    default:
-      return <circle cx="10" cy="10" r="3" fill="var(--ink)" />
-  }
+/** 路线节点的类型：景区、服务区、歇脚、午睡、吃饭、住宿、回家、换乘、没有编号的公路 */
+export type BadgeKind = 'sight' | 'sa' | 'rest' | 'nap' | 'food' | 'lodging' | 'home' | 'transit' | 'road'
+
+export function badgeKind(s: { kind: StopKind; name: string; home?: boolean; tags?: string[] }): BadgeKind {
+  if (s.kind === 'sight') return 'sight'
+  if (s.kind === 'food') return 'food'
+  if (s.kind === 'lodging') return s.home ? 'home' : 'lodging'
+  if (s.kind === 'transit') return 'transit'
+  if (s.kind === 'drive') return 'road'
+  if (/服务区|停车区/.test(s.name)) return 'sa'
+  // 记成「休息」的入住（「入住 束河客栈」）按住宿画
+  if (/入住|客栈|酒店|民宿|宾馆/.test(s.name)) return 'lodging'
+  return /午睡|补觉/.test(s.name) ? 'nap' : 'rest'
+}
+
+export const BADGE_LABEL: Record<BadgeKind, string> = { sight: '景区', sa: '服务区', rest: '歇脚', nap: '午睡', food: '餐饮', lodging: '住宿', home: '到家', transit: '换乘', road: '公路' }
+
+/**
+ * 路线节点图标（26×26）：一眼分得出是什么——
+ * 景区棕牌（路标的景点方标）、服务区绿牌「服」、吃饭橙圆刀叉、住宿蓝牌床、回家房子、换乘火车；
+ * 歇脚、午睡用蓝圆里的字。已打卡的右下角一个对勾
+ */
+export function RouteBadge({ kind, done, size = 26 }: { kind: BadgeKind; done?: boolean; size?: number }) {
+  const w = '#fff'
+  const body = (() => {
+    switch (kind) {
+      case 'sight':
+        return <g><rect x="1" y="1" width="24" height="24" rx="3.5" fill="var(--sign-brown)" /><path d="M13 5 L20.5 10 H5.5 Z M7 11.5h2.2v6H7z M11.9 11.5h2.2v6h-2.2z M16.8 11.5H19v6h-2.2z M5.5 18.8h15v1.8h-15z" fill={w} /></g>
+      case 'sa':
+        return <g><rect x="1" y="1" width="24" height="24" rx="3.5" fill="var(--sign-green)" /><text x="13" y="18.2" textAnchor="middle" fontFamily="var(--sans)" fontWeight="900" fontSize="14" fill={w}>服</text></g>
+      case 'rest':
+      case 'nap':
+        return <g><circle cx="13" cy="13" r="11.5" fill="var(--water)" /><text x="13" y="17.8" textAnchor="middle" fontFamily="var(--sans)" fontWeight="900" fontSize="13" fill={w}>{kind === 'nap' ? '睡' : '歇'}</text></g>
+      case 'food':
+        return <g><circle cx="13" cy="13" r="11.5" fill="#D9731A" /><path d="M9.3 6.5v5.2M11.3 6.5v5.2M7.3 6.5v5.2M7.3 11.7c0 1.4 4 1.4 4 0M9.3 12.4V19.5" stroke={w} strokeWidth="1.5" strokeLinecap="round" fill="none" /><path d="M17 6.5c-1.8 1.2-2 4.6-.2 5.8V19.5" stroke={w} strokeWidth="1.6" strokeLinecap="round" fill="none" /></g>
+      case 'lodging':
+        return <g><rect x="1" y="1" width="24" height="24" rx="3.5" fill="#2C5DA8" /><path d="M5.5 8v11M5.5 15.5h15V19M5.5 13h4.5a1.8 1.8 0 0 0 0-3.6H5.5" stroke={w} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" fill="none" /><path d="M11.5 13V10.6a1.6 1.6 0 0 1 1.6-1.6h5.2a2.2 2.2 0 0 1 2.2 2.2V15.5" stroke={w} strokeWidth="1.7" strokeLinejoin="round" fill="none" /></g>
+      case 'home':
+        return <g><rect x="1" y="1" width="24" height="24" rx="3.5" fill="var(--ink)" /><path d="M6 12.5 L13 6.5 L20 12.5 M8 11v8h10v-8 M11.5 19v-4.5h3V19" stroke={w} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" fill="none" /></g>
+      case 'transit':
+        return <g><rect x="1" y="1" width="24" height="24" rx="3.5" fill="var(--ink)" /><rect x="7.5" y="5.5" width="11" height="12" rx="2.5" stroke={w} strokeWidth="1.6" fill="none" /><path d="M7.5 12h11M10 20.5l-1.5 1.5M16 20.5l1.5 1.5" stroke={w} strokeWidth="1.6" strokeLinecap="round" /><circle cx="10.3" cy="14.8" r="1" fill={w} /><circle cx="15.7" cy="14.8" r="1" fill={w} /></g>
+      case 'road':
+      default:
+        return <g><rect x="3" y="3" width="20" height="20" rx="3" fill="#5B5B57" /><path d="M10 6.5 L8 19.5 M16 6.5 L18 19.5" stroke={w} strokeWidth="1.6" strokeLinecap="round" /><path d="M13 7v2.4M13 11.8v2.4M13 16.6V19" stroke={w} strokeWidth="1.6" strokeLinecap="round" /></g>
+    }
+  })()
+  return (
+    <svg className={'route-badge b-' + kind + (done ? ' done' : '')} width={size} height={size} viewBox="0 0 26 26" role="img" aria-label={BADGE_LABEL[kind] + (done ? '（已打卡）' : '')}>
+      {body}
+      {done && <g><circle cx="21" cy="21" r="5" fill="var(--ink)" stroke="#fff" strokeWidth="1.3" /><path d="M18.6 21.1l1.6 1.6 3-3.2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" /></g>}
+    </svg>
+  )
 }
 
 /** 同行图例：成人实心圆、老人半圆、小孩红点、宠物菱形 */

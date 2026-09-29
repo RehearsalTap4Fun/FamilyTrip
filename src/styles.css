@@ -68,7 +68,7 @@ button:disabled { cursor: default; opacity: .4; }
 
 /* ——— 路线条：一条高速竖着走完一天 ——— */
 .strip { list-style: none; margin-top: 10px; }
-.row { position: relative; display: grid; grid-template-columns: 38px 20px 1fr; column-gap: 10px; }
+.row { position: relative; display: grid; grid-template-columns: 38px 28px 1fr; column-gap: 10px; }
 .row .t { font: 600 12.5px/20px var(--num); color: var(--ink2); text-align: right; padding-top: 6px; }
 .row .body { padding: 6px 4px 12px 0; min-width: 0; }
 .row.nap { background-image: repeating-linear-gradient(45deg, rgba(47, 127, 193, .3) 0 1px, transparent 1px 6px); }
@@ -79,7 +79,20 @@ button:disabled { cursor: default; opacity: .4; }
 .road.traveled i::after { background: var(--ink); }
 .road.first i { top: 16px; }
 .road.last i { bottom: calc(100% - 16px); }
-.road .sym { position: absolute; top: 6px; left: 0; width: 20px; height: 20px; overflow: visible; }
+.road .sym { position: absolute; top: 6px; left: 4px; width: 20px; height: 20px; overflow: visible; }
+/* 节点图标压在路上：景区棕牌、服务区绿牌、吃饭橙圆、住宿蓝牌…… */
+.road .sym-badge { position: absolute; top: 3px; left: 1px; line-height: 0; z-index: 1; }
+.road .sym-badge .route-badge { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); }
+.drive-row .road .sym-badge { top: 50%; left: 3px; transform: translateY(-50%); }
+/* 图例 */
+.route-legend { margin-top: 10px; padding: 6px 8px; border: var(--hair); background: var(--paper); font: 500 12px var(--sans); color: var(--ink2); }
+.route-legend ul { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.route-legend li { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.route-legend li .shield { transform: scale(.72); transform-origin: left center; margin-right: -14px; }
+.route-legend p { margin-top: 5px; line-height: 1.6; display: flex; flex-direction: column; gap: 2px; }
+.route-legend .tint { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; }
+.route-legend .tint i, .route-legend .nap-swatch { display: inline-block; width: 14px; height: 10px; border: .75px solid var(--ink2); vertical-align: -1px; }
+.route-legend .nap-swatch { margin-right: 4px; background-image: repeating-linear-gradient(45deg, rgba(47, 127, 193, .55) 0 1px, transparent 1px 4px); }
 .n { font: 700 15px/20px var(--serif); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .n.k-lodging, .n.must { font-family: var(--sans); font-weight: 900; letter-spacing: .04em; }
 .n.now { color: var(--hwy); font-family: var(--sans); font-weight: 700; font-size: 14px; }
@@ -93,7 +106,7 @@ button:disabled { cursor: default; opacity: .4; }
 .region { position: absolute; right: 6px; top: 4px; font: 500 10.5px var(--sans); letter-spacing: .3em; color: var(--ink2); }
 /* 州市界：点划线，地图册的行政界线画法 */
 .row.border::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: .75px; background: repeating-linear-gradient(90deg, var(--ink) 0 7px, transparent 7px 9px, var(--ink) 9px 10px, transparent 10px 12px); }
-.shield-on-road { position: absolute; left: 41px; top: 50%; transform: translateY(-50%); z-index: 1; line-height: 0; }
+.shield-on-road { position: absolute; left: 45px; top: 50%; transform: translateY(-50%); z-index: 1; line-height: 0; }
 .row.drive-row .body { padding-left: 24px; }
 .row.drive-row .t { padding-top: 0; align-self: center; }
 .drive-row .drive-label .est { color: var(--hwy); }

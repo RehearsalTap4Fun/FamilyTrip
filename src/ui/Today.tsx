@@ -159,9 +159,6 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
       )}
       {blockers.map((b, i) => <Note key={'b' + i} issue={b} />)}
 
-      <RouteLegend
-        segs={day.stops.filter(s => s.kind === 'sight').map((s, k) => ({ name: s.name, tint: segTint(k) }))}
-        nap={c.nap ? `${napWho}午睡 ${fmtHM(c.nap.from)}–${fmtHM(c.nap.to)}` : undefined} />
       <ol className="strip">
         {day.stops.map((stop, i) => {
           const slot = slotOf.get(stop.id)
@@ -260,6 +257,10 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
           )
         })}
       </ol>
+      {/* 图例放在路线底下：先看路线，看不懂再往下找 */}
+      <RouteLegend
+        segs={day.stops.filter(s => s.kind === 'sight').map((s, k) => ({ name: s.name, tint: segTint(k) }))}
+        nap={c.nap ? `${napWho}午睡 ${fmtHM(c.nap.from)}–${fmtHM(c.nap.to)}` : undefined} />
       <BackfillButton trip={trip} dayIndex={dayIndex} live={live} past={dayIndex < liveDay || prog.dayIndex >= trip.days.length} nowMin={nowMin} onTrip={onTrip} />
 
       </div>

@@ -322,3 +322,16 @@ input, select { font-size: 16px; min-height: 36px; }
 .index { grid-auto-columns: 30px; }
 .index button { height: 30px; line-height: 30px; font-size: 13px; }
 .tabs button { min-height: 44px; }
+
+/* ——— 今日限制：展开收起写在明处 ——— */
+.legend-head { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0; background: none; border: 0; text-align: left; color: var(--ink); }
+.legend-title { font: 900 12px var(--sans); letter-spacing: .3em; }
+.legend-sum { margin-left: auto; font: 500 11px var(--sans); color: var(--ink2); }
+.legend-sum b { font: 700 12.5px var(--num); color: var(--ink); }
+.legend-sum b.over { color: var(--hwy); }
+.legend-more { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px 3px 10px; border: var(--hair); border-radius: 999px; font: 700 12px var(--sans); color: var(--ink); background: var(--paper); }
+.legend-more svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.legend-head:active .legend-more { transform: scale(.96); }
+.legend-why { margin-top: 6px; }
+.legend-hint { font: 700 12.5px var(--sans); color: var(--ink); }
+.legend-hint small { font-weight: 400; color: var(--ink2); margin-left: 4px; }

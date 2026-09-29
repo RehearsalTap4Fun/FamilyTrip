@@ -81,25 +81,33 @@ export function ActiveScale({ c, dp, played, planned }: { c: Constraints; dp: Da
 }
 
 export function Legend({ c, dp, played, planned, title = '今日限制' }: { c: Constraints; dp: DayParty; played: number; planned: number; title?: string }) {
-  const [open, setOpen] = useState<string | null>(null)
   const [full, setFull] = useState(false)
   const disks = disksOf(c)
-  const opened = disks.find(d => d.key === open)
+  // 展开后说明哪一块牌子：默认第一块，点别的牌子换
+  const [pick, setPick] = useState<string | null>(null)
+  const opened = full ? disks.find(d => d.key === pick) ?? disks[0] : undefined
   const over = planned > c.activeMin.value
+  const toggle = () => setFull(!full)
   return (
-    <section className={'legend' + (full || opened ? ' full' : '')} aria-label={title}>
-      <h3>
-        {title}
-        <button type="button" className="legend-toggle" onClick={() => { setFull(!full); if (full) setOpen(null) }} aria-expanded={full}>
-          游玩 <b className={over ? 'over' : ''}>{(played / 60).toFixed(1)}/{c.activeMin.value / 60} h</b>{full ? ' · 收起' : ' · 比例尺'}
-        </button>
-      </h3>
+    <section className={'legend' + (full ? ' full' : '')} aria-label={title}>
+      {/* 整条标题栏都能点：展开 / 收起写在明处 */}
+      <button type="button" className="legend-head" onClick={toggle} aria-expanded={full}>
+        <span className="legend-title">{title}</span>
+        <span className="legend-sum">游玩 <b className={over ? 'over' : ''}>{(played / 60).toFixed(1)}/{c.activeMin.value / 60} h</b></span>
+        <span className="legend-more">{full ? '收起' : '展开'}<svg viewBox="0 0 12 12" aria-hidden="true"><path d={full ? 'M2.5 7.5 6 4l3.5 3.5' : 'M2.5 4.5 6 8l3.5-3.5'} /></svg></span>
+      </button>
       <div className="disks">
         {disks.map(d => (
-          <Disk key={d.key} d={d} who={whoForAll(limitRules(d.limit), dp)} on={open === d.key} onClick={() => setOpen(open === d.key ? null : d.key)} />
+          <Disk key={d.key} d={d} who={whoForAll(limitRules(d.limit), dp)} on={opened?.key === d.key}
+            onClick={() => { if (!full) setFull(true); setPick(d.key) }} />
         ))}
       </div>
-      {opened && <Why rules={limitRules(opened.limit)} dp={dp} />}
+      {opened && (
+        <div className="legend-why">
+          <p className="legend-hint">{opened.label}是谁定的、为什么{disks.length > 1 && <small>（点上面的限制牌换一项）</small>}</p>
+          <Why rules={limitRules(opened.limit)} dp={dp} />
+        </div>
+      )}
       <div className="scale-slot"><ActiveScale c={c} dp={dp} played={played} planned={planned} /></div>
     </section>
   )

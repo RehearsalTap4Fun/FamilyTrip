@@ -1,4 +1,4 @@
-// 高德 Web 服务 API：地点搜索、驾车路线。浏览器直连（接口允许跨域），Key 由用户自己在「同行」页填。
+// 高德 Web 服务 API：地点搜索、驾车路线。浏览器直连（接口允许跨域），Key 由用户自己在设置里填。
 // 小程序端走云函数转发，用同一套解析。
 import type { Poi } from '@core/types'
 
@@ -55,7 +55,7 @@ async function once(url: string, f: typeof fetch): Promise<any> {
 }
 
 async function call(path: string, params: Record<string, string>, key: string, f: typeof fetch): Promise<any> {
-  if (!key) throw new AmapError('还没有填高德 Key（在「同行」页最下面）', 'NO_KEY')
+  if (!key) throw new AmapError('还没有填高德 Key（在「同行」页右上角的设置里）', 'NO_KEY')
   const url = `${BASE}/${path}?${new URLSearchParams({ ...params, key, output: 'JSON' })}`
   const run = async () => {
     for (let attempt = 0; ; attempt++) {

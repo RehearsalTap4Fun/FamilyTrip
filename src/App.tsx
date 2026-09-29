@@ -14,7 +14,10 @@ import { JoinSheet, ShareCard } from './ui/ShareTrip'
 import { joinCodeFromHash } from './sync/share'
 import { useCloudSync } from './sync/useCloudSync'
 import { backupFileName, exportBackup, importBackup } from './store/backup'
-import { PartyPage } from './ui/Party'
+import { FamilyPage } from './ui/Family'
+import { SettingsSheet } from './ui/SettingsSheet'
+import { TripSetupSheet } from './ui/TripSetup'
+import { lastPartyIds, type Roster } from '@core/roster'
 import { FootprintPage } from './ui/Footprint'
 import { SettingsCtx } from './ui/Settings'
 import { ScopeToday } from './ui/ScopeToday'
@@ -47,7 +50,7 @@ export function App() {
 
 function AppInner() {
   const [state, setState] = useState<AppState>(() => {
-    // ?theme= 只在打开时生效一次，写进设置；之后在「同行」页照常切换
+    // ?theme= 只在打开时生效一次，写进设置；之后在设置里照常切换
     const s = loadState()
     const t = new URLSearchParams(location.search).get('theme') as Theme | null
     return t && t in THEME_LABEL ? { ...s, theme: t } : s
@@ -104,6 +107,10 @@ function AppInner() {
   const [switching, setSwitching] = useState(false)
   const [creating, setCreating] = useState(false)
   const [planning, setPlanning] = useState(false)
+  const [settingUp, setSettingUp] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const roster: Roster = state.roster ?? { members: [], pets: [] }
+  const onRoster = (r: Roster) => setState(s => ({ ...s, roster: r }))
   // 邀请链接 #join=分享码：打开就弹出加入面板（码在 # 后面，不会发到服务器）
   const [joining, setJoining] = useState<string | null>(() => joinCodeFromHash(location.hash))
   useEffect(() => { if (joinCodeFromHash(location.hash)) history.replaceState(null, '', location.pathname + location.search + '#trip') }, [])
@@ -121,21 +128,27 @@ function AppInner() {
       <main className="sheet" key={tab}>
         <div className="sheet-body">
           {tab === 'today' && (device ? <ScopeToday trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} /> : <Today trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} />)}
-          {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} ratings={state.ratings} />)}
-          {tab === 'party' && <PartyPage trip={trip} onTrip={onTrip} demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))} onReset={() => setState(restoreSamples)} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))} amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
-            llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))}
-            zhipuKey={state.zhipuKey ?? ''} onZhipuKey={k => setState(s => ({ ...s, zhipuKey: k || undefined }))}
-            home={state.home} onHome={h => setState(s => ({ ...s, home: h }))}
-            shareSlot={<ShareCard trip={trip} status={cloud.sync.shares?.[trip.id]} syncing={cloud.share.syncing.includes(trip.id)}
-              onShare={() => { cloud.share.shareTrip(trip.id); toast('已生成分享码，复制邀请发给同行的人') }} onSyncNow={() => cloud.share.syncNow(trip.id)} onStop={del => cloud.share.stopShare(trip.id, del)} />}
-            extra={<StorageSection sync={cloud.sync} syncing={cloud.syncing} onEnable={cloud.enable} onDisable={cloud.disable} onSyncNow={cloud.syncNow} onExport={doExport} onImport={doImport} />} />}
+          {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} onSetup={() => setSettingUp(true)} tripCount={state.trips.length} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} onSetup={() => setSettingUp(true)} tripCount={state.trips.length} ratings={state.ratings} />)}
+          {tab === 'party' && <FamilyPage roster={roster} onRoster={onRoster} trips={state.trips} now={now} home={state.home} onHome={h => setState(s => ({ ...s, home: h }))}
+            onTrips={ts => setState(s => ({ ...s, trips: s.trips.map(t => ts.find(x => x.id === t.id) ?? t) }))} onSettings={() => setSettingsOpen(true)} />}
           {tab === 'footprint' && <FootprintPage trips={state.trips} />}
           {tab === 'ratings' && <RatingsPage trip={trip} ratings={state.ratings} onRatings={onRatings} dayIndex={liveDay} />}
         </div>
       </main>
       <TripsLayer state={state} setState={setState} now={now} switching={switching} creating={creating} planning={planning}
         onSwitching={setSwitching} onCreating={setCreating} onPlanning={setPlanning} onCreated={() => setTab('trip')}
-        onJoin={() => { setSwitching(false); setJoining('') }} />
+        onJoin={() => { setSwitching(false); setJoining('') }} onSetup={() => setSettingUp(true)} />
+      {/* 这趟：行程页的卡片、排这趟顶上的确认都打开它；放在排这趟后面，叠在它上面 */}
+      <TripSetupSheet open={settingUp} trip={trip} onTrip={onTrip} roster={roster} onRoster={onRoster} onClose={() => setSettingUp(false)}
+        demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))}
+        share={<ShareCard trip={trip} status={cloud.sync.shares?.[trip.id]} syncing={cloud.share.syncing.includes(trip.id)}
+          onShare={() => { cloud.share.shareTrip(trip.id); toast('已生成分享码，复制邀请发给同行的人') }} onSyncNow={() => cloud.share.syncNow(trip.id)} onStop={del => cloud.share.stopShare(trip.id, del)} />} />
+      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))}
+        amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
+        llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))}
+        zhipuKey={state.zhipuKey ?? ''} onZhipuKey={k => setState(s => ({ ...s, zhipuKey: k || undefined }))}
+        onReset={() => setState(restoreSamples)}
+        storage={<StorageSection sync={cloud.sync} syncing={cloud.syncing} onEnable={cloud.enable} onDisable={cloud.disable} onSyncNow={cloud.syncNow} onExport={doExport} onImport={doImport} />} />
       <JoinSheet open={joining != null} initialCode={joining ?? ''} onClose={() => setJoining(null)}
         onJoin={async code => { const t = await cloud.share.joinTrip(code); setJoining(null); setTab('trip'); toast(`已加入「${t.title}」`) }} />
       <nav className="tabs" aria-label="页面">
@@ -151,7 +164,8 @@ function AppInner() {
 }
 
 /** 切换行程与新建行程的两个面板；放在 ToastProvider 里面，删除才能给撤销 */
-function TripsLayer({ state, setState, now, switching, creating, planning, onSwitching, onCreating, onPlanning, onCreated, onJoin }: {
+function TripsLayer({ state, setState, now, switching, creating, planning, onSwitching, onCreating, onPlanning, onCreated, onJoin, onSetup }: {
+  onSetup: () => void
   state: AppState
   setState: React.Dispatch<React.SetStateAction<AppState>>
   now: Date
@@ -165,8 +179,8 @@ function TripsLayer({ state, setState, now, switching, creating, planning, onSwi
   onCreated: () => void
 }) {
   const toast = useToast()
-  // 新行程沿用最近一趟的同行：进行中 > 最近出发的计划中 > 最近去过的
-  const base = sortTrips(state.trips, now)[0]?.party
+  // 新行程从家庭成员里勾；默认和最相关那趟（进行中 > 最近出发的计划中 > 最近去过的）一样
+  const last = sortTrips(state.trips, now)[0]
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const remove = (id: string) => {
     const before = state
@@ -182,14 +196,15 @@ function TripsLayer({ state, setState, now, switching, creating, planning, onSwi
       <TripSwitcher open={switching} trips={state.trips} currentId={state.currentId} now={now}
         onPick={id => { setState(s => ({ ...s, currentId: id })); onSwitching(false) }}
         onDelete={remove} onNew={() => { onSwitching(false); onCreating(true) }} onJoin={onJoin} onClose={() => onSwitching(false)} />
-      <NewTripSheet open={creating} base={base} today={today} onClose={() => onCreating(false)}
+      <NewTripSheet open={creating} roster={state.roster ?? { members: [], pets: [] }} onRoster={r => setState(s => ({ ...s, roster: r }))}
+        lastIds={lastPartyIds(state.trips, now)} lastMode={last?.party.mode} today={today} onClose={() => onCreating(false)}
         onCreate={t => {
           setState(s => ({ ...s, trips: [...s.trips, t], currentId: t.id }))
           onCreating(false); onCreated()
           // 建好直接去排：「我知道要去哪些地方」列点，「只知道大概去哪」让 AI 推荐
           onPlanning(true)
         }} />
-      <PlanSheet open={planning} trip={currentTrip(state)} ratings={state.ratings} onClose={() => onPlanning(false)}
+      <PlanSheet open={planning} trip={currentTrip(state)} ratings={state.ratings} onClose={() => onPlanning(false)} onSetup={onSetup}
         onDraft={patch => setState(s => {
           // 按 id 改当前这趟：只合并给出的几项，推荐和导入各存各的不互相盖掉
           const t = currentTrip(s)

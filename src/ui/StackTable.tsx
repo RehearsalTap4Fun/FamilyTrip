@@ -1,4 +1,4 @@
-// 逐日叠加表：每天五项上限，小字是收紧这一项的人。「同行」页、「今天」和「行程」的右页都用它。
+// 逐日叠加表：每天五项上限，小字是收紧这一项的人。「这趟」面板、「今天」和「行程」的右页都用它。
 import { deriveConstraints, limitRules } from '@core/constraints'
 import { whoForAll } from '@core/explain'
 import { partyOnDay } from '@core/party'

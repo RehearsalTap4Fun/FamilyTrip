@@ -26,7 +26,7 @@ export function PlaceField({ label, hint, value, onChange, empty, keyword }: {
         <span className="loc-acts">
           {home && !atHome && <button type="button" className="linkish" onClick={() => onChange(homeRef(home))}>用现居地</button>}
           {value && <button type="button" className="linkish" onClick={() => onChange(undefined)}>不设</button>}
-          <button type="button" className="kbtn" disabled={!amapKey} title={amapKey ? undefined : '先在「同行」页填高德 Key'} onClick={() => setOpen(true)}>搜高德</button>
+          <button type="button" className="kbtn" disabled={!amapKey} title={amapKey ? undefined : '先在「同行」页右上角的设置里填高德 Key'} onClick={() => setOpen(true)}>搜高德</button>
         </span>
       </div>
       <PlaceSearch open={open} keyword={keyword ?? (value && value.name !== '家' ? value.name : '')} onClose={() => setOpen(false)} onPick={p => { onChange({ name: p.name, poi: p.poi, ...(p.area ? { area: p.area } : {}) }); setOpen(false) }} />

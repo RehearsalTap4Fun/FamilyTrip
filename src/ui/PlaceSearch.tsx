@@ -35,7 +35,7 @@ export function PlaceSearch({ open, keyword, city, onPick, onClose }: Props) {
   return (
     <Sheet open={open} onClose={onClose} title="在高德里找" done="取消" doneTone="plain">
       {!amapKey ? (
-        <p className="sheet-note">先在「同行」页最下面填上高德 Key（「Web服务」类型），才能搜地方、算车程。</p>
+        <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key（「Web服务」类型），才能搜地方、算车程。</p>
       ) : (
         <>
           <form className="search-row" onSubmit={e => { e.preventDefault(); run(q) }}>

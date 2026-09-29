@@ -1,6 +1,7 @@
 // 整份状态存一个 localStorage key。读写都包 try/catch：隐私窗口、存储被禁时照常能用，只是不保存。
 import type { Rating } from '@core/ratings'
 import type { PlaceRef, Trip } from '@core/types'
+import { rosterFromTrips, type Roster } from '@core/roster'
 import { SEED_NOW, seedTrip } from '../data/seed'
 import { seedHistory } from '../data/seedHistory'
 
@@ -20,6 +21,8 @@ export interface AppState {
   /** 路线推荐用哪家大模型，以及各家的 API Key（只存本机） */
   llmProvider?: 'anthropic' | 'deepseek'
   llmKeys?: { anthropic?: string; deepseek?: string }
+  /** 家庭成员预设：新建行程从这里勾谁去（跟着自己多设备同步，不随行程分享） */
+  roster?: Roster
   /** 现居地：新行程的起点、终点默认用它（跟着自己多设备同步，不随行程分享） */
   home?: PlaceRef
   /** 智谱开放平台的 API Key：联网搜索攻略用（只存本机，不同步、不导出） */
@@ -46,7 +49,7 @@ export function sampleTrips(): Trip[] {
 
 export function defaultState(): AppState {
   const trips = sampleTrips()
-  return { version: 2, trips, currentId: trips[0].id, ratings: [], demoNow: SEED_NOW }
+  return { version: 2, trips, currentId: trips[0].id, ratings: [], demoNow: SEED_NOW, roster: rosterFromTrips(trips, new Date(SEED_NOW)) }
 }
 
 /** 旧存档升级：v1 是「一个行程 + 去过的历史」，升成「所有行程 + 当前是哪个」。认不出来就返回 null */
@@ -65,6 +68,8 @@ export function migrate(raw: unknown): AppState | null {
   if (!out.trips.some(t => t.id === out.currentId)) out = { ...out, currentId: out.trips[0].id }
   // 已移除的风格（示波器、导览折页、公园海报）回到默认
   if (out.theme && !(out.theme in THEME_LABEL)) out = { ...out, theme: undefined }
+  // 还没有家庭成员预设（2026-09-29 以前的存档）：从已有行程里把人收集进来
+  if (!out.roster) out = { ...out, roster: rosterFromTrips(out.trips, new Date()) }
   return out
 }
 

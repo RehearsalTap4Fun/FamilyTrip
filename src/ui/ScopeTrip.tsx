@@ -18,6 +18,7 @@ import { AmapError, driveBetween } from '../geo/amap'
 import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
 import { TripActions } from './TripSwitcher'
+import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
 import { fillDrives } from '../geo/fillDrives'
@@ -26,7 +27,7 @@ import { useSettings } from './Settings'
 const W = 300
 const H = 34
 
-export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, tripCount }: { trip: Trip; onTrip: (t: Trip) => void; ratings: Rating[]; onSwitch: () => void; onNew: () => void; onPlan: () => void; tripCount: number }) {
+export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSetup, tripCount }: { trip: Trip; onTrip: (t: Trip) => void; ratings: Rating[]; onSwitch: () => void; onNew: () => void; onPlan: () => void; onSetup: () => void; tripCount: number }) {
   const [open, setOpen] = useState<number | null>(null)
   const [stopId, setStopId] = useState<string | null>(null)
   const [stopClosing, setStopClosing] = useState(false)
@@ -38,7 +39,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, trip
   const { amapKey } = useSettings()
   const [filling, setFilling] = useState<number | null>(null)
   const fill = async (i: number) => {
-    if (!amapKey) { toast('先在「同行」页最下面填上高德 Key'); return }
+    if (!amapKey) { toast('先在「同行」页右上角的设置里填上高德 Key'); return }
     const before = trip
     setFilling(i)
     try {
@@ -89,6 +90,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, trip
         <span className={'run' + (fails ? ' fail' : warns ? ' hold' : '')}>{fails || warns ? `${fails ? `${fails} 必改 ` : ''}${warns} 留意` : '没问题'}</span>
       </header>
       <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
+      <TripSetupCard trip={trip} onOpen={onSetup} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
       <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); openStop(id) }} />
       <ol className="sweeps">

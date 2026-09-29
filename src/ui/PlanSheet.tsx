@@ -13,6 +13,7 @@ import { namesMatch } from '../geo/groundDay'
 import { makePlanTools } from '../geo/planTools'
 import { uid } from '../store/state'
 import { endsLine, homeRef, TripEnds } from './Endpoints'
+import { partyLine } from './TripSetup'
 import { fmtShort } from './format'
 import { Field, Segmented, Toggle } from './kit/controls'
 import { Sheet } from './kit/Sheet'
@@ -32,6 +33,8 @@ interface Props {
   onClose: () => void
   /** 进度存回行程（没点「采用」也留着）：只改给出的那几项 */
   onDraft: (patch: Partial<PlanDraft>) => void
+  /** 改这趟怎么去、谁去 */
+  onSetup: () => void
 }
 
 /** 存着的「排好了还没采用」还原成结果；规则层的问题现查 */
@@ -54,7 +57,7 @@ export function splitNames(text: string): string[] {
   return [...new Set(text.split(/[、，,;；\n\r\t]+|\s{2,}/).map(s => s.replace(/^[\d.)）\s-]+/, '').trim()).filter(s => s.length >= 2))]
 }
 
-export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft }: Props) {
+export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSetup }: Props) {
   const draft = trip.plan?.draft
   const { amapKey, llm, home } = useSettings()
   // 起点终点：行程里存了就用（null 是明确不设）；没存过（旧行程）默认现居地，旧版只存了出发地文字的先空着、排的时候再定位
@@ -189,8 +192,10 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft }: Pr
 
       {(stage.kind === 'list' || stage.kind === 'error') && (
         <>
-          {!amapKey && <p className="sheet-note">先在「同行」页最下面填上高德 Key，才能搜地点、算真实车程。</p>}
+          {!amapKey && <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key，才能搜地点、算真实车程。</p>}
           <p className="sheet-note">列出想去的地方，会按同行人的限制分到每天，排好开车、吃饭、午睡和住处。{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发</p>
+          {/* 排之前先看一眼：这趟怎么去、谁去 */}
+          <button type="button" className="plan-who" onClick={onSetup}><span>{partyLine(trip.party)}</span><small>改</small></button>
           <details className="more plan-ends">
             <summary>{endsLine({ ...trip, plan: { flow: 'places', styles: [], ...trip.plan, from: ends.from ?? null, to: ends.to ?? null } }) || '起点、终点：不设'}<small>改</small></summary>
             <div><TripEnds from={ends.from} to={ends.to} onChange={(from, to) => setEnds({ from, to })} /><p className="sheet-note">第一天从起点出发、最后一天回到终点，这两段路算进当天；不自驾的长途按高铁、飞机粗估。</p></div>

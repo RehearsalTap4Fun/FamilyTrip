@@ -21,6 +21,9 @@ interface Props {
   footer?: ReactNode
 }
 
+/** 开着的面板，后开的在后面 */
+const OPEN: symbol[] = []
+
 export function Sheet({ open, onClose, title, done = '完成', onDone, doneDisabled, doneTone = 'primary', onExited, children, footer }: Props) {
   const [mounted, setMounted] = useState(open)
   const panel = useRef<HTMLDivElement>(null)
@@ -60,12 +63,17 @@ export function Sheet({ open, onClose, title, done = '完成', onDone, doneDisab
     else animate(h(), 0, () => { setMounted(false); onExited?.() })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mounted])
+  // Esc 只关最上面那层：面板叠着开（排这趟上再开「这趟」）时，按一次只退一层
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const me = Symbol('sheet')
+    OPEN.push(me)
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && OPEN[OPEN.length - 1] === me) { e.stopImmediatePropagation(); closeRef.current() } }
     addEventListener('keydown', onKey)
-    return () => removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    return () => { removeEventListener('keydown', onKey); OPEN.splice(OPEN.indexOf(me), 1) }
+  }, [open])
   useEffect(() => () => stop.current(), [])
 
   // 拖动：只在把手和标题栏上，1:1 跟手；松手看投影落点决定关还是回

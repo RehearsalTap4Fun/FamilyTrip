@@ -3,21 +3,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import { deriveConstraints } from '@core/constraints'
 import { partyOnDay } from '@core/party'
-import { addDays, carryParty, pickStyles, skeletonTrip, STYLE_ORDER, STYLES } from '@core/trips'
-import type { Party, PlaceRef, PlanFlow, TravelMode, Trip, TripStyle } from '@core/types'
+import { addDays, pickStyles, skeletonTrip, STYLE_ORDER, STYLES } from '@core/trips'
+import type { PlaceRef, PlanFlow, TravelMode, Trip, TripStyle } from '@core/types'
 import { describeLimits } from '../llm/routePrompt'
 import { uid } from '../store/state'
 import { homeRef, TripEnds } from './Endpoints'
 import { MODE_LABEL } from './format'
 import { Chips, Field, Segmented, Stepper } from './kit/controls'
 import { Sheet } from './kit/Sheet'
-import { memberLine } from './Party'
+import { AddSheet, memberLine } from './People'
+import { pickFromRoster, type Roster } from '@core/roster'
 import { useSettings } from './Settings'
 
 interface Props {
   open: boolean
-  /** 沿用谁的同行：一般是最近的那趟 */
-  base?: Party
+  /** 家庭成员预设：从这里勾谁去 */
+  roster: Roster
+  onRoster: (r: Roster) => void
+  /** 「和上次一样」：最相关那趟的人和出行方式 */
+  lastIds: string[]
+  lastMode?: TravelMode
   today: string
   onCreate: (t: Trip) => void
   onClose: () => void
@@ -31,13 +36,16 @@ const FLOWS: { value: PlanFlow; label: string; hint: string }[] = [
   { value: 'region', label: '只知道大概去哪', hint: '填一个地区，工具按同行和玩法推荐去处，你勾选后再排时间' },
 ]
 
-export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }: Props) {
-  const everyone = useMemo(() => [...(base?.members ?? []), ...(base?.pets ?? [])].map(x => x.id), [base])
+export function NewTripSheet({ open, roster, onRoster, lastIds, lastMode, today, onCreate, onClose, onExited }: Props) {
+  const everyone = useMemo(() => [...roster.members, ...roster.pets].map(x => x.id), [roster])
+  // 默认和上一趟一样（只算家庭成员里还在的）；没有上一趟就全选
+  const lastKeep = () => { const l = lastIds.filter(id => everyone.includes(id)); return l.length ? l : everyone }
   const [step, setStep] = useState(0)
-  const [keep, setKeep] = useState<string[]>(everyone)
+  const [keep, setKeep] = useState<string[]>(lastKeep)
+  const [adding, setAdding] = useState(false)
   const [startDate, setStartDate] = useState(() => addDays(today, 7))
   const [days, setDays] = useState(3)
-  const [mode, setMode] = useState<TravelMode>(base?.mode ?? 'selfDrive')
+  const [mode, setMode] = useState<TravelMode>(lastMode ?? 'selfDrive')
   const { home } = useSettings()
   const [from, setFrom] = useState<PlaceRef | undefined>(homeRef(home))
   const [to, setTo] = useState<PlaceRef | undefined>(homeRef(home))
@@ -49,14 +57,15 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
   // 每次打开都从头来
   useEffect(() => {
     if (!open) return
-    setStep(0); setKeep(everyone); setStartDate(addDays(today, 7)); setDays(3); setMode(base?.mode ?? 'selfDrive')
+    setStep(0); setKeep(lastKeep()); setStartDate(addDays(today, 7)); setDays(3); setMode(lastMode ?? 'selfDrive')
     setFrom(homeRef(home)); setTo(homeRef(home)); setStyles([]); setFlow(null); setRegion(''); setTitle('')
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const party = carryParty(base, new Set(keep))
+  const picked = roster.members.some(m => keep.includes(m.id)) || !roster.members.length
+  const party = pickFromRoster(roster, new Set(keep), mode)
   const limits = party.members.length ? describeLimits(deriveConstraints(partyOnDay({ ...party, mode }, 0))) : []
   const last = step === STEPS.length - 1
-  const ok = step === 0 ? party.members.length > 0 : step === 1 ? !!startDate : step === 3 ? !!flow && (flow !== 'region' || !!region.trim()) : true
+  const ok = step === 0 ? picked : step === 1 ? !!startDate : step === 3 ? !!flow && (flow !== 'region' || !!region.trim()) : true
 
   const next = () => {
     if (!last) { setStep(step + 1); return }
@@ -73,10 +82,15 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
 
       {step === 0 && (
         <>
-          <Field label="这次谁去" hint="默认沿用上一趟；加人、改年龄在建好后的「同行」页">
+          <Field label="这次谁去" hint="从家庭成员里勾；资料在「同行」页改">
             <Chips label="同行" values={keep} onChange={setKeep}
-              options={[...(base?.members ?? []), ...(base?.pets ?? [])].map(x => ({ value: x.id, label: x.name }))} />
+              options={[...roster.members, ...roster.pets].map(x => ({ value: x.id, label: x.name }))} />
           </Field>
+          <div className="plan-more nt-pick">
+            {lastIds.length > 0 && <button type="button" className="linkish" onClick={() => setKeep(lastKeep())}>和上次一样</button>}
+            <button type="button" className="linkish" onClick={() => setKeep(everyone)}>全选</button>
+            <button type="button" className="linkish" onClick={() => setAdding(true)}>加一位</button>
+          </div>
           {party.members.length > 0 && (
             <ul className="nt-who">
               {party.members.map(m => <li key={m.id}><b>{m.name}</b>{memberLine(m, days)}</li>)}
@@ -89,7 +103,7 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
               <ul>{limits.slice(0, 5).map(l => <li key={l}>{l}</li>)}</ul>
             </div>
           )}
-          {!party.members.length && <p className="sheet-note">至少要有一个人。</p>}
+          {!picked && <p className="sheet-note">至少要有一个人。</p>}
         </>
       )}
 
@@ -150,6 +164,13 @@ export function NewTripSheet({ open, base, today, onCreate, onClose, onExited }:
           {flow && <p className="sheet-note">{flow === 'places' ? '建好后列出要去的地方（可以一个个搜、粘贴一串地名，或从攻略导入），按同行人的限制自动排好每天。' : '建好后 AI 会按同行人的限制推荐 2–3 个方案，挑一个就自动排好每天。'}</p>}
         </>
       )}
+      <AddSheet open={adding} mode={mode} onClose={() => setAdding(false)}
+        onAdd={a => {
+          // 新加的人记进家庭成员并勾上
+          onRoster(a.kind === 'member' ? { ...roster, members: [...roster.members, a.m] } : { ...roster, pets: [...roster.pets, a.x] })
+          setKeep(k => [...k, a.kind === 'member' ? a.m.id : a.x.id])
+          setAdding(false)
+        }} />
     </Sheet>
   )
 }

@@ -30,7 +30,7 @@ export async function zhipuSearch(query: string, key: string, engine: (typeof EN
     })
   } catch { throw new SearchError('连不上智谱搜索，检查一下网络') }
   const j = await res.json().catch(() => ({}))
-  if (res.status === 401) throw new SearchError('智谱 API Key 无效：到「同行」页检查一下，要复制完整（中间有个点）')
+  if (res.status === 401) throw new SearchError('智谱 API Key 无效：到「同行」页右上角的设置里检查一下，要复制完整（中间有个点）')
   if (!res.ok) throw new SearchError(`智谱搜索返回错误（${res.status}）${j?.error?.message ? '：' + j.error.message : ''}`)
   return (j.search_result ?? []).map((r: { title?: string; link?: string; content?: string; media?: string; publish_date?: string }) => ({
     title: (r.title ?? '').trim(), url: r.link ?? '', site: r.media || hostOf(r.link ?? ''), content: (r.content ?? '').trim(), ...(r.publish_date ? { date: r.publish_date } : {}),

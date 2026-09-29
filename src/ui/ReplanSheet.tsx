@@ -80,7 +80,7 @@ export function ReplanSheet({ open, trip, dayIndex, ratings, onApply, onClose }:
           </div>
         </>
       ) : undefined}>
-      {noKey && <p className="sheet-note">先在「同行」页最下面选好大模型、填上 API Key。</p>}
+      {noKey && <p className="sheet-note">先在「同行」页右上角的设置里选好大模型、填上 API Key。</p>}
 
       {(stage.kind === 'ask' || stage.kind === 'error') && !noKey && (
         <>
@@ -130,7 +130,7 @@ export function ReplanSheet({ open, trip, dayIndex, ratings, onApply, onClose }:
 
 /** 车程有没有按高德核实过，一句话说清楚 */
 function groundLine(r: ReplanResult, hasKey: boolean): string {
-  if (!hasKey) return '车程是 AI 估的；在「同行」页填上高德 Key，就会按真实路线核实'
+  if (!hasKey) return '车程是 AI 估的；在「同行」页右上角的设置里填上高德 Key，就会按真实路线核实'
   if (r.groundError) return `车程没能核实（${r.groundError}），是 AI 估的`
   const g = r.ground
   if (!g) return ''

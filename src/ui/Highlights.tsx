@@ -42,7 +42,7 @@ export function HighlightsCard({ trip, onTrip }: { trip: Trip; onTrip: (t: Trip)
         <b>这趟的亮点</b>
         <p>每个地方最受推崇的玩法、什么时候去最好、要避开的坑，按你们这群人写。</p>
         {busy ? <p className="hl-busy" aria-live="polite">{busy}…</p> : (
-          <button type="button" className="kbtn wide" disabled={!llm.apiKey} onClick={write}>{llm.apiKey ? '让 AI 写这趟的亮点' : '先在「同行」页填大模型的 Key'}</button>
+          <button type="button" className="kbtn wide" disabled={!llm.apiKey} onClick={write}>{llm.apiKey ? '让 AI 写这趟的亮点' : '先在设置里填大模型的 Key（「同行」页右上角）'}</button>
         )}
         {err && <p className="issue-msg lv-error" role="alert">{err}</p>}
       </div>

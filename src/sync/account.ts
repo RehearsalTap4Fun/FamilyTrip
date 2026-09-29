@@ -8,7 +8,7 @@ import type { Trip } from '@core/types'
 import { sampleTrips, type AppState, type Theme } from '../store/state'
 import { diffInto, docToTrip, mergeDocs, tripToDoc, type Rec, type TripDoc } from './tripDoc'
 
-export interface Prefs { theme?: Theme; llmProvider?: 'anthropic' | 'deepseek'; home?: AppState['home'] }
+export interface Prefs { theme?: Theme; llmProvider?: 'anthropic' | 'deepseek'; home?: AppState['home']; roster?: AppState['roster'] }
 
 export interface SyncState {
   v: 1
@@ -31,7 +31,7 @@ const newer = (a: { t: number; by: string }, b: { t: number; by: string }) => a.
 const lastEdit = (doc: TripDoc) => Object.values(doc).reduce((m, r) => Math.max(m, r.t), 0)
 const ownTrips = (s: AppState) => s.trips.filter(t => !t.sample)
 const ratingsDoc = (rs: Rating[], t: number, by: string): TripDoc => Object.fromEntries(rs.map(r => [`rating:${r.id}`, { v: r, t, by }]))
-export const prefsOf = (s: AppState): Prefs => ({ ...(s.theme ? { theme: s.theme } : {}), ...(s.llmProvider ? { llmProvider: s.llmProvider } : {}), ...(s.home ? { home: s.home } : {}) })
+export const prefsOf = (s: AppState): Prefs => ({ ...(s.theme ? { theme: s.theme } : {}), ...(s.llmProvider ? { llmProvider: s.llmProvider } : {}), ...(s.home ? { home: s.home } : {}), ...(s.roster ? { roster: s.roster } : {}) })
 
 /** 本机改动打时间戳：和上一次记下的版本比，只有真的变了的记录才换成新时刻 */
 export function stamp(prev: SyncState, s: AppState, now: number, by: string): SyncState {

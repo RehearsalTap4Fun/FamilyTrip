@@ -61,7 +61,7 @@ export function cut(s: string, n: number): string {
 }
 
 export async function callStructured<S extends z.ZodType>(cfg: LlmConfig, req: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
-  if (!cfg.apiKey) throw new LlmError(`还没有填 ${PROVIDER_LABEL[cfg.provider]} 的 API Key（在「同行」页最下面）`, 'auth')
+  if (!cfg.apiKey) throw new LlmError(`还没有填 ${PROVIDER_LABEL[cfg.provider]} 的 API Key（在「同行」页右上角的设置里）`, 'auth')
   const clean = { ...req, system: cleanText(req.system), user: cleanText(req.user) }
   return cfg.provider === 'deepseek' ? viaDeepSeek(cfg.apiKey, clean) : viaAnthropic(cfg.apiKey, clean)
 }

@@ -10,6 +10,7 @@ import type { Stop, StopKind, StopStatus, Tag, Trip } from '@core/types'
 import { checkDay, checkTrip, LODGING_PLACEHOLDER, TAG_LABEL } from '@core/validate'
 import { uid } from '../store/state'
 import { TripActions } from './TripSwitcher'
+import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
 import { dayTitle, driveHours, fmtShort, MODE_LABEL, tintOf } from './format'
@@ -21,7 +22,7 @@ const TAGS = Object.keys(TAG_LABEL) as Tag[]
 
 interface Props { trip: Trip; onTrip: (t: Trip) => void }
 
-export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount, ratings }: Props & { onSwitch: () => void; onNew: () => void; onPlan: () => void; tripCount: number; ratings: Rating[] }) {
+export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, onSetup, tripCount, ratings }: Props & { onSwitch: () => void; onNew: () => void; onPlan: () => void; onSetup: () => void; tripCount: number; ratings: Rating[] }) {
   const [open, setOpen] = useState<number | null>(null)
   const [replanning, setReplanning] = useState<number | null>(null)
   // 路线图上点的站点：用站点面板打开（地图册的每日编辑是就地展开，这里给一个统一的入口）
@@ -49,6 +50,7 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount, rat
         </div>
       </header>
       <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
+      <TripSetupCard trip={trip} onOpen={onSetup} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
       <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); setPin({ day: d, id }) }} />
 

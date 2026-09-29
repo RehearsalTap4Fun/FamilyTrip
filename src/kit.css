@@ -467,3 +467,22 @@
 .key-test { margin: 6px 2px 0; font: 600 13px/1.45 var(--sans); }
 .key-test.ok { color: var(--ok, #2E7A3A); }
 .key-test.bad { color: var(--red-ink, var(--red, #B82D1C)); }
+
+/* ——— 家庭成员预设、这趟 ——— */
+.gear { flex-shrink: 0; width: 44px; height: 44px; display: grid; place-items: center; background: var(--k-surface); border: 1px solid var(--k-line); border-radius: 50%; color: var(--ink); }
+.gear svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.gear:active { transform: scale(.94); }
+.sync-ask { margin-top: 12px; padding: 12px 14px; background: var(--k-surface); border: 1px solid var(--k-accent); border-radius: calc(var(--k-radius) + 4px); }
+.sync-ask p { font: 500 14px/1.5 var(--sans); color: var(--ink); }
+.sync-ask .foot-row { margin-top: 8px; }
+.roster-add { margin-top: 10px; }
+.roster-add small { display: block; font: 600 12.5px var(--sans); color: var(--ink2); }
+.roster-add div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.roster-add .chip { min-height: 40px; padding: 0 14px; background: var(--k-surface); border: 1px dashed var(--k-line); border-radius: 999px; font: 700 14px var(--sans); color: var(--ink); }
+.trip-setup { margin: 0 0 12px; min-height: 58px; }
+.trip-setup .cname { font-size: 14.5px; }
+.trip-setup .add { flex-shrink: 0; font: 700 13px var(--sans); color: var(--k-accent); }
+.plan-who { width: 100%; display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; padding: 10px 12px; background: var(--k-surface); border: 1px solid var(--k-line); border-radius: var(--k-radius); text-align: left; font: 700 14px/1.4 var(--sans); color: var(--ink); }
+.plan-who span { flex: 1; min-width: 0; }
+.plan-who small { flex-shrink: 0; font: 700 12.5px var(--sans); color: var(--k-accent); }
+.nt-pick { margin-top: -4px; }

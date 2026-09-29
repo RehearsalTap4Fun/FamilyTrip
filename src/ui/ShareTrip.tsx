@@ -1,4 +1,4 @@
-// 单趟分享：「同行」页这趟旅程下面的分享卡片，和「我的行程」里的加入面板。
+// 单趟分享：行程页「这趟」面板里的分享卡片，和「我的行程」里的加入面板。
 import { useEffect, useState } from 'react'
 import type { Trip } from '@core/types'
 import type { ShareLocal } from '../store/syncStore'

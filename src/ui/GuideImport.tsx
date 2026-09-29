@@ -68,7 +68,7 @@ export function GuideImport({ trip, onAdd, onCancel, saved, onSave }: Props) {
   if (!llm.apiKey || !amapKey) {
     return (
       <div className="gi">
-        <p className="sheet-note">导入攻略要用大模型读正文、用高德核实地点：先在「同行」页最下面填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !amapKey ? '和' : ''}{!amapKey ? '高德 Key' : ''}。</p>
+        <p className="sheet-note">导入攻略要用大模型读正文、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !amapKey ? '和' : ''}{!amapKey ? '高德 Key' : ''}。</p>
         <button type="button" className="kbtn wide" onClick={onCancel}>返回</button>
       </div>
     )

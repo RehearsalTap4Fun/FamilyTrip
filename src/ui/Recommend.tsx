@@ -91,7 +91,7 @@ export function Recommend({ trip, autoRun, onAdd, onCancel, saved, onSave }: Pro
   if (!llm.apiKey || !amapKey) {
     return (
       <div className="gi">
-        <p className="sheet-note">AI 推荐要用大模型出方案、用高德核实地点：先在「同行」页最下面填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !amapKey ? '和' : ''}{!amapKey ? '高德 Key' : ''}。</p>
+        <p className="sheet-note">AI 推荐要用大模型出方案、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !amapKey ? '和' : ''}{!amapKey ? '高德 Key' : ''}。</p>
         <button type="button" className="kbtn wide" onClick={onCancel}>返回</button>
       </div>
     )

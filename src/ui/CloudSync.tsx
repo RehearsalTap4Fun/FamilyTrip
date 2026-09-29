@@ -1,4 +1,4 @@
-// 「存档与同步」：云同步（同步码，端到端加密，与饮食日记同一套）+ 存档文件导出 / 导入。放在「同行」页设置下面。
+// 「存档与同步」：云同步（同步码，端到端加密，与饮食日记同一套）+ 存档文件导出 / 导入。放在设置面板里（「同行」页右上角齿轮）。
 import { useRef, useState } from 'react'
 import { generateSyncCode, normalizeSyncCode } from '../sync/crypto'
 import type { SyncLocal } from '../store/syncStore'
@@ -98,7 +98,7 @@ function CloudSyncCard({ sync, syncing, onEnable, onDisable, onSyncNow }: CloudP
       <p className="sheet-note">上次同步 {fmtTime(sync.lastSyncAt)}{sync.version ? ` · 云端第 ${sync.version} 版` : ''}{sync.lastError ? ` · ${sync.lastError}` : ''}</p>
       <details className="more">
         <summary>别的设备怎么接入</summary>
-        <p className="sheet-note">在另一台设备上打开同路 →「同行」页最下面 →「输入已有同步码」，填上面这串码。改动会在几秒内同步过去，回到应用时也会再同步一次。</p>
+        <p className="sheet-note">在另一台设备上打开同路 →「同行」页右上角的设置 →「输入已有同步码」，填上面这串码。改动会在几秒内同步过去，回到应用时也会再同步一次。</p>
       </details>
       <div className="foot-row">
         <button type="button" className="kbtn" disabled={syncing} onClick={onSyncNow}>立即同步</button>

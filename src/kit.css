@@ -439,6 +439,11 @@
 .rb-pin { fill: var(--k-accent); stroke: var(--k-surface); stroke-width: 1.6; filter: drop-shadow(0 1px 1.2px rgba(0, 0, 0, .3)); }
 .rb-pin.lodge { fill: var(--ink); }
 .rb-pin.end { fill: var(--k-surface); stroke: var(--ink); stroke-width: 2; }
+/* 远点压缩：本地范围圈、压缩过的线、实际距离 */
+.rb-ring { fill: none; stroke: var(--ink2); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.rb-thread.far { stroke-dasharray: 2 4; }
+.rb-km { font: 700 10px var(--sans); fill: var(--ink); text-anchor: middle; paint-order: stroke; stroke: var(--k-surface); stroke-width: 3px; stroke-linejoin: round; }
+.rb-legend i.ring { width: 10px; height: 10px; background: none; border: 1px dashed var(--ink2); border-radius: 50%; }
 .rb-n { fill: #fff; font: 800 9px var(--mono, var(--sans)); text-anchor: middle; pointer-events: none; }
 .rb-card { transform-box: fill-box; transform-origin: center; transform: rotate(calc(var(--rb-tilt) * var(--s, 1))); }
 .rb-card rect { fill: var(--k-surface); stroke: var(--k-line); stroke-width: 0.8; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .12)); }

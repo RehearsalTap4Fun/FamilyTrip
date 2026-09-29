@@ -2,6 +2,7 @@
 // 标签卡贴在图钉旁边、轻微歪着；挤在一起时逐个试八个方位找空处，找不到就只留图钉上的序号。
 // 颜色、底板、歪多少全走主题令牌（kit.css .rb-*），博朗是液晶面板上的橙键，地图册是纸面上的红线。
 import { useMemo, useState } from 'react'
+import { distanceKm } from '@core/geo'
 import type { Stop, Trip } from '@core/types'
 import map from '../data/china-map.json'
 
@@ -11,8 +12,12 @@ const PAD = 26
 const project = (lng: number, lat: number): [number, number] => [(lng * map.k - map.minX) * map.scale, (-lat - map.minY) * map.scale]
 
 export interface BoardPin { id: string; name: string; kind: 'sight' | 'lodging' | 'end'; day: number; n: number; x: number; y: number
+  /** 真实经纬度（量实际距离用；x、y 可能被压缩过） */
+  lng: number; lat: number
   /** 和起点同一处的终点：只钉不贴卡片 */
   quiet?: boolean
+  /** 在景点那片范围外、按比例压缩过的点（出发地、路上住的、到家） */
+  far?: boolean
 }
 
 /** 定了位的景点和住处，按天、按顺序；同一个住处连住几晚只钉一次。起点（第一天从哪出发）、回到的终点钉成小房子 */
@@ -22,7 +27,7 @@ export function boardPins(trip: Trip): BoardPin[] {
   const from = trip.plan?.from
   if (from && trip.days[0]?.stops.some(s => s.kind === 'sight' || s.kind === 'lodging')) {
     const [x, y] = project(from.poi.lng, from.poi.lat)
-    out.push({ id: 'from', name: from.name === '家' ? '家' : from.name, kind: 'end', day: 0, n: 0, x, y })
+    out.push({ id: 'from', name: from.name === '家' ? '家' : from.name, kind: 'end', day: 0, n: 0, x, y, lng: from.poi.lng, lat: from.poi.lat })
   }
   trip.days.forEach((d, day) => {
     for (const s of d.stops) {
@@ -31,10 +36,37 @@ export function boardPins(trip: Trip): BoardPin[] {
       const prev = out[out.length - 1]
       if (prev && Math.hypot(prev.x - x, prev.y - y) < 1e-6) continue
       const back = s.home && out[0]?.id === 'from' && Math.hypot(out[0].x - x, out[0].y - y) < 1e-6
-      out.push({ id: s.id, name: s.home ? s.name.replace(/^回到/, '') : s.name, kind: s.home ? 'end' : s.kind as BoardPin['kind'], day, n: s.kind === 'sight' ? ++n : 0, x, y, ...(back ? { quiet: true } : {}) })
+      out.push({ id: s.id, name: s.home ? s.name.replace(/^回到/, '') : s.name, kind: s.home ? 'end' : s.kind as BoardPin['kind'], day, n: s.kind === 'sight' ? ++n : 0, x, y, lng: s.poi.lng, lat: s.poi.lat, ...(back ? { quiet: true } : {}) })
     }
   })
   return out
+}
+
+/**
+ * 远点压缩：出发地、到家通常离景点那片几百上千公里，按一个比例尺画，景点、住处全挤成一个点。
+ * 以景点那片为中心、按景点彼此的距离定一个「本地范围」R：圈内照真实比例；圈外方向不变、距离按对数压缩（越远压得越狠，远近顺序不变）。
+ * 没有远点（都在 2R 内）就原样返回、不压缩
+ */
+export function compressBoard(pins: BoardPin[]): { pins: BoardPin[]; cx: number; cy: number; r: number } | null {
+  const sights = pins.filter(p => p.kind === 'sight')
+  if (sights.length < 1) return null
+  const med = (a: number[]) => { const b = [...a].sort((x, y) => x - y); return b[Math.floor((b.length - 1) / 2)] }
+  const cx = med(sights.map(p => p.x)), cy = med(sights.map(p => p.y))
+  const ds = sights.map(p => Math.hypot(p.x - cx, p.y - cy)).sort((a, b) => a - b)
+  // 本地范围：九成景点都在里面，再放宽一点；至少 0.3 个单位（约十几公里）
+  const r = Math.max(0.3, 1.3 * ds[Math.min(ds.length - 1, Math.floor(ds.length * 0.9))])
+  if (!pins.some(p => Math.hypot(p.x - cx, p.y - cy) > 2 * r)) return null
+  return {
+    cx, cy, r,
+    pins: pins.map(p => {
+      const d = Math.hypot(p.x - cx, p.y - cy)
+      if (d <= r) return p
+      // 压得狠一点、平滑地逼近 2.6r（到不了）：景点那一圈占画面的大半，远点表示方向和「很远」，远近顺序照样保住
+      const x = 0.55 * Math.log1p((d - r) / r)
+      const d2 = r + 1.6 * r * (x / (1 + x))
+      return { ...p, x: cx + ((p.x - cx) * d2) / d, y: cy + ((p.y - cy) * d2) / d, far: true }
+    }),
+  }
 }
 
 /** 投影坐标 → 画板像素：按点的范围等比缩放、居中；点太集中时至少看 0.4 个单位（约 20 公里）的范围 */
@@ -89,14 +121,19 @@ const short = (name: string) => { const c = Array.from(name.replace(/[（(].*$/,
 
 /** onPick：点图钉打开那个站点（第几天、站点 id） */
 export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number, stopId: string) => void }) {
-  const pins = useMemo(() => boardPins(trip), [trip])
+  // 出发地、到家离景点那片很远时：圈外的点压缩（方向不变、远近顺序不变），景点之间才不会挤成一团
+  const raw = useMemo(() => boardPins(trip), [trip])
+  const comp = useMemo(() => compressBoard(raw), [raw])
+  const pins = comp?.pins ?? raw
   const [day, setDay] = useState<number | null>(null)
   const view = useMemo(() => {
     if (pins.length < 2) return null
     // 选了某一天：放大到这天的点（带上前一晚住处，看得出从哪出发）；全部就看整趟
     const focusIdx = day == null ? pins.map((_, i) => i) : pins.map((p, i) => (p.day === day || pins[i + 1]?.day === day && p.day === day - 1 ? i : -1)).filter(i => i >= 0)
     const focus = focusIdx.length >= 1 ? focusIdx.map(i => pins[i]) : pins
-    const fit = fitBoard(focus.length >= 2 ? focus : pins)
+    // 看整趟时，把本地范围圈也框进画面（不然圈被画板边切掉）
+    const ringBox = comp && day == null ? [{ x: comp.cx - comp.r, y: comp.cy - comp.r }, { x: comp.cx + comp.r, y: comp.cy + comp.r }] : []
+    const fit = fitBoard([...(focus.length >= 2 ? focus : pins), ...ringBox])
     const pts = pins.map(p => { const [x, y] = fit.to(p.x, p.y); return { ...p, px: x, py: y } })
     // 只给看的那几颗钉贴卡片；画面外的不贴
     const inView = (i: number) => !pts[i].quiet && focusIdx.includes(i) && pts[i].px > 0 && pts[i].px < W && pts[i].py > 0 && pts[i].py < H
@@ -105,7 +142,7 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
     const labels: (ReturnType<typeof placeLabels>[number])[] = pts.map(() => null)
     idx.forEach((i, k) => { labels[i] = placed[k] })
     return { fit, pts, labels }
-  }, [pins, day])
+  }, [pins, day]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!view) {
     const located = trip.days.flatMap(d => d.stops).filter((s: Stop) => s.poi && (s.kind === 'sight' || s.kind === 'lodging')).length
@@ -116,6 +153,8 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
   const days = [...new Set(pts.map(p => p.day))]
   const on = (d: number) => day == null || d === day
   const mapT = `translate(${fit.ox.toFixed(2)} ${fit.oy.toFixed(2)}) scale(${fit.s.toFixed(4)})`
+  // 压缩时：底图只在本地范围圈里按真实比例画（圈外被压缩过，画省界反而误导）
+  const ring = comp ? { c: fit.to(comp.cx, comp.cy), r: comp.r * fit.s } : null
 
   return (
     <section className="rb" aria-label="路线图">
@@ -139,18 +178,44 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
         <defs>
           <pattern id="rb-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" className="rb-grid" /></pattern>
           <clipPath id="rb-clip"><rect width={W} height={H} rx="10" /></clipPath>
+          {ring && <clipPath id="rb-ring"><circle cx={ring.c[0]} cy={ring.c[1]} r={ring.r} /></clipPath>}
         </defs>
         <g clipPath="url(#rb-clip)">
           <rect width={W} height={H} className="rb-bg" />
-          <g transform={mapT}>{map.provinces.map(p => <path key={p.adcode} d={p.d} className="rb-prov" vectorEffect="non-scaling-stroke" />)}</g>
+          <g clipPath={ring ? 'url(#rb-ring)' : undefined}><g transform={mapT}>{map.provinces.map(p => <path key={p.adcode} d={p.d} className="rb-prov" vectorEffect="non-scaling-stroke" />)}</g></g>
           <rect width={W} height={H} fill="url(#rb-grid)" />
+          {ring && <circle cx={ring.c[0]} cy={ring.c[1]} r={ring.r} className="rb-ring" />}
         </g>
         <g clipPath="url(#rb-clip)">
         {/* 线：先画淡的整条，再画当天的实线 */}
         {pts.slice(1).map((p, i) => {
           const a = pts[i]
-          return <path key={'t' + p.id} d={threadPath([a.px, a.py], [p.px, p.py])} className={'rb-thread' + (on(p.day) && on(a.day) ? '' : ' dim') + (a.day !== p.day ? ' hop' : '')} />
+          const far = a.far || p.far
+          return <path key={'t' + p.id} d={threadPath([a.px, a.py], [p.px, p.py])} className={'rb-thread' + (on(p.day) && on(a.day) ? '' : ' dim') + (a.day !== p.day ? ' hop' : '') + (far ? ' far' : '')} />
         })}
+        {/* 压缩过的线：标实际距离（去程返程两条线挨着时只标一个） */}
+        {(() => { const shown: [number, number][] = []; return pts.slice(1).map((p, i) => {
+          const a = pts[i]
+          if (!(a.far || p.far) || !on(p.day) || !on(a.day)) return null
+          const km = distanceKm({ lng: a.lng, lat: a.lat }, { lng: p.lng, lat: p.lat })
+          if (km < 30) return null
+          // 标在靠远点那一侧（圈外那段多半是空的）；逐个试几处，避开景点卡片和图钉
+          const [n0, f0] = p.far && !a.far ? [a, p] : [p, a]
+          const txt = `约 ${km >= 100 ? Math.round(km / 10) * 10 : Math.round(km)} km`
+          const tw = txt.length * 6.2 + 6
+          const free = (x: number, y: number) => {
+            const box = { x: x - tw / 2, y: y - 10, w: tw, h: 13 }
+            if (box.x < 2 || box.x + box.w > W - 2 || box.y < 2 || box.y + box.h > H - 2) return false
+            if (labels.some(l => l && hit(l, box))) return false
+            if (pts.some(q => hit({ x: q.px - 8, y: q.py - 8, w: 16, h: 16 }, box))) return false
+            return !shown.some(([sx, sy]) => Math.hypot(sx - x, sy - y) < 40)
+          }
+          const spot = [0.68, 0.82, 0.55, 0.9, 0.45].map(f => [n0.px + (f0.px - n0.px) * f, n0.py + (f0.py - n0.py) * f + 4] as const).find(([x, y]) => free(x, y))
+          if (!spot) return null
+          const [mx, my] = spot
+          shown.push([mx, my])
+          return <text key={'km' + p.id} x={mx} y={my} className="rb-km">{txt}</text>
+        }) })()}
         {pts.map((p, i) => {
           const b = labels[i]
           return (
@@ -176,7 +241,7 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
         })}
         </g>
       </svg>
-      <p className="rb-legend"><span><i className="dot" />景点（数字是顺序）</span><span><i className="sq" />住处</span>{pts.some(p => p.kind === 'end') && <span><i className="hm" />起点 / 终点</span>}{day != null && <span>第 {day + 1} 天</span>}</p>
+      <p className="rb-legend"><span><i className="dot" />景点（数字是顺序）</span><span><i className="sq" />住处</span>{pts.some(p => p.kind === 'end') && <span><i className="hm" />起点 / 终点</span>}{ring && <span><i className="ring" />圈外按比例压缩，线上是实际距离</span>}{day != null && <span>第 {day + 1} 天</span>}</p>
     </section>
   )
 }

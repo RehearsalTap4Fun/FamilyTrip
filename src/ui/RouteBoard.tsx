@@ -1,11 +1,13 @@
 // 路线图（线索板式）：这趟所有定了位的景点、住处按顺序钉在当地地图上，一根线串起来，线在两颗钉之间微微下垂。
 // 标签卡贴在图钉旁边、轻微歪着；挤在一起时逐个试八个方位找空处，找不到就只留图钉上的序号。
 // 颜色、底板、歪多少全走主题令牌（kit.css .rb-*），博朗是液晶面板上的橙键，地图册是纸面上的红线。
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { distanceKm } from '@core/geo'
 import type { Stop, Trip } from '@core/types'
 import map from '../data/china-map.json'
 
+/** 最多放大几倍 */
+const ZOOM_MAX = 8
 const W = 340
 const H = 240
 const PAD = 26
@@ -125,15 +127,44 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
   const raw = useMemo(() => boardPins(trip), [trip])
   const comp = useMemo(() => compressBoard(raw), [raw])
   const pins = comp?.pins ?? raw
-  const [day, setDay] = useState<number | null>(null)
-  const view = useMemo(() => {
+  const [day, setDayRaw] = useState<number | null>(null)
+  // 放大、拖动：只放大地图，图钉和卡片保持原来大小，挤在一起的点放大后就分开了（卡片重新找空位）
+  const [zoom, setZoomRaw] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const clampPan = (p: { x: number; y: number }, z: number) => ({ x: Math.max(-W * z / 2, Math.min(W * z / 2, p.x)), y: Math.max(-H * z / 2, Math.min(H * z / 2, p.y)) })
+  // 从不放大到放大：镜头先对准景点那片的中心（画板正中常是去往远处的长线，放大了景点全出画面）；
+  // 已经放大了再调：保持当前画面中心不动，平移量跟着同比例变
+  const setZoom = (z1: number) => {
+    const z = Math.max(1, Math.min(ZOOM_MAX, z1))
+    const a = base?.anchor
+    setPan(p => (z === 1 ? { x: 0, y: 0 } : zoom === 1 && a ? clampPan({ x: z * (W / 2 - a[0]), y: z * (H / 2 - a[1]) }, z) : clampPan({ x: (p.x * z) / zoom, y: (p.y * z) / zoom }, z)))
+    setZoomRaw(z)
+  }
+  const reset = () => { setZoomRaw(1); setPan({ x: 0, y: 0 }) }
+  const setDay = (d: number | null) => { setDayRaw(d); reset() }
+  const base = useMemo(() => {
     if (pins.length < 2) return null
     // 选了某一天：放大到这天的点（带上前一晚住处，看得出从哪出发）；全部就看整趟
     const focusIdx = day == null ? pins.map((_, i) => i) : pins.map((p, i) => (p.day === day || pins[i + 1]?.day === day && p.day === day - 1 ? i : -1)).filter(i => i >= 0)
     const focus = focusIdx.length >= 1 ? focusIdx.map(i => pins[i]) : pins
     // 看整趟时，把本地范围圈也框进画面（不然圈被画板边切掉）
     const ringBox = comp && day == null ? [{ x: comp.cx - comp.r, y: comp.cy - comp.r }, { x: comp.cx + comp.r, y: comp.cy + comp.r }] : []
-    const fit = fitBoard([...(focus.length >= 2 ? focus : pins), ...ringBox])
+    const fit0 = fitBoard([...(focus.length >= 2 ? focus : pins), ...ringBox])
+    // 放大时对准的地方：最挤的那一团（放大就是为了看挤在一起的；景点分两片时，中心常落在两片中间的空处）
+    const px = focus.map(p => fit0.to(p.x, p.y))
+    const near = (i: number) => px.filter(q => Math.hypot(q[0] - px[i][0], q[1] - px[i][1]) < 36)
+    const densest = px.reduce((bi, _, i) => (near(i).length > near(bi).length ? i : bi), 0)
+    const group = near(densest)
+    const anchor: [number, number] = [group.reduce((a, q) => a + q[0], 0) / group.length, group.reduce((a, q) => a + q[1], 0) / group.length]
+    return { fit: fit0, focusIdx, anchor }
+  }, [pins, day]) // eslint-disable-line react-hooks/exhaustive-deps
+  const view = useMemo(() => {
+    if (!base) return null
+    const { focusIdx } = base
+    // 放大、平移叠在原来的缩放上：X = 原来的 × zoom，再按画板中心对齐、加平移
+    const f0 = base.fit
+    const s = f0.s * zoom, ox = f0.ox * zoom + (W / 2) * (1 - zoom) + pan.x, oy = f0.oy * zoom + (H / 2) * (1 - zoom) + pan.y
+    const fit = { s, ox, oy, to: (x: number, y: number): [number, number] => [x * s + ox, y * s + oy] }
     const pts = pins.map(p => { const [x, y] = fit.to(p.x, p.y); return { ...p, px: x, py: y } })
     // 只给看的那几颗钉贴卡片；画面外的不贴
     const inView = (i: number) => !pts[i].quiet && focusIdx.includes(i) && pts[i].px > 0 && pts[i].px < W && pts[i].py > 0 && pts[i].py < H
@@ -142,7 +173,38 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
     const labels: (ReturnType<typeof placeLabels>[number])[] = pts.map(() => null)
     idx.forEach((i, k) => { labels[i] = placed[k] })
     return { fit, pts, labels }
-  }, [pins, day]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [base, zoom, pan]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 手势：放大后单指拖动画面、两指捏合缩放；拖过的这一下不当成点图钉
+  const touches = useRef(new Map<number, { x: number; y: number }>())
+  const dragged = useRef(false)
+  const pinch = useRef<{ d: number; z: number } | null>(null)
+  const unit = (el: SVGSVGElement) => W / (el.clientWidth || W)
+  const onDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    dragged.current = false
+    if (touches.current.size === 2) { const [a, b] = [...touches.current.values()]; pinch.current = { d: Math.hypot(a.x - b.x, a.y - b.y), z: zoom } }
+    if (zoom > 1 || touches.current.size === 2) e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const prev = touches.current.get(e.pointerId)
+    if (!prev) return
+    touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (touches.current.size === 2 && pinch.current) {
+      const [a, b] = [...touches.current.values()]
+      setZoom(pinch.current.z * (Math.hypot(a.x - b.x, a.y - b.y) / Math.max(1, pinch.current.d)))
+      dragged.current = true
+      return
+    }
+    if (zoom <= 1) return
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y
+    if (Math.abs(dx) + Math.abs(dy) > 0) {
+      const k = unit(e.currentTarget)
+      setPan(p => clampPan({ x: p.x + dx * k, y: p.y + dy * k }, zoom))
+    }
+    if (Math.abs(dx) + Math.abs(dy) > 3) dragged.current = true
+  }
+  const onUp = (e: React.PointerEvent<SVGSVGElement>) => { touches.current.delete(e.pointerId); if (touches.current.size < 2) pinch.current = null }
 
   if (!view) {
     const located = trip.days.flatMap(d => d.stops).filter((s: Stop) => s.poi && (s.kind === 'sight' || s.kind === 'lodging')).length
@@ -165,8 +227,10 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
           {days.map(d => <button key={d} type="button" role="radio" aria-checked={day === d} className={day === d ? 'on' : ''} onClick={() => setDay(day === d ? null : d)}>D{d + 1}</button>)}
         </div>
       </div>
-      <svg className="rb-board" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`按顺序：${pts.map(p => p.name).join(' → ')}`}
+      <svg className={'rb-board' + (zoom > 1 ? ' zoomed' : '')} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`按顺序：${pts.map(p => p.name).join(' → ')}`}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
         onClick={onPick ? e => {
+          if (dragged.current) { dragged.current = false; return }
           // 点在哪就打开离手指最近的那颗钉（两颗钉挨得近时，各自加大的点击圈会互相盖住，所以统一在这里判断）
           const svg = e.currentTarget
           const m = svg.getScreenCTM()
@@ -241,6 +305,14 @@ export function RouteBoard({ trip, onPick }: { trip: Trip; onPick?: (day: number
         })}
         </g>
       </svg>
+      {/* 缩放：滑轨 + 加减；放大后拖动画面看挤在一起的地方 */}
+      <div className="rb-zoom">
+        <button type="button" onClick={() => setZoom(zoom / 1.4)} disabled={zoom <= 1} aria-label="缩小">−</button>
+        <input type="range" min={1} max={ZOOM_MAX} step={0.1} value={zoom} onChange={e => setZoom(Number(e.target.value))} aria-label="缩放路线图" />
+        <button type="button" onClick={() => setZoom(zoom * 1.4)} disabled={zoom >= ZOOM_MAX} aria-label="放大">＋</button>
+        <span className="rb-zoom-t">{zoom > 1 ? `${zoom.toFixed(1)}× · 拖动画面看` : '放大看挤在一起的'}</span>
+        {(zoom > 1 || pan.x || pan.y) && <button type="button" className="rb-reset" onClick={reset}>复位</button>}
+      </div>
       <p className="rb-legend"><span><i className="dot" />景点（数字是顺序）</span><span><i className="sq" />住处</span>{pts.some(p => p.kind === 'end') && <span><i className="hm" />起点 / 终点</span>}{ring && <span><i className="ring" />圈外按比例压缩，线上是实际距离</span>}{day != null && <span>第 {day + 1} 天</span>}</p>
     </section>
   )

@@ -511,3 +511,15 @@
 .ci-need { color: var(--warn, #B5580B); }
 .backfill { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 12px; min-height: 56px; }
 .backfill small { font: 500 12px var(--sans); color: var(--ink2); }
+
+/* ——— 路线图缩放：没放大时不拦手指（页面照常上下滚），放大后画板接管拖动、捏合 ——— */
+.rb-board { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.rb-board.zoomed { touch-action: none; cursor: grab; }
+.rb-board.zoomed:active { cursor: grabbing; }
+.rb-zoom { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.rb-zoom > button { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--k-line); background: var(--k-surface); font: 700 18px/1 var(--sans); color: var(--ink); }
+.rb-zoom > button:disabled { opacity: .35; }
+.rb-zoom input[type=range] { flex: 1; min-width: 60px; accent-color: var(--k-accent); height: 28px; }
+.rb-zoom-t { flex-shrink: 0; font: 500 11.5px var(--sans); color: var(--ink2); white-space: nowrap; }
+.rb-zoom .rb-reset { width: auto; padding: 0 10px; border-radius: 999px; font-size: 12.5px; }
+@media (max-width: 380px) { .rb-zoom-t { display: none; } }

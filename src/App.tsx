@@ -88,7 +88,7 @@ function AppInner() {
     try { got = importBackup(text).state } catch (e) { toast(e instanceof Error ? e.message : '导入失败'); return }
     const before = state
     setState(s => {
-      const keep = { amapKey: s.amapKey, llmKeys: s.llmKeys }
+      const keep = { amapKey: s.amapKey, llmKeys: s.llmKeys, zhipuKey: s.zhipuKey }
       if (!cloud.sync.enabled) return { ...got, ...keep }
       const ids = new Set(got.trips.map(t => t.id))
       const rids = new Set(got.ratings.map(r => r.id))
@@ -115,7 +115,7 @@ function AppInner() {
   }, [theme, device])
 
   return (
-    <SettingsCtx.Provider value={{ amapKey: state.amapKey ?? '', llm: { provider: state.llmProvider ?? 'anthropic', apiKey: state.llmKeys?.[state.llmProvider ?? 'anthropic'] ?? '' } }}>
+    <SettingsCtx.Provider value={{ amapKey: state.amapKey ?? '', llm: { provider: state.llmProvider ?? 'anthropic', apiKey: state.llmKeys?.[state.llmProvider ?? 'anthropic'] ?? '' }, zhipuKey: state.zhipuKey ?? '' }}>
     <div className="app">
       <main className="sheet" key={tab}>
         <div className="sheet-body">
@@ -123,6 +123,7 @@ function AppInner() {
           {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} tripCount={state.trips.length} />)}
           {tab === 'party' && <PartyPage trip={trip} onTrip={onTrip} demoNow={state.demoNow} onDemoNow={v => setState(s => ({ ...s, demoNow: v }))} onReset={() => setState(restoreSamples)} theme={theme} onTheme={t => setState(s => ({ ...s, theme: t }))} amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
             llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))}
+            zhipuKey={state.zhipuKey ?? ''} onZhipuKey={k => setState(s => ({ ...s, zhipuKey: k || undefined }))}
             shareSlot={<ShareCard trip={trip} status={cloud.sync.shares?.[trip.id]} syncing={cloud.share.syncing.includes(trip.id)}
               onShare={() => { cloud.share.shareTrip(trip.id); toast('已生成分享码，复制邀请发给同行的人') }} onSyncNow={() => cloud.share.syncNow(trip.id)} onStop={del => cloud.share.stopShare(trip.id, del)} />}
             extra={<StorageSection sync={cloud.sync} syncing={cloud.syncing} onEnable={cloud.enable} onDisable={cloud.disable} onSyncNow={cloud.syncNow} onExport={doExport} onImport={doImport} />} />}

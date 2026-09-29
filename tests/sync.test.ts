@@ -159,7 +159,7 @@ describe('两台设备走一遍', () => {
 
 describe('存档', () => {
   it('导出不含 Key；导入原样恢复；认不出的给可读的错', () => {
-    const s = withTrips([mine('a', '寒假')], { amapKey: 'secret-amap', llmKeys: { deepseek: 'secret-ds' } })
+    const s = withTrips([mine('a', '寒假')], { amapKey: 'secret-amap', llmKeys: { deepseek: 'secret-ds' }, zhipuKey: 'secret-zhipu' })
     const text = exportBackup(s, new Date('2026-09-28T10:00:00'))
     expect(text).not.toContain('secret-')
     const back = importBackup(text)

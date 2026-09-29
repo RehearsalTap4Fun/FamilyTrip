@@ -31,6 +31,8 @@ interface Props {
   llmProvider: Provider
   llmKeys: { anthropic?: string; deepseek?: string }
   onLlm: (p: Provider, keys: { anthropic?: string; deepseek?: string }) => void
+  zhipuKey: string
+  onZhipuKey: (k: string) => void
   /** 设置下面再放的区块（存档与同步） */
   extra?: ReactNode
   /** 「这趟旅程」里的分享卡片 */
@@ -95,7 +97,7 @@ const colorFor = (trip: Trip, id: string) => {
 
 type Editing = { kind: 'member' | 'pet'; id: string } | { kind: 'add' } | { kind: 'reset' } | null
 
-export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, extra, shareSlot }: Props) {
+export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, zhipuKey, onZhipuKey, extra, shareSlot }: Props) {
   const p = trip.party
   const n = trip.days.length
   const toast = useToast()
@@ -196,6 +198,10 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
           <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={llmKeys[llmProvider] ?? ''} placeholder={llmProvider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
             onChange={e => onLlm(llmProvider, { ...llmKeys, [llmProvider]: e.target.value.trim() })} />
         </Field>
+        <Field label="智谱 API Key" hint="联网搜索攻略用；只存在这台设备上">
+          <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={zhipuKey} placeholder="选填" onChange={e => onZhipuKey(e.target.value.trim())} />
+        </Field>
+        <p className="sheet-note">到智谱开放平台（bigmodel.cn）控制台的「API Keys」里创建。联网搜索还在接入中：接好后，AI 推荐方案会先到攻略网站上搜一轮，推荐附带原帖链接。</p>
         <button type="button" className="kbtn danger wide" onClick={() => setEditing({ kind: 'reset' })}>恢复示例行程</button>
       </div>
 

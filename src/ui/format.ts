@@ -91,13 +91,3 @@ export function sightSegments(stops: { kind: string }[]): number[] {
 /** 第几段的底色：黄绿粉紫轮流，相邻两段不同色 */
 export const segTint = (i: number) => TINTS[i % TINTS.length]
 
-export function tintOf(trip: Trip, adcode?: string): string {
-  if (!adcode) return 'transparent'
-  const order: string[] = []
-  for (const d of trip.days) for (const s of d.stops) {
-    const c = s.poi?.adcode ? cityOf(s.poi.adcode) : undefined
-    if (c && !order.includes(c)) order.push(c)
-  }
-  const i = order.indexOf(cityOf(adcode))
-  return i < 0 ? 'transparent' : TINTS[i % TINTS.length]
-}

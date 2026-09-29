@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { seedTrip } from '../src/data/seed'
-import { dayCities, dayTitle, fmtDay, partyLine, routeCode, stripCode, tintOf } from '../src/ui/format'
+import { dayCities, dayTitle, fmtDay, partyLine, routeCode, segTint, sightSegments, stripCode } from '../src/ui/format'
 
 describe('界面格式化', () => {
   const t = seedTrip()
@@ -20,10 +20,11 @@ describe('界面格式化', () => {
     expect(stripCode('大丽高速 G5611')).toBe('大丽高速')
     expect(routeCode('喜洲古镇')).toBeUndefined()
   })
-  it('同一个城市在每一天都是同一种平涂色', () => {
-    const dali = tintOf(t, '532901')
-    expect(tintOf(t, '532930')).toBe(dali) // 洱源也在大理州
-    expect(tintOf(t, '530702')).not.toBe(dali)
-    expect(tintOf(t, undefined)).toBe('transparent')
+  it('底色按景点分段：相邻两段颜色不同，每天从第一种颜色开始', () => {
+    for (const d of t.days) {
+      const segs = sightSegments(d.stops)
+      for (let k = 1; k < segs.length; k++) if (segs[k] !== segs[k - 1]) expect(segTint(segs[k])).not.toBe(segTint(segs[k - 1]))
+      expect(segs[0]).toBe(0)
+    }
   })
 })

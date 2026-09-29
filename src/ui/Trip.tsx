@@ -13,7 +13,7 @@ import { PlanCta, TripBar } from './TripSwitcher'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
-import { dayTitle, driveHours, fmtShort, MODE_LABEL, tintOf } from './format'
+import { dayTitle, driveHours, fmtShort, MODE_LABEL, segTint, sightSegments } from './format'
 import { StackTable } from './StackTable'
 import { badgeKind, IconDown, IconUp, IconX, LevelMark, PetGlyph, RouteBadge } from './symbols'
 
@@ -60,14 +60,24 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, onSetup, tripC
           const issues = checkDay(trip, i)
           const serious = issues.filter(x => x.level !== 'tip')
           const tips = issues.length - serious.length
-          const firstPoi = d.stops.find(s => s.poi?.adcode)?.poi?.adcode
           const dh = driveHours(d)
+          // 色条按景点分段（和「今天」页一样），每段长短按这段花的时间（开车 + 停留）
+          const segOf = sightSegments(d.stops)
+          const segMin: number[] = []
+          d.stops.forEach((s, k) => { if (s.status === 'skipped') return; segMin[segOf[k]] = (segMin[segOf[k]] ?? 0) + s.durationMin + (s.kind === 'drive' ? 0 : s.driveMin ?? 0) })
+          const segName = d.stops.filter(s => s.kind === 'sight')
           return (
             <li key={i} className={'day' + (open === i ? ' open' : '')}>
               <button type="button" className="day-hd" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
                 <span className="no num">{i + 1}<small>{fmtShort(trip.startDate, i)}</small></span>
-                <span className="c" style={{ background: tintOf(trip, firstPoi) }}>
+                <span className="c">
                   <span className="rt">{dayTitle(d)}<span>{dh > 0 ? `驾车 ${dh.toFixed(1)} h` : `${d.stops.length} 站`}</span></span>
+                  {segName.length > 0 && (
+                    <span className="segbar" aria-label={`按景点分段：${segName.map(s => s.name).join('、')}`}>
+                      <span className="bar">{segMin.map((m, k) => m > 0 && <i key={k} style={{ flexGrow: m, background: segTint(k) }} />)}</span>
+                      <span className="names">{segName.map((s, k) => <span key={s.id}><i style={{ background: segTint(k) }} />{s.name}</span>)}</span>
+                    </span>
+                  )}
                   <ul>
                     {serious.map((x, k) => <li key={k} className={'lv-' + x.level}><LevelMark level={x.level} size={13} /><b>{x.level === 'error' ? '必改' : '留意'}</b>{x.message}</li>)}
                     {tips > 0 && <li className="lv-tip"><LevelMark level="tip" size={13} /><b>核</b>{tips} 处待核实</li>}

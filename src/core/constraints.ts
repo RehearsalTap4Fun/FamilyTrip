@@ -13,7 +13,7 @@ export interface Limit {
 }
 
 export interface Constraints {
-  /** 一天游玩总时长（分钟）：景点、吃饭、步行，不含开车和休息——开车另有驾驶上限 */
+  /** 一天游玩总时长（分钟）：只算逛景点，吃饭、开车、休息都不算——开车另有驾驶上限 */
   activeMin: Limit
   /** 一天累计步行（公里） */
   walkKm: Limit
@@ -51,18 +51,18 @@ export interface RuleInfo {
 
 // 数字来自常识与公开建议，不是医学结论；改数字时同步改 why。
 export const RULES: Record<string, RuleInfo> = {
-  base: { id: 'base', label: '成人默认', why: '成人一天游玩 10 小时、步行 15 公里以内、22:00 前回住处' },
+  base: { id: 'base', label: '成人默认', why: '成人一天游玩 8 小时（不含吃饭）、步行 15 公里以内、22:00 前回住处' },
   drive1: { id: 'drive1', label: '单人驾驶', why: '只有一位司机时每天驾驶不超过 5 小时，连续驾驶 2 小时停一次（疲劳驾驶按 4 小时算，这里留余量）' },
   drive2: { id: 'drive2', label: '多人轮换驾驶', why: '有两位以上司机轮换，每天驾驶可放宽到 8 小时' },
-  elder: { id: 'elder', label: '老人同行', why: '65 岁以上一天游玩 7 小时、步行 6 公里以内，海拔 3000 米以下，住宿要电梯或低楼层' },
-  elder75: { id: 'elder75', label: '75 岁以上', why: '再收紧到游玩 6 小时、步行 4 公里、海拔 2500 米以下，21:00 前回住处' },
+  elder: { id: 'elder', label: '老人同行', why: '65 岁以上一天游玩 6 小时、步行 6 公里以内，海拔 3000 米以下，住宿要电梯或低楼层' },
+  elder75: { id: 'elder75', label: '75 岁以上', why: '再收紧到游玩 5 小时、步行 4 公里、海拔 2500 米以下，21:00 前回住处' },
   mobSlow: { id: 'mobSlow', label: '走得慢', why: '步行上限 4 公里，避开台阶多的地方' },
   mobCane: { id: 'mobCane', label: '拄拐', why: '步行上限 2 公里，台阶多的地方必须有无障碍通道' },
   mobWheel: { id: 'mobWheel', label: '轮椅', why: '步行（推行）上限 3 公里且全程要无障碍，住宿要电梯' },
-  infant: { id: 'infant', label: '1 岁以下', why: '一天游玩 5 小时，要推车通行，12:00–14:30 留出午睡，20:00 前回住处，海拔 2500 米以下' },
-  toddler: { id: 'toddler', label: '1–3 岁', why: '一天游玩 6 小时、推车总里程 8 公里内，12:30–14:30 午睡，20:00 前回住处，自驾 1.5 小时停一次' },
-  preschool: { id: 'preschool', label: '3–6 岁', why: '一天游玩 7 小时、步行 4 公里，要有儿童餐，21:00 前回住处，自驾 1.5 小时停一次' },
-  school: { id: 'school', label: '7–12 岁', why: '一天游玩 9 小时、步行 10 公里' },
+  infant: { id: 'infant', label: '1 岁以下', why: '一天游玩 4 小时，要推车通行，12:00–14:30 留出午睡，20:00 前回住处，海拔 2500 米以下' },
+  toddler: { id: 'toddler', label: '1–3 岁', why: '一天游玩 5 小时、推车总里程 8 公里内，12:30–14:30 午睡，20:00 前回住处，自驾 1.5 小时停一次' },
+  preschool: { id: 'preschool', label: '3–6 岁', why: '一天游玩 6 小时、步行 4 公里，要有儿童餐，21:00 前回住处，自驾 1.5 小时停一次' },
+  school: { id: 'school', label: '7–12 岁', why: '一天游玩 7 小时、步行 10 公里' },
   pet: { id: 'pet', label: '带宠物', why: '住宿和景点要能带宠物，自驾 2 小时内停一次给它下车' },
   petLarge: { id: 'petLarge', label: '大型犬', why: '公共交通基本不让上，住宿选择更少' },
   tour: { id: 'tour', label: '跟团', why: '行程由旅行社定，这里只做「这一天适不适合你们这群人」的检查' },
@@ -74,7 +74,7 @@ const hm = (h: number, m = 0) => h * HOUR + m
 function base(): Constraints {
   const b = (value: number): Limit => ({ value, by: 'base' })
   return {
-    activeMin: b(10 * HOUR),
+    activeMin: b(8 * HOUR),
     walkKm: b(15),
     driveMin: b(Infinity),
     driveBreakMin: b(Infinity),
@@ -130,14 +130,14 @@ function setNap(c: Constraints, from: number, to: number, by: string) {
 
 function applyElder(c: Constraints, m: Member) {
   mark(c, 'elder')
-  tighten(c, 'activeMin', 7 * HOUR, 'elder')
+  tighten(c, 'activeMin', 6 * HOUR, 'elder')
   tighten(c, 'walkKm', 6, 'elder')
   tighten(c, 'altitudeM', 3000, 'elder')
   addNeed(c.lodgingNeeds, 'elevator', 'elder')
   addNeed(c.needs, 'restroom', 'elder')
   if ((m.age ?? 0) >= 75) {
     mark(c, 'elder75')
-    tighten(c, 'activeMin', 6 * HOUR, 'elder75')
+    tighten(c, 'activeMin', 5 * HOUR, 'elder75')
     tighten(c, 'walkKm', 4, 'elder75')
     tighten(c, 'altitudeM', 2500, 'elder75')
     tighten(c, 'endBy', hm(21), 'elder75')
@@ -175,7 +175,7 @@ function applyKid(c: Constraints, m: Member, selfDrive: boolean) {
   switch (band) {
     case 'infant':
       mark(c, 'infant')
-      tighten(c, 'activeMin', 5 * HOUR, 'infant')
+      tighten(c, 'activeMin', 4 * HOUR, 'infant')
       tighten(c, 'endBy', hm(20), 'infant')
       tighten(c, 'altitudeM', 2500, 'infant')
       addNeed(c.needs, 'stroller', 'infant')
@@ -185,7 +185,7 @@ function applyKid(c: Constraints, m: Member, selfDrive: boolean) {
       break
     case 'toddler':
       mark(c, 'toddler')
-      tighten(c, 'activeMin', 6 * HOUR, 'toddler')
+      tighten(c, 'activeMin', 5 * HOUR, 'toddler')
       tighten(c, 'walkKm', 8, 'toddler') // 大人推着走，限的是大人推车的总里程
       tighten(c, 'endBy', hm(20), 'toddler')
       tighten(c, 'altitudeM', 2500, 'toddler')
@@ -196,7 +196,7 @@ function applyKid(c: Constraints, m: Member, selfDrive: boolean) {
       break
     case 'preschool':
       mark(c, 'preschool')
-      tighten(c, 'activeMin', 7 * HOUR, 'preschool')
+      tighten(c, 'activeMin', 6 * HOUR, 'preschool')
       tighten(c, 'walkKm', 4, 'preschool')
       tighten(c, 'endBy', hm(21), 'preschool')
       addNeed(c.needs, 'restroom', 'preschool')
@@ -204,7 +204,7 @@ function applyKid(c: Constraints, m: Member, selfDrive: boolean) {
       break
     case 'school':
       mark(c, 'school')
-      tighten(c, 'activeMin', 9 * HOUR, 'school')
+      tighten(c, 'activeMin', 7 * HOUR, 'school')
       tighten(c, 'walkKm', 10, 'school')
       break
     case 'teen':

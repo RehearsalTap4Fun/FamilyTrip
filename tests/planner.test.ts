@@ -130,7 +130,7 @@ describe('排程引擎：放不下、固定时刻、红黑榜、没有高德', (
     expect(r.unplaced.every(u => !u.candidate.must)).toBe(true)
     expect(r.unplaced[0].candidate.name).toBe('点7')
     expect(r.unplaced[0].reason).toContain('放不下')
-    expect(r.unplaced[0].reason).toMatch(/每天在外 \d+ 小时（两顿饭占 \d+ 分），留给景点 \d+ 分/)
+    expect(r.unplaced[0].reason).toMatch(/每天游玩 \d+ 小时（不含吃饭），留给景点 \d+ 分/)
     const mustOnly = Array.from({ length: 6 }, (_, i) => cand(`必${i}`, P(100.16 + i * 0.01, 25.69), { durationMin: 120, must: true }))
     const r2 = await planTrip(base(1), mustOnly, fake(), { newId })
     expect(r2.unplaced).toEqual([])
@@ -230,7 +230,7 @@ describe('下午别空着', () => {
     }
     return worst
   }
-  const active = (t: Trip, d: number) => t.days[d].stops.reduce((a, s) => a + (s.kind === 'sight' || s.kind === 'food' ? s.durationMin : 0), 0)
+  const active = (t: Trip, d: number) => t.days[d].stops.reduce((a, s) => a + (s.kind === 'sight' ? s.durationMin : 0), 0)
 
   it('两个景点不全挤在上午：午饭后还有一个；等饭点的空档拉长前一个景点；不超过每天游玩上限', async () => {
     const r = await planTrip(base(1), [cand('大理古城', DALI.古城), cand('崇圣寺三塔', DALI.三塔)], fake({ nearby: async (w, at) => (w === 'sight' ? [] : fake().nearby!(w, at)) }), { newId })
@@ -621,5 +621,18 @@ describe('路上的服务区沿真实路线找', () => {
     expect(sas.length).toBeGreaterThan(0)
     expect(sas.every(s => s.name.includes('南侧'))).toBe(true)
     expect(r.trip.days[0].stops.some(s => s.name.includes('建设中'))).toBe(false)
+  })
+})
+
+import { inferDurationMin } from '@core/timeOfDay'
+describe('没给时长的按景点大小估', () => {
+  it('大景区大半天、古镇两个多小时、一座桥一小时；认不出的交给节奏默认', () => {
+    expect(inferDurationMin('都江堰景区')).toBe(180)
+    expect(inferDurationMin('卧龙中华大熊猫苑神树坪基地')).toBe(180)
+    expect(inferDurationMin('灌县古城')).toBe(150)
+    expect(inferDurationMin('灌县古城', undefined, 'evening')).toBe(90)
+    expect(inferDurationMin('南桥')).toBe(60)
+    expect(inferDurationMin('上海迪士尼度假区')).toBe(360)
+    expect(inferDurationMin('某某')).toBeUndefined()
   })
 })

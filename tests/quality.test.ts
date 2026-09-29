@@ -116,7 +116,7 @@ function evaluate(route: Route, trip: Trip, unplacedMust: string[], overloaded =
     const limit = road ? Math.max(c.endBy.value + 30, 21 * 60 + 30) : c.endBy.value + 30
     if (end > limit) hard.push(`${tag} ${fmtHM(end)} 才结束，晚于 ${fmtHM(limit)}`)
     // 游玩时长
-    const active = sl.filter(s => s.stop.kind === 'sight' || s.stop.kind === 'food').reduce((a, s) => a + s.stop.durationMin, 0)
+    const active = sl.filter(s => s.stop.kind === 'sight').reduce((a, s) => a + s.stop.durationMin, 0)
     if (!road && active > c.activeMin.value + 20) hard.push(`${tag} 游玩 ${active} 分，超过上限 ${c.activeMin.value}`)
     // 两顿饭：时间像样、各一顿、隔得开
     const lunch = foods.filter(f => f.start >= 11 * 60 && f.start <= 13 * 60 + 45)
@@ -149,6 +149,11 @@ function evaluate(route: Route, trip: Trip, unplacedMust: string[], overloaded =
         if (gap > 150 && sl[k - 1].end >= 9 * 60 && sl[k].departAt <= 19 * 60) soft.push(`${tag} ${fmtHM(sl[k - 1].end)}–${fmtHM(sl[k].departAt)} 空着 ${gap} 分`)
       }
     }
+    // 下午没景点（14:30–17:00 逛景点不到一小时）：路上、排松一点的那天、下午就回到家的不算
+    const ov = (x: typeof sl[number], lo: number, hi: number) => Math.max(0, Math.min(x.end, hi) - Math.max(x.start, lo))
+    const pmSight = sights.reduce((a, x) => a + ov(x, 14.5 * 60, 17 * 60), 0)
+    const pmMove = sl.filter(x => x.stop.kind === 'drive' || x.stop.kind === 'transit').reduce((a, x) => a + ov(x, 14.5 * 60, 17 * 60), 0) + sl.reduce((a, x) => a + Math.max(0, Math.min(x.start, 17 * 60) - Math.max(x.departAt, 14.5 * 60)), 0)
+    if (!road && !route.lighter?.includes(d) && active < c.activeMin.value - 60 && end >= 17.5 * 60 && pmSight < 60 && pmMove < 75) soft.push(`${tag} 下午没安排景点`)
     // 同一天景点之间来回折返
     // 只算第一个景点到最后一个景点之间（去程、回住处的路不算）
     const i0 = sl.findIndex(s => s.stop.kind === 'sight'), i1 = sl.map(s => s.stop.kind).lastIndexOf('sight')
@@ -184,7 +189,7 @@ describe('排程质检：同行组合 × 路线', () => {
         rows.push(`${v.hard.length ? '✗' : v.soft.length ? '△' : '✓'} ${route.name} · ${pname}${v.hard.length ? '\n    硬：' + v.hard.join('\n    硬：') : ''}${v.soft.length ? '\n    软：' + v.soft.join('\n    软：') : ''}`)
         if (process.env.QUALITY_DUMP) {
           console.log(`\n=== ${route.name} · ${pname} | 加 ${r.extraDaysNeeded} 天 | ${r.notes.join('；')}`)
-          r.trip.days.forEach((d, i) => console.log(`D${i + 1} ` + scheduleDay(d).filter(s => s.stop.kind !== 'drive').map(s => `${fmtHM(s.start)}-${fmtHM(s.end)} ${s.stop.name.slice(0, 12)}`).join(' | ') + ` 〔${fmtHM(scheduleDay(d).slice(-1)[0]?.end ?? 0)}〕`))
+          r.trip.days.forEach((d, i) => console.log(`D${i + 1} ` + scheduleDay(d).filter(s => process.env.QUALITY_DUMP === "all" || s.stop.kind !== "drive").map(s => `${fmtHM(s.start)}-${fmtHM(s.end)} ${s.stop.name.slice(0, 12)}`).join(' | ') + ` 〔${fmtHM(scheduleDay(d).slice(-1)[0]?.end ?? 0)}〕`))
         }
         expect(v.hard).toEqual([])
       })

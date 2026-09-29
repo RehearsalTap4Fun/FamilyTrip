@@ -8,13 +8,13 @@ describe('示波器曲线', () => {
   const day = { startTime: '09:00', stops: [stop('sight', 120), stop('drive', 60), stop('food', 60), stop('rest', 30), stop('sight', 180)] }
   const slots = scheduleDay(day)
 
-  it('只有游玩和吃饭让曲线上升，开车和休息是平的', () => {
+  it('只有逛景点让曲线上升，吃饭、开车和休息是平的', () => {
     const pts = traceOf(slots)
-    expect(pts.map(p => [p.t, p.v])).toEqual([[540, 0], [540, 0], [660, 120], [720, 120], [720, 120], [780, 180], [810, 180], [810, 180], [990, 360]])
+    expect(pts.map(p => [p.t, p.v])).toEqual([[540, 0], [540, 0], [660, 120], [720, 120], [780, 120], [810, 120], [810, 120], [990, 300]])
   })
 
   it('延误把没到的站整体往后推', () => {
-    expect(traceOf(slots, 30).slice(-1)[0]).toMatchObject({ t: 1020, v: 360 })
+    expect(traceOf(slots, 30).slice(-1)[0]).toMatchObject({ t: 1020, v: 300 })
   })
 
   it('打过卡的站按实际时刻画', () => {
@@ -24,10 +24,10 @@ describe('示波器曲线', () => {
 
   it('触发时刻与插值', () => {
     const pts = traceOf(slots)
-    expect(crossing(pts, 300)).toBe(930) // 最后一段 810→990 从 180 升到 360
+    expect(crossing(pts, 240)).toBe(930) // 最后一段 810→990 从 120 升到 300
     expect(crossing(pts, 400)).toBeNull()
     expect(valueAt(pts, 600)).toBe(60)
-    expect(valueAt(pts, 2000)).toBe(360)
+    expect(valueAt(pts, 2000)).toBe(300)
   })
 
   it('最长连续驾驶与规则层口径一致', () => {

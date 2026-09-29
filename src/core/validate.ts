@@ -98,7 +98,7 @@ export function checkDay(trip: Trip, dayIndex: number): Issue[] {
   const outings = slots.filter(s => s.stop.kind !== 'lodging')
   if (outings.length) {
     const last = outings[outings.length - 1].end
-    const active = slots.filter(s => s.stop.kind === 'sight' || s.stop.kind === 'food').reduce((a, s) => a + s.stop.durationMin, 0)
+    const active = slots.filter(s => s.stop.kind === 'sight').reduce((a, s) => a + s.stop.durationMin, 0)
     if (active > c.activeMin.value) {
       const over = active - c.activeMin.value
       push({

@@ -104,8 +104,8 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
   const segs = sightSegments(day.stops)
   const traveledAt = (i: number) => (live ? i < nowIdx : dayIndex < liveDay || (liveDay < 0 && prog.dayIndex >= trip.days.length))
 
-  const played = slots.filter(s => s.stop.status === 'done' && (s.stop.kind === 'sight' || s.stop.kind === 'food')).reduce((a, s) => a + s.stop.durationMin, 0)
-  const planned = slots.filter(s => s.stop.kind === 'sight' || s.stop.kind === 'food').reduce((a, s) => a + s.stop.durationMin, 0)
+  const played = slots.filter(s => s.stop.status === 'done' && s.stop.kind === 'sight').reduce((a, s) => a + s.stop.durationMin, 0)
+  const planned = slots.filter(s => s.stop.kind === 'sight').reduce((a, s) => a + s.stop.durationMin, 0)
   const napWho = c.nap ? whoFor(c.nap.by, dp).join(' ') : ''
   const inNap = (s?: Slot) => !!(c.nap && s && s.departAt < c.nap.to && s.end > c.nap.from)
   let napLabelShown = false

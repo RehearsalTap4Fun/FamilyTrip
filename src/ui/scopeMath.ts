@@ -3,7 +3,8 @@ import { parseHM, type Slot } from '@core/schedule'
 
 export interface TracePoint { t: number; v: number; done: boolean }
 
-const PLAY = (k: string) => k === 'sight' || k === 'food'
+// 游玩只算景点，吃饭是歇着
+const PLAY = (k: string) => k === 'sight'
 
 /**
  * 累计游玩分钟随时间的折线。打过卡的站按实际时刻画，没到的站按当前延误平移——

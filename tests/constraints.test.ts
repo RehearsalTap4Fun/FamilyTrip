@@ -9,7 +9,7 @@ const at = (p: ReturnType<typeof party>, day = 0) => deriveConstraints(partyOnDa
 describe('叠加约束', () => {
   it('两个成人自驾：默认上限，单人驾驶按 5 小时', () => {
     const c = at(party([adult('a1'), adult('a2', { driver: false })]))
-    expect(c.activeMin.value).toBe(600)
+    expect(c.activeMin.value).toBe(480)
     expect(c.driveMin).toEqual({ value: 300, by: 'drive1' })
     expect(c.driveBreakMin.value).toBe(120)
     expect(c.blockers).toEqual([])
@@ -21,7 +21,7 @@ describe('叠加约束', () => {
 
   it('老人 + 幼儿 + 狗：每项取最严，需求取并集，且记下是谁收紧的', () => {
     const c = at(party([adult(), elder(78, { mobility: 'cane' }), kid(2)], 'selfDrive', [dog()]))
-    expect(c.activeMin).toEqual({ value: 360, by: 'elder75', ties: ['toddler'] }) // elder75 先到 360，toddler 同值记为并列
+    expect(c.activeMin).toEqual({ value: 300, by: 'elder75', ties: ['toddler'] }) // elder75 先到 300，toddler 同值记为并列
     expect(c.walkKm).toEqual({ value: 2, by: 'mobCane' })
     expect(c.endBy).toEqual({ value: 20 * 60, by: 'toddler' })
     expect(c.altitudeM).toEqual({ value: 2500, by: 'elder75', ties: ['toddler'] })

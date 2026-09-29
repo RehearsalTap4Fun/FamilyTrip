@@ -15,6 +15,7 @@ import { placeIssues } from './placeIssues'
 import { useToast } from './kit/Toast'
 import { IssueSheet, removeStop, StopSheet } from './StopSheet'
 import { CheckInSheet } from './CheckIn'
+import { BackfillButton } from './Arrival'
 import type { Rating } from '@core/ratings'
 import { CHANNEL_COLORS, crossing, maxDriveRun, phaseOf, traceOf, valueAt, type Phase } from './scopeMath'
 
@@ -250,6 +251,7 @@ export function ScopeToday({ trip, now, demo, onTrip, onRating, onUnrate }: Prop
           )
         })}
       </ol>
+      <BackfillButton trip={trip} dayIndex={dayIndex} live={live} past={dayIndex < liveDay || prog.dayIndex >= trip.days.length} nowMin={nowMin} onTrip={onTrip} />
 
       {nextDay && (
         <button type="button" className="next-sweep" onClick={() => setPicked(dayIndex + 1)}>

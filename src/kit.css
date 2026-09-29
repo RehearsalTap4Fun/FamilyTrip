@@ -500,3 +500,5 @@
 .ci-verdict .rate-key.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--k-surface) inset; }
 .ci-verdict .rate-key.off { opacity: .45; }
 .ci-need { color: var(--warn, #B5580B); }
+.backfill { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 12px; min-height: 56px; }
+.backfill small { font: 500 12px var(--sans); color: var(--ink2); }

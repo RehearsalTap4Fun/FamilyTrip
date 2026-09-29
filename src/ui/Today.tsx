@@ -6,7 +6,7 @@ import { whoFor } from '@core/explain'
 import { cityOf } from '@core/footprint'
 import { partyOnDay } from '@core/party'
 import { checkInPlanned, tripProgress } from '@core/progress'
-import { ArrivalInput } from './Arrival'
+import { ArrivalInput, BackfillButton } from './Arrival'
 import { CheckInSheet } from './CheckIn'
 import type { Rating } from '@core/ratings'
 import { fmtHM, scheduleDay, type Slot } from '@core/schedule'
@@ -238,6 +238,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
           )
         })}
       </ol>
+      <BackfillButton trip={trip} dayIndex={dayIndex} live={live} past={dayIndex < liveDay || prog.dayIndex >= trip.days.length} nowMin={nowMin} onTrip={onTrip} />
 
       </div>
 

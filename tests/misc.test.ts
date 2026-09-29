@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkIn, checkInPlanned, plannedStart, setArrival, tripProgress } from '@core/progress'
+import { backfillDay, checkIn, checkInPlanned, plannedStart, setArrival, tripProgress } from '@core/progress'
 import { aggregate, blacklistHit, rankForParty, type Rating } from '@core/ratings'
 import { cityOf, footprint, provinceOf } from '@core/footprint'
 import { partyOnDay } from '@core/party'
@@ -45,6 +45,21 @@ describe('进度', () => {
     expect(setArrival(t, 'x3', '11:00').days[0].stops[2].actualStart).toBeUndefined()
     expect(checkInPlanned(t, 0, 'x3', 'skipped').days[0].stops[2].actualStart).toBeUndefined()
     expect(() => setArrival(t2, 'x2', '25:99')).toThrow()
+  })
+
+  it('按计划补打卡：已打卡、已跳过的不动；看今天只补计划时间过了的，之前的日子整天补', () => {
+    // 第一天：x1 9:00 打过卡、x2 跳过了（跳过的不占时间），x3 就是 10:00 开始、住处 11:00
+    const t1 = checkIn(checkIn(t, 'x1', '09:20'), 'x2', '10:00', 'skipped')
+    const today = backfillDay(t1, 0, 10 * 60 + 30)
+    expect(today.ids).toEqual(['x3'])
+    const st = today.trip.days[0].stops
+    expect(st.map(s => [s.id, s.status, s.actualStart])).toEqual([['x1', 'done', '09:20'], ['x2', 'skipped', undefined], ['x3', 'done', '10:00'], ['x4', undefined, undefined]])
+    const past = backfillDay(t1, 0)
+    expect(past.ids).toEqual(['x3', 'x4'])
+    expect(past.trip.days[0].stops[3]).toMatchObject({ status: 'done', actualStart: '11:00' })
+    // 都打过了：什么也不补，原样返回
+    expect(backfillDay(past.trip, 0)).toEqual({ trip: past.trip, ids: [] })
+    expect(t.days[0].stops[2].status).toBeUndefined() // 不改原行程
   })
 
   it('跳过也算进度，不修改原行程', () => {

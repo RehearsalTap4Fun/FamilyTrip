@@ -102,3 +102,19 @@ export function setArrival(trip: Trip, stopId: string, at: string): Trip {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(at)) throw new Error(`到达时间看不懂：${at}`)
   return { ...trip, days: trip.days.map(d => ({ ...d, stops: d.stops.map(s => (s.id === stopId && s.status === 'done' ? { ...s, actualStart: at } : s)) })) }
 }
+
+/**
+ * 按计划补打卡（一天休整下来再补）：还没打卡、也没跳过的站，全按各自的计划开始时间记成到了。
+ * 看的是今天就只补计划时间已经过了的（before 是当天分钟数），之前的日子不传 before、整天补。返回补了哪几站
+ */
+export function backfillDay(trip: Trip, dayIndex: number, before?: number): { trip: Trip; ids: string[] } {
+  const d = trip.days[dayIndex]
+  if (!d) return { trip, ids: [] }
+  const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  const at = new Map(scheduleDay(d).filter(sl => !sl.stop.status || sl.stop.status === 'planned').filter(sl => before == null || sl.start <= before).map(sl => [sl.stop.id, hm(sl.start)]))
+  if (!at.size) return { trip, ids: [] }
+  return {
+    trip: { ...trip, days: trip.days.map((x, i) => (i !== dayIndex ? x : { ...x, stops: x.stops.map(s => (at.has(s.id) ? { ...s, status: 'done' as const, actualStart: at.get(s.id) } : s)) })) },
+    ids: [...at.keys()],
+  }
+}

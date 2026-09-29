@@ -10,6 +10,7 @@ import { checkDay, checkTrip, LODGING_PLACEHOLDER, TAG_LABEL } from '@core/valid
 import { uid } from '../store/state'
 import { TripActions } from './TripSwitcher'
 import { HighlightsCard } from './Highlights'
+import { RouteBoard } from './RouteBoard'
 import { dayTitle, driveHours, fmtShort, MODE_LABEL, tintOf } from './format'
 import { StackTable } from './StackTable'
 import { IconDown, IconUp, IconX, LevelMark, PetGlyph, StopSymbol } from './symbols'
@@ -45,6 +46,7 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount, rat
       </header>
       <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
+      <RouteBoard trip={trip} />
 
       <div className="spread">
       <div className="page-l">

@@ -19,6 +19,7 @@ import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
 import { TripActions } from './TripSwitcher'
 import { HighlightsCard } from './Highlights'
+import { RouteBoard } from './RouteBoard'
 import { fillDrives } from '../geo/fillDrives'
 import { useSettings } from './Settings'
 
@@ -89,6 +90,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, trip
       </header>
       <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
+      <RouteBoard trip={trip} />
       <ol className="sweeps">
         {trip.days.map((d, i) => {
           const c = deriveConstraints(partyOnDay(trip.party, i))

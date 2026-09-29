@@ -418,3 +418,37 @@
 .hl-how p { margin: 0; font: 500 14px/1.5 var(--sans); color: var(--ink); }
 .hl-how p span { font: 700 12px var(--sans); color: var(--ink2); margin-right: 8px; }
 .hl-line { margin: 4px 0 0; font: 500 13px/1.45 var(--sans); color: var(--ink2); }
+
+/* ——— 路线图（线索板）：颜色、底板、卡片歪多少都从主题令牌来 ——— */
+.rb { margin: 0 0 12px; padding: 12px 12px 10px; border-radius: calc(var(--k-radius) + 4px); background: var(--k-surface); border: 1px solid var(--k-line); --rb-tilt: 1.2deg; }
+.rb-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.rb-hd b { font: 900 15px var(--sans); color: var(--ink); }
+.rb-days { display: flex; gap: 4px; overflow-x: auto; }
+.rb-days button { min-height: 30px; padding: 0 9px; border-radius: var(--k-pill); border: 1px solid var(--k-line); background: none; font: 700 12px var(--mono, var(--sans)); color: var(--ink2); }
+.rb-days button.on { background: var(--k-accent); border-color: transparent; color: #fff; }
+.rb-board { display: block; width: 100%; height: auto; border-radius: 10px; }
+.rb-bg { fill: var(--lcd, var(--paper)); }
+.rb-prov { fill: color-mix(in srgb, var(--ink) 3%, transparent); stroke: var(--grat-hi, var(--k-line)); stroke-width: 0.8; stroke-dasharray: 3 2; }
+.rb-grid { fill: none; stroke: var(--grat, var(--k-line)); stroke-width: 0.5; opacity: .55; }
+.rb-thread { fill: none; stroke: var(--k-accent); stroke-width: 1.8; stroke-linecap: round; transition: opacity .2s; }
+.rb-thread.hop { stroke-dasharray: 5 4; }
+.rb-thread.dim, .rb-pin-g.dim { opacity: .18; }
+.rb-pin-g { transition: opacity .2s; }
+.rb-pin { fill: var(--k-accent); stroke: var(--k-surface); stroke-width: 1.6; filter: drop-shadow(0 1px 1.2px rgba(0, 0, 0, .3)); }
+.rb-pin.lodge { fill: var(--ink); }
+.rb-n { fill: #fff; font: 800 9px var(--mono, var(--sans)); text-anchor: middle; pointer-events: none; }
+.rb-card { transform-box: fill-box; transform-origin: center; transform: rotate(calc(var(--rb-tilt) * var(--s, 1))); }
+.rb-card rect { fill: var(--k-surface); stroke: var(--k-line); stroke-width: 0.8; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .12)); }
+.rb-card text { fill: var(--ink); font: 700 11px var(--sans); }
+.rb-legend { display: flex; gap: 12px; margin: 6px 2px 0; font: 500 11.5px var(--sans); color: var(--ink2); }
+.rb-legend i { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; background: var(--k-accent); }
+.rb-legend i.dot { border-radius: 50%; }
+.rb-legend i.sq { background: var(--ink); border-radius: 2px; }
+.rb-empty { margin: -2px 2px 12px; }
+/* 博朗：液晶面板上的橙键，卡片几乎不歪；地图册：纸面红线，卡片歪得像钉上去的纸条 */
+:root[data-theme="braun"] .rb { --rb-tilt: 0.6deg; }
+:root[data-theme="atlas"] .rb { --rb-tilt: 2deg; border-radius: 0; border: 2.5px solid var(--ink); }
+:root[data-theme="atlas"] .rb-board { border-radius: 0; }
+:root[data-theme="atlas"] .rb-thread { stroke: var(--hwy); stroke-width: 2; }
+:root[data-theme="atlas"] .rb-pin { fill: var(--hwy); }
+:root[data-theme="atlas"] .rb-card rect { rx: 0; }

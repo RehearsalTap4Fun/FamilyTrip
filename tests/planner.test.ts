@@ -3,7 +3,9 @@ import { noNapNote, planTrip, type Candidate, type NearbyPlace, type PlanTools }
 import { estDriveMin, distanceKm } from '@core/geo'
 import { carryParty, skeletonTrip } from '@core/trips'
 import { checkDay } from '@core/validate'
-import { scheduleDay, parseHM } from '@core/schedule'
+import { scheduleDay, parseHM, fmtHM } from '@core/schedule'
+import { deriveConstraints } from '@core/constraints'
+import { partyOnDay } from '@core/party'
 import type { Poi, Stop, Trip } from '@core/types'
 import { seedTrip } from '../src/data/seed'
 
@@ -471,5 +473,16 @@ describe('转场那天的晚饭', () => {
     const dinner = scheduleDay(r.trip.days[0]).filter(sl => sl.stop.kind === 'food').pop()!
     expect(distanceKm(dinner.stop.poi ?? FAR, FAR)).toBeGreaterThan(50)
     expect(dinner.start).toBeLessThanOrEqual(parseHM('19:30')) // 在路上的服务区吃，不饿到 22 点到店
+  })
+})
+
+describe('回住处晚一点能接受', () => {
+  const at = (end: string): Trip => ({ ...base(1), days: [{ startTime: '17:00', stops: [{ id: 'a', kind: 'sight', name: '古城', durationMin: parseHM(end) - parseHM('17:00'), status: 'planned' }, { id: 'h', kind: 'lodging', name: '客栈', durationMin: 0, status: 'planned' }] }] })
+  const late = (t: Trip) => checkDay(t, 0).some(i => i.code === 'lateReturn')
+  it('比规定晚 30 分钟以内不提醒，再晚就提醒', () => {
+    const endBy = deriveConstraints(partyOnDay(base(1).party, 0)).endBy.value
+    expect(late(at(fmtHM(endBy + 7)))).toBe(false)
+    expect(late(at(fmtHM(endBy + 30)))).toBe(false)
+    expect(late(at(fmtHM(endBy + 31)))).toBe(true)
   })
 })

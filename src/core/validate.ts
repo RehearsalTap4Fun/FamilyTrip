@@ -52,6 +52,9 @@ function napFriendly(s: Slot): boolean {
   return k === 'drive' || k === 'transit' || k === 'rest' || k === 'lodging' || (s.stop.tags ?? []).includes('napOk')
 }
 
+/** 回住处的时间晚这么多分钟以内不提醒 */
+export const LATE_GRACE_MIN = 30
+
 export function checkDay(trip: Trip, dayIndex: number): Issue[] {
   const day = trip.days[dayIndex]
   const dp = partyOnDay(trip.party, dayIndex)
@@ -79,7 +82,8 @@ export function checkDay(trip: Trip, dayIndex: number): Issue[] {
         rules: limitRules(c.activeMin),
       })
     }
-    if (last > c.endBy.value) {
+    // 晚回 30 分钟以内不算（路上堵一会儿、饭吃久一点都会有）
+    if (last > c.endBy.value + LATE_GRACE_MIN) {
       push({ level: 'warn', code: 'lateReturn', short: `${fmtHM(last)} 才回`, message: `${fmtHM(last)} 才结束，${src(c.endBy)}建议 ${fmtHM(c.endBy.value)} 前回住处`, rules: limitRules(c.endBy) })
     }
   }

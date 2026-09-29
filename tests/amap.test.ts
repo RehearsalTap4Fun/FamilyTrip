@@ -68,3 +68,16 @@ describe('按高德补车程', () => {
     expect(asked).toHaveLength(5)
   })
 })
+
+describe('测一下高德 Key', () => {
+  it('格式不对直接说；好用就说好用；高德说无效时带上这台设备填的位数', async () => {
+    const { testAmapKey, searchPlaces, amapPacing } = await import('../src/geo/amap')
+    amapPacing.gapMs = 0
+    expect(await testAmapKey('abc')).toEqual({ ok: false, msg: expect.stringContaining('这里填的有 3 位') })
+    const ok = (async () => ({ json: async () => ({ status: '1', pois: [] }) })) as unknown as typeof fetch
+    expect(await testAmapKey('0123456789abcdef0123456789abcdef', ok)).toEqual({ ok: true })
+    const bad = (async () => ({ json: async () => ({ status: '0', info: 'INVALID_USER_KEY' }) })) as unknown as typeof fetch
+    expect(await testAmapKey('0123456789abcdef0123456789abcdef', bad)).toEqual({ ok: false, msg: expect.stringContaining('有 32 位') })
+    await expect(searchPlaces('x', 'short', { fetchImpl: bad })).rejects.toThrow('这台设备上填的 Key 有 5 位')
+  })
+})

@@ -31,6 +31,8 @@ const ERRORS: Record<string, string> = {
   CUQPS_HAS_EXCEEDED_THE_LIMIT: '请求太快，高德限流了，等几秒再试',
   CKQPS_HAS_EXCEEDED_THE_LIMIT: '请求太快，高德限流了，等几秒再试',
   SERVICE_NOT_AVAILABLE: '高德服务暂时不可用',
+  INVALID_USER_IP: 'Key 设了 IP 白名单，这台设备的网络不在白名单里（浏览器直连时去掉白名单）',
+  INVALID_USER_SIGNATURE: 'Key 开了数字签名，去控制台关掉签名校验',
 }
 
 /**
@@ -60,7 +62,9 @@ async function call(path: string, params: Record<string, string>, key: string, f
       const j = await once(url, f)
       if (j.status === '1') return j
       if (LIMITED.has(j.info) && attempt < amapPacing.retries) { await sleep(amapPacing.backoffMs * (attempt + 1)); continue }
-      throw new AmapError(ERRORS[j.info] ?? `高德返回错误：${j.info}`, j.info)
+      // Key 无效时说一下这台设备上填的有几位：Web服务 Key 是 32 位，少一位多一位一眼就能看出来
+      const lenHint = j.info === 'INVALID_USER_KEY' ? `（这台设备上填的 Key 有 ${key.length} 位，「Web服务」Key 是 32 位的字母数字）` : ''
+      throw new AmapError((ERRORS[j.info] ?? `高德返回错误：${j.info}`) + lenHint, j.info)
     }
   }
   const p = queue.then(run, run)
@@ -119,4 +123,11 @@ export function parseDrive(j: any): Drive | null {
 export async function driveBetween(from: Poi, to: Poi, key: string, fetchImpl: typeof fetch = fetch): Promise<Drive | null> {
   const j = await call('v3/direction/driving', { origin: `${from.lng},${from.lat}`, destination: `${to.lng},${to.lat}`, strategy: '0', extensions: 'base' }, key, fetchImpl)
   return parseDrive(j)
+}
+
+/** 测一下 Key：搜一次「天安门」，能返回结果就算好用 */
+export async function testAmapKey(key: string, fetchImpl: typeof fetch = fetch): Promise<{ ok: true } | { ok: false; msg: string }> {
+  if (!key) return { ok: false, msg: '还没填' }
+  if (!/^[0-9a-f]{32}$/i.test(key)) return { ok: false, msg: `格式不对：「Web服务」Key 是 32 位的字母数字，这里填的有 ${key.length} 位${/\s/.test(key) ? '，还带了空格' : ''}` }
+  try { await searchPlaces('天安门', key, { fetchImpl }); return { ok: true } } catch (e) { return { ok: false, msg: e instanceof AmapError ? e.message : '连不上高德' } }
 }

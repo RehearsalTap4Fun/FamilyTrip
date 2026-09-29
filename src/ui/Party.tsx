@@ -1,6 +1,7 @@
 // 「同行」：平时只看每人一张摘要卡；点卡片从底部拉起面板编辑，面板底部实时写出这样改的影响。
 // 加人分两步：先选身份，再只问这个身份需要的几项。删除不确认，给 5 秒撤销。
 import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { testAmapKey } from '../geo/amap'
 import { deriveConstraints, limitRules } from '@core/constraints'
 import { whoForAll } from '@core/explain'
 import { kidBand, partyOnDay } from '@core/party'
@@ -102,6 +103,7 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
   const n = trip.days.length
   const toast = useToast()
   const [editing, setEditing] = useState<Editing>(null)
+  const [amapTest, setAmapTest] = useState<null | 'busy' | 'ok' | string>(null)
   // 成员 / 宠物面板收起时先播退场，播完再撤
   const [closing, setClosing] = useState(false)
   const edit = (e: Editing) => { setClosing(false); setEditing(e) }
@@ -188,7 +190,11 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
             options={(Object.keys(THEME_LABEL) as Theme[]).map(t => ({ value: t, label: THEME_LABEL[t] }))} />
         </Field>
         <Field label="高德 Key" hint="「Web服务」类型；只存在这台设备上">
-          <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={amapKey} placeholder="用来搜地方、算车程" onChange={e => onAmapKey(e.target.value.trim())} />
+          <div className="key-row">
+            <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={amapKey} placeholder="用来搜地方、算车程" onChange={e => { onAmapKey(e.target.value.replace(/\s/g, '')); setAmapTest(null) }} />
+            <button type="button" className="kbtn" disabled={!amapKey || amapTest === 'busy'} onClick={async () => { setAmapTest('busy'); const r = await testAmapKey(amapKey); setAmapTest(r.ok ? 'ok' : r.msg) }}>{amapTest === 'busy' ? '测…' : '测一下'}</button>
+          </div>
+          {amapTest && amapTest !== 'busy' && <p className={'key-test ' + (amapTest === 'ok' ? 'ok' : 'bad')}>{amapTest === 'ok' ? '好用：能搜地方、算车程' : amapTest}</p>}
         </Field>
         <p className="sheet-note">到高德开放平台（lbs.amap.com）控制台创建应用，添加 Key 时服务平台选「Web服务」。个人开发者每天有免费额度。</p>
         <Field label="AI 排行程用" hint="「让 AI 重排这一天」会用到">

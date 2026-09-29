@@ -455,3 +455,9 @@
 .rb-board { cursor: pointer; }
 .rb-pin-g.tappable { outline: none; }
 .rb-pin-g.tappable:active .rb-pin, .rb-pin-g.tappable:focus-visible .rb-pin { stroke: var(--ink); stroke-width: 2.4; }
+.key-row { display: flex; gap: 8px; }
+.key-row .kinput { flex: 1; min-width: 0; }
+.key-row .kbtn { flex: none; }
+.key-test { margin: 6px 2px 0; font: 600 13px/1.45 var(--sans); }
+.key-test.ok { color: var(--ok, #2E7A3A); }
+.key-test.bad { color: var(--red-ink, var(--red, #B82D1C)); }

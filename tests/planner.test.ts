@@ -442,3 +442,34 @@ describe('午睡排不进去时照实说原因', () => {
     expect(nap[0]).not.toContain('赶路')
   })
 })
+
+describe('转场那天的晚饭', () => {
+  it('逛完还早、晚上要换城市：先开过去，到了在住处附近吃，不在出发地吃完再开夜路', async () => {
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城, { durationMin: 225 }), { id: 'h', name: '丽江的酒店', kind: 'lodging', poi: HOTEL_LJ, day: 0 }],
+      fake({ nearby: async (w, p) => (w === 'sight' ? [] : fake().nearby!(w, p)) }), { newId })
+    const slots = scheduleDay(r.trip.days[0])
+    const dinner = slots.filter(sl => sl.stop.kind === 'food').pop()!
+    const hotel = slots[slots.length - 1]
+    const lastDrive = slots.map(sl => sl.stop.kind).lastIndexOf('drive')
+    expect(slots.indexOf(dinner)).toBeGreaterThan(lastDrive) // 路开完了才吃
+    expect(distanceKm(dinner.stop.poi!, HOTEL_LJ)).toBeLessThan(3)
+    expect(dinner.stop.why).toContain('到了再吃')
+    expect(dinner.start).toBeGreaterThanOrEqual(parseHM('17:00'))
+    expect(hotel.start).toBeLessThanOrEqual(parseHM('20:00'))
+  })
+
+  it('当天就在附近住：晚饭照旧在最后一站附近，不因为这个选项跑去住处吃', async () => {
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城, { durationMin: 120 }), cand('喜洲古镇', DALI.喜洲, { durationMin: 120 }), { id: 'h', name: '大理的酒店', kind: 'lodging', poi: HOTEL_DALI, day: 0 }], fake(), { newId })
+    const dinner = scheduleDay(r.trip.days[0]).filter(sl => sl.stop.kind === 'food').pop()!
+    expect(dinner.stop.why ?? '').not.toContain('到了再吃')
+  })
+
+  it('要开到很晚：晚饭 20:30 前到不了住处，就不等到了再吃（路上服务区或出发前吃）', async () => {
+    const FAR = P(102.71, 25.04) // 昆明，离大理约 260 公里；古城必去，逛完再开就得开到 20:30 以后
+    const r = await planTrip(base(1), [cand('大理古城', DALI.古城, { durationMin: 225, must: true }), { id: 'h', name: '昆明的酒店', kind: 'lodging', poi: FAR, day: 0 }],
+      fake({ nearby: async (w, p) => (w === 'sight' ? [] : fake().nearby!(w, p)) }), { newId })
+    const dinner = scheduleDay(r.trip.days[0]).filter(sl => sl.stop.kind === 'food').pop()!
+    expect(distanceKm(dinner.stop.poi ?? FAR, FAR)).toBeGreaterThan(50)
+    expect(dinner.start).toBeLessThanOrEqual(parseHM('19:30')) // 在路上的服务区吃，不饿到 22 点到店
+  })
+})

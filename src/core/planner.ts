@@ -477,14 +477,21 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       // 最后一天 19:30 前到家：晚饭回家吃
       if (which === 'dinner' && endHere && slots[slots.length - 1].start <= 19 * 60 + 30) { tail.stop = { ...tail.stop, why: '行程终点 · 到家吃晚饭' }; return }
       const endOf = (i: number) => (i === 0 ? startMin : slots.find(sl => sl.stop.id === nodes[i - 1].stop.id)!.end)
-      type Opt = { gap: number; t: number; sa?: { poi?: Poi; name: string; id: string } }
+      type Opt = { gap: number; t: number; sa?: { poi?: Poi; name: string; id: string }; atTail?: boolean }
       const opts2: Opt[] = []
       for (let i = 0; i < nodes.length; i++) opts2.push({ gap: i, t: endOf(i) })
       for (const sl of slots) { const sa = saOf.get(sl.stop.id); if (sa) opts2.push({ gap: sa.gap, t: sl.start, sa: { ...sa, id: sl.stop.id } }) }
+      // 转场那天（最后一站到住处要半小时以上，长途拆成几段开车 + 服务区也算在内）：晚饭还可以先开过去、到了在住处附近吃，按到的时刻算
+      const tailSlot = slots[slots.length - 1]
+      const arrive: Opt | undefined = which === 'dinner' && !endHere && tail.poi && tailSlot.start - endOf(nodes.length - 1) >= 30 ? { gap: nodes.length - 1, t: tailSlot.start, atTail: true } : undefined
+      if (arrive) opts2.push(arrive)
       const inWin = opts2.filter(o => o.t >= lo && o.t <= hi)
-      const gaps = opts2.filter(o => !o.sa)
-      const pool = inWin.length ? inWin : which === 'lunch' ? opts2 : [gaps[gaps.length - 1]]
-      let o = pool.reduce((a, x) => (Math.abs(x.t - target) < Math.abs(a.t - target) ? x : a))
+      const gaps = opts2.filter(o => !o.sa && !o.atTail)
+      // 饭点都不在窗口里：晚饭 20:30 前能到住处就到了再吃，不然在出发前吃
+      const pool = inWin.length ? inWin : which === 'lunch' ? opts2 : [arrive && arrive.t <= 20 * 60 + 30 ? arrive : gaps[gaps.length - 1]]
+      // 窗口里有「到了再吃」就让它占点便宜（抵 30 分钟）：路上服务区吃不如到了找个像样的馆子
+      const off = (x: Opt) => Math.abs(x.t - target) - (x.atTail ? 30 : 0)
+      let o = pool.reduce((a, x) => (off(x) < off(a) ? x : a))
       // 一天有两个以上景点、却全排在午饭前：看要不要把最后一个挪到午饭后（有午睡就在午睡后）。
       // 不挪的代价是午饭吃晚了、挤掉午睡；挪的代价是上午干等（剩下的景点拉不长时）。下午空着的交给后面的「就近补一个」
       if (which === 'lunch' && !o.sa) {
@@ -502,7 +509,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       }
       // 要求在哪附近吃这顿：就在那儿找（车程照实算）
       const anchor = which === 'lunch' ? tw?.lunchNear : tw?.dinnerNear
-      const near = anchor?.poi ?? o.sa?.poi ?? nodes[o.gap - 1]?.poi ?? nodes[o.gap]?.poi ?? lodge?.poi ?? prevNight
+      const near = anchor?.poi ?? o.sa?.poi ?? (o.atTail ? tail.poi : undefined) ?? nodes[o.gap - 1]?.poi ?? nodes[o.gap]?.poi ?? lodge?.poi ?? prevNight
       let food: Node
       if (anchor && !mine.length) {
         progress(`第 ${d + 1} 天在${anchor.name}附近找${label}`)
@@ -520,7 +527,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
         progress(`第 ${d + 1} 天找${label}`)
         const p = near ? await pick('food', near) : undefined
         food = p
-          ? { poi: p.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: p.name, durationMin: pace.mealMin, status: 'planned', poi: p.poi, priority: 3, suggested: true, why: `${label}：离${nodes[o.gap - 1]?.stop.name ?? '住处'}近${p.rating ? ` · 评分 ${p.rating}` : ''}` } }
+          ? { poi: p.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: p.name, durationMin: pace.mealMin, status: 'planned', poi: p.poi, priority: 3, suggested: true, why: o.atTail ? `${label}：到了再吃，离${tail.stop.name}近${p.rating ? ` · 评分 ${p.rating}` : ''}` : `${label}：离${nodes[o.gap - 1]?.stop.name ?? '住处'}近${p.rating ? ` · 评分 ${p.rating}` : ''}` } }
           : { meal: which, stop: { id: opts.newId('s'), kind: 'food', name: `${label}（附近找）`, durationMin: pace.mealMin, status: 'planned', priority: 3, why: '没找到合适的，到时就近' } }
       }
       nodes.splice(o.gap, 0, food)

@@ -7,7 +7,7 @@ import { deriveConstraints, type Constraints } from './constraints'
 import { bestTimeOf } from './timeOfDay'
 import { distanceKm, estDriveMin, estLegMin, LONG_HAUL_KM, longHaul } from './geo'
 import { partyOnDay } from './party'
-import { fmtHM, parseHM, scheduleDay, type Slot } from './schedule'
+import { fmtHM, parseHM, scheduleDay } from './schedule'
 import type { DayTweak, PlanPlace, Poi, Stop, Trip, TripStyle } from './types'
 import { checkDay, LODGING_PLACEHOLDER, type Issue } from './validate'
 
@@ -209,22 +209,6 @@ function splitDays(order: Candidate[], budgets: DayBudget[], pinned: Candidate[]
 interface Node { stop: Stop; poi?: Poi; meal?: 'lunch' | 'dinner' }
 
 const MEAL_AT = { lunch: LUNCH, dinner: DINNER }
-
-/**
- * 午睡怎么排都排不进去时的说明：说清是什么占了午睡时段。
- * 午饭后在路上（开车、坐车）半小时以上 → 赶路；午饭开始得比午睡晚 → 午饭吃得晚；否则就是被景点、吃饭排满了
- */
-export function noNapNote(d: number, slots: Slot[], lunchId: string | undefined, nap: { from: number; to: number }): string {
-  const { from, to } = nap
-  const ov = (a0: number, a1: number) => Math.max(0, Math.min(a1, to) - Math.max(a0, from))
-  const lunch = lunchId ? slots.find(sl => sl.stop.id === lunchId) : undefined
-  const road = slots.filter(sl => !lunch || sl.start >= lunch.start).reduce((a, sl) => a + (sl.stop.kind === 'drive' || sl.stop.kind === 'transit' ? ov(sl.start, sl.end) : ov(sl.departAt, sl.start)), 0)
-  const busyBy = [...new Set(slots.filter(sl => (sl.stop.kind === 'sight' || sl.stop.kind === 'food') && ov(sl.start, sl.end) >= 20).map(sl => sl.stop.name))]
-  const win = `${fmtHM(from)}–${fmtHM(to)}`
-  if (road >= 30) return `第 ${d + 1} 天午饭后就得赶路，${win} 的午睡只能在车上将就`
-  if (lunch && lunch.start > from) return `第 ${d + 1} 天午饭 ${fmtHM(lunch.start)} 才吃，赶不上 ${win} 的午睡；可以饭后找地方补一觉，或者上午少排一点`
-  return `第 ${d + 1} 天 ${win} 排满了${busyBy.length ? `（${busyBy.join('、')}）` : ''}，午睡没地方睡；想睡就删一个点，或者要求这天排松一点`
-}
 
 export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanTools, opts: { origin?: Poi; end?: { name: string; poi: Poi }; newId: (prefix: string) => string }): Promise<PlanResult> {
   const days = trip.days.length
@@ -717,12 +701,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
           if (best) break
         }
         if (best) nodes.splice(0, nodes.length, ...best.list)
-        // 怎么排都睡不够：不硬插一段白白拖长一天的休息，照实说
-        else {
-          saOf.clear()
-          const slots = await timeline(nodes)
-          notes.push(noNapNote(d, slots, nodes.find(x => x.meal === 'lunch')?.stop.id, c.nap))
-        }
+        // 怎么排都睡不够：不硬插一段白白拖长一天的休息；午睡只是建议，不另外提醒
       }
     }
 

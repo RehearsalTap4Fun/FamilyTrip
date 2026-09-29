@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Tag } from '@core/types'
-import { checkDay, checkTrip, worst } from '@core/validate'
+import { checkDay, checkTrip, napMissed, worst } from '@core/validate'
 import { scheduleDay } from '@core/schedule'
 import { adult, dog, elder, kid, party, stop, trip } from './fixtures'
 
@@ -59,13 +59,14 @@ describe('规则检查', () => {
     expect(codes(checkTrip(t))).toContain('driveTooLong')
   })
 
-  it('幼儿午睡：中午排满景点报警，中午回酒店或在车上就不报', () => {
+  it('幼儿午睡只是建议：中午排满景点也不报问题；能不能睡上照样算得出（给排程用）', () => {
     const p = party([adult(), kid(2)])
     const tags = { tags: ['stroller', 'restroom'] as Tag[] }
     const busy = trip(p, [[stop('sight', 180, { ...tags, start: '10:00' }), stop('sight', 180, { ...tags }), stop('lodging', 0)]])
-    expect(codes(checkDay(busy, 0))).toContain('noNap')
+    expect(checkDay(busy, 0).filter(i => i.message.includes('午睡'))).toEqual([])
+    expect(napMissed(busy, 0)).toBe(true)
     const napping = trip(p, [[stop('sight', 150, { ...tags, start: '10:00' }), stop('drive', 90), stop('sight', 90, { ...tags }), stop('lodging', 0)]])
-    expect(codes(checkDay(napping, 0))).not.toContain('noNap')
+    expect(napMissed(napping, 0)).toBe(false)
   })
 
   it('海拔超限是 error', () => {

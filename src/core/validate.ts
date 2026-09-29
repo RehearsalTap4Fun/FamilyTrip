@@ -66,6 +66,22 @@ function napFriendly(s: Slot): boolean {
 /** 回住处的时间晚这么多分钟以内不提醒 */
 export const LATE_GRACE_MIN = 30
 
+/**
+ * 这天午睡时段里能睡多少分钟（路上、休息、住处、空档都算），不够一小时返回 true。
+ * 不再作为提醒报出来（午睡只是建议），留给排程测试确认排程时确实留了午睡
+ */
+export function napMissed(trip: Trip, dayIndex: number): boolean {
+  const day = trip.days[dayIndex]
+  const c = deriveConstraints(partyOnDay(trip.party, dayIndex))
+  if (!day || !c.nap) return false
+  const slots = scheduleDay(day)
+  const { from, to } = c.nap
+  const napTime = slots.reduce((a, s) => a + (napFriendly(s) ? overlapLen(s.start, s.end, from, to) : 0) + overlapLen(s.departAt, s.start, from, to), 0)
+  const busy = slots.reduce((a, s) => a + overlapLen(s.departAt, s.end, from, to), 0)
+  // 窗口里没排东西的空档也能睡
+  return napTime + (to - from - busy) < NAP_NEED_MIN
+}
+
 export function checkDay(trip: Trip, dayIndex: number): Issue[] {
   const day = trip.days[dayIndex]
   const dp = partyOnDay(trip.party, dayIndex)
@@ -141,17 +157,7 @@ export function checkDay(trip: Trip, dayIndex: number): Issue[] {
     }
   }
 
-  // —— 午睡 ——
-  if (c.nap) {
-    const { from, to } = c.nap
-    const napTime = slots.reduce((a, s) => a + (napFriendly(s) ? overlapLen(s.start, s.end, from, to) : 0) + overlapLen(s.departAt, s.start, from, to), 0)
-    const busy = slots.reduce((a, s) => a + overlapLen(s.departAt, s.end, from, to), 0)
-    // 窗口里没排东西的空档也能睡
-    const free = to - from - busy
-    if (napTime + free < NAP_NEED_MIN) {
-      push({ level: 'warn', code: 'noNap', short: '午睡被占', message: `${fmtHM(from)}–${fmtHM(to)} 是${ruleLabel(c.nap.by)}的午睡时间，但这段排满了景点`, rules: [c.nap.by] })
-    }
-  }
+  // 午睡只是建议（排程时尽量留，「今天」页画出时段），不单独报冲突（用户 2026-09-29）
 
   // —— 逐站：海拔、避开项、需求项 ——
   for (const s of slots) {

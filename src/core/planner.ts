@@ -6,7 +6,7 @@ import { deriveConstraints, type Constraints } from './constraints'
 import { distanceKm, estDriveMin } from './geo'
 import { partyOnDay } from './party'
 import { fmtHM, parseHM, scheduleDay } from './schedule'
-import type { PlanPlace, Poi, Stop, Trip, TripStyle } from './types'
+import type { DayTweak, PlanPlace, Poi, Stop, Trip, TripStyle } from './types'
 import { checkDay, LODGING_PLACEHOLDER, type Issue } from './validate'
 
 /** 排程的输入就是行程计划里的地点 */
@@ -203,7 +203,9 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   const notes: string[] = []
   const progress = (m: string) => tools.onProgress?.(m)
   const clampDay = (d?: number) => (d == null ? undefined : Math.max(0, Math.min(days - 1, Math.round(d))))
-  const startMin = parseHM(pace.start)
+  // 按要求对某几天的调整：出发时间、排松一点、饭在哪附近吃
+  const tweakOf = (d: number): DayTweak | undefined => trip.plan?.tweaks?.find(t => t.day === d)
+  const startOf = (d: number) => tweakOf(d)?.start ?? pace.start
 
   const sights = candidates.filter(c => c.kind === 'sight')
   const foods = candidates.filter(c => c.kind === 'food')
@@ -218,8 +220,8 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   if (looseLodging.length === 1 && lodgings.length === 1) for (let d = 0; d < days; d++) night[d] = looseLodging[0]
   // 没住处的晚上：沿用前一晚（多半是连住）；第一晚没有就留空，排完再在附近找
   const budgets = (): DayBudget[] => cons.map((c, d) => ({
-    cap: Math.max(60, c.activeMin.value - 2 * pace.mealMin),
-    span: Math.max(120, c.endBy.value - startMin),
+    cap: Math.max(60, (c.activeMin.value - 2 * pace.mealMin) * (tweakOf(d)?.lighter ? 0.75 : 1)),
+    span: Math.max(120, c.endBy.value - parseHM(startOf(d))),
     from: d === 0 ? opts.origin : night[d - 1]?.poi,
     to: night[d]?.poi,
   }))
@@ -316,6 +318,10 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   for (let d = 0; d < days; d++) {
     progress(`排第 ${d + 1}/${days} 天`)
     const c = cons[d]
+    const tw = tweakOf(d)
+    const startMin = parseHM(startOf(d))
+    // 这天的游玩上限：要求排松一点就打八折
+    const activeCap = c.activeMin.value * (tw?.lighter ? 0.8 : 1)
     const limit = trip.party.mode === 'selfDrive' && Number.isFinite(c.driveBreakMin.value) ? c.driveBreakMin.value : Infinity
     // 今晚住处：指定的，或没指定晚上的候选里离今天的点近的
     let lodge = night[d]
@@ -369,7 +375,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       }
       return out
     }
-    const timeline = async (list: Node[]) => scheduleDay({ startTime: pace.start, stops: await expand(list) })
+    const timeline = async (list: Node[]) => scheduleDay({ startTime: startOf(d), stops: await expand(list) })
 
     // —— 午饭、晚饭：挑最接近饭点的空档；落在路上就在那个服务区吃 ——
     const mine = [...dayFoods[d]]
@@ -404,9 +410,17 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
           if (move < stay) o = alt
         }
       }
-      const near = o.sa?.poi ?? nodes[o.gap - 1]?.poi ?? nodes[o.gap]?.poi ?? lodge?.poi ?? prevNight
+      // 要求在哪附近吃这顿：就在那儿找（车程照实算）
+      const anchor = which === 'lunch' ? tw?.lunchNear : tw?.dinnerNear
+      const near = anchor?.poi ?? o.sa?.poi ?? nodes[o.gap - 1]?.poi ?? nodes[o.gap]?.poi ?? lodge?.poi ?? prevNight
       let food: Node
-      if (mine.length) {
+      if (anchor && !mine.length) {
+        progress(`第 ${d + 1} 天在${anchor.name}附近找${label}`)
+        const p = await pick('food', anchor.poi)
+        food = p
+          ? { poi: p.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: p.name, durationMin: pace.mealMin, status: 'planned', poi: p.poi, priority: 3, suggested: true, why: `按你的要求在${anchor.name}附近吃${p.rating ? ` · 评分 ${p.rating}` : ''}` } }
+          : { poi: anchor.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: `${label}（${anchor.name}附近）`, durationMin: pace.mealMin, status: 'planned', poi: anchor.poi, priority: 3, why: `按你的要求在${anchor.name}附近吃，到时就近找` } }
+      } else if (mine.length) {
         const f = near ? [...mine].sort((a, b) => distanceKm(a.poi, near) - distanceKm(b.poi, near))[0] : mine[0]
         mine.splice(mine.indexOf(f), 1)
         food = { stop: toStop(f), poi: f.poi, meal: which }
@@ -504,15 +518,15 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
           const prev = nodes.find(x => x.stop.id === slots[i - 1].stop.id)
           if (!prev || prev.stop.kind !== 'sight' || fixedDur.has(prev.stop.id)) continue
           const b = baseDur.get(prev.stop.id) ?? prev.stop.durationMin
-          const room = Math.min(wait, b * STRETCH_X - prev.stop.durationMin, STRETCH_MAX - prev.stop.durationMin, c.activeMin.value - activeNow())
+          const room = Math.min(wait, b * STRETCH_X - prev.stop.durationMin, STRETCH_MAX - prev.stop.durationMin, activeCap - activeNow())
           if (room >= 15) { prev.stop = { ...prev.stop, durationMin: prev.stop.durationMin + Math.floor(room / 5) * 5 }; changed = true }
         }
         if (!changed) break
       }
     }
     await stretch()
-    // 补的景点避开午睡：有午睡就从午睡结束后开始；每天最多补两个，全天游玩不超过上限
-    if (tools.nearby) {
+    // 补的景点避开午睡：有午睡就从午睡结束后开始；每天最多补两个，全天游玩不超过上限。要求排松一点的那天不补
+    if (tools.nearby && !tw?.lighter) {
       for (let added = 0; added < 2; added++) {
         saOf.clear()
         const slots = await timeline(nodes)
@@ -522,7 +536,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
         for (let i = Math.max(1, li + 1); i < slots.length && !done; i++) {
           const next = nodes.findIndex(x => x.stop.id === slots[i].stop.id)
           const from = [...nodes.slice(0, next)].reverse().find(x => x.poi)?.poi
-          const left = c.activeMin.value - activeNow()
+          const left = activeCap - activeNow()
           const freeFrom = c.nap && slots[i - 1].end < c.nap.to ? Math.max(slots[i - 1].end, c.nap.to) : slots[i - 1].end
           const avail = slots[i].departAt - freeFrom
           if (avail < 90 || left < 60 || next < 0 || !from) continue
@@ -548,7 +562,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
 
     progress(`第 ${d + 1} 天查车程`)
     saOf.clear()
-    outDays.push({ startTime: pace.start, stops: await expand(nodes) })
+    outDays.push({ startTime: startOf(d), stops: await expand(nodes) })
     prevNight = lodgeNode.poi ?? prevNight
     prevLodge = lodgeNode
   }

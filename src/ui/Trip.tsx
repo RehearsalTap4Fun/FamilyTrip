@@ -1,5 +1,8 @@
 // 「行程」：整趟旅程的总图。每天一格，列出检查出来的问题和当天同行的人；点开一天就地编辑。
 import { useState } from 'react'
+import type { Rating } from '@core/ratings'
+import { ReplanSheet } from './ReplanSheet'
+import { useToast } from './kit/Toast'
 import { inRange } from '@core/party'
 import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, StopKind, StopStatus, Tag, Trip } from '@core/types'
@@ -15,8 +18,10 @@ const TAGS = Object.keys(TAG_LABEL) as Tag[]
 
 interface Props { trip: Trip; onTrip: (t: Trip) => void }
 
-export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount }: Props & { onSwitch: () => void; onNew: () => void; onPlan: () => void; tripCount: number }) {
+export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount, ratings }: Props & { onSwitch: () => void; onNew: () => void; onPlan: () => void; tripCount: number; ratings: Rating[] }) {
   const [open, setOpen] = useState<number | null>(null)
+  const [replanning, setReplanning] = useState<number | null>(null)
+  const toast = useToast()
   const all = checkTrip(trip)
   const errs = all.filter(i => i.level === 'error').length
   const warns = all.filter(i => i.level === 'warn').length
@@ -65,7 +70,7 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount }: P
                   </span>
                 </span>
               </button>
-              {open === i && <div className="mob-only"><DayEditor trip={trip} dayIndex={i} onTrip={onTrip} onRemoved={() => setOpen(null)} /></div>}
+              {open === i && <div className="mob-only"><DayEditor trip={trip} dayIndex={i} onTrip={onTrip} onRemoved={() => setOpen(null)} onReplan={() => setReplanning(i)} /></div>}
             </li>
           )
         })}
@@ -76,7 +81,7 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount }: P
         {open != null && trip.days[open] ? (
           <section className="block">
             <h2>第 {open + 1} 天 · {dayTitle(trip.days[open])}<span>{fmtShort(trip.startDate, open)}</span></h2>
-            <DayEditor trip={trip} dayIndex={open} onTrip={onTrip} onRemoved={() => setOpen(null)} />
+            <DayEditor trip={trip} dayIndex={open} onTrip={onTrip} onRemoved={() => setOpen(null)} onReplan={() => setReplanning(open)} />
           </section>
         ) : (
           <p className="empty">点左边任意一天，在这一页编辑它的站点。</p>
@@ -87,6 +92,10 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, tripCount }: P
         </section>
       </div>
       </div>
+      {replanning != null && (
+        <ReplanSheet open trip={trip} dayIndex={replanning} ratings={ratings} onClose={() => setReplanning(null)}
+          onApply={(t, summary) => { const before = trip; onTrip(t); setReplanning(null); toast(`已按 AI 重排：${summary}`.slice(0, 40), () => onTrip(before)) }} />
+      )}
     </div>
   )
 }
@@ -97,7 +106,7 @@ function num(v: string): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
-export function DayEditor({ trip, dayIndex, onTrip, onRemoved }: Props & { dayIndex: number; onRemoved: () => void }) {
+export function DayEditor({ trip, dayIndex, onTrip, onRemoved, onReplan }: Props & { dayIndex: number; onRemoved: () => void; onReplan?: () => void }) {
   const day = trip.days[dayIndex]
   const [edit, setEdit] = useState<string | null>(null)
   const [newKind, setNewKind] = useState<StopKind>('sight')
@@ -181,6 +190,7 @@ export function DayEditor({ trip, dayIndex, onTrip, onRemoved }: Props & { dayIn
         <button type="button" onClick={add}>加一站</button>
         <button type="button" className="danger" onClick={removeDay} disabled={trip.days.length <= 1}>删掉这一天</button>
       </div>
+      {onReplan && <button type="button" className="kbtn wide replan-btn" onClick={onReplan}>让 AI 重排这一天</button>}
     </div>
   )
 }

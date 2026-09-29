@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { planTrip, type PlanResult } from '@core/planner'
 import type { Rating } from '@core/ratings'
 import { fmtHM, scheduleDay } from '@core/schedule'
-import type { PlanPlace, Poi, Trip } from '@core/types'
+import type { DayTweak, PlanPlace, Poi, Trip } from '@core/types'
 import { cityOf } from '@core/footprint'
 import { AmapError, searchPlaces, type Place } from '../geo/amap'
 import { namesMatch } from '../geo/groundDay'
@@ -16,6 +16,8 @@ import { Field, Segmented, Toggle } from './kit/controls'
 import { Sheet } from './kit/Sheet'
 import { Chip } from './ScopeToday'
 import { GuideImport } from './GuideImport'
+import { applyTweaks, readTweaks } from '../llm/tweakPlan'
+import { LlmError } from '../llm/client'
 import { Recommend } from './Recommend'
 import { useSettings } from './Settings'
 import { LineIcon } from './symbols'
@@ -41,7 +43,7 @@ export function splitNames(text: string): string[] {
 }
 
 export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
-  const { amapKey } = useSettings()
+  const { amapKey, llm } = useSettings()
   const [places, setPlaces] = useState<PlanPlace[]>(trip.plan?.places ?? [])
   const [stage, setStage] = useState<Stage>({ kind: 'list' })
   const [q, setQ] = useState('')
@@ -60,7 +62,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
   useEffect(() => {
     if (!open) return
     setPlaces(trip.plan?.places ?? []); setStage({ kind: 'list' }); setQ(''); setFound({ kind: 'idle' })
-    setBulk(false); setImporting(false); setRecommending(regionFirst); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length)
+    setBulk(false); setImporting(false); setRecommending(regionFirst); setTweaks(trip.plan?.tweaks ?? []); setLastAsk(null); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length)
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 搜索优先在已经加过的点所在城市附近
@@ -91,8 +93,10 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
   }
   const patch = (id: string, p: Partial<PlanPlace>) => setPlaces(ps => ps.map(x => (x.id === id ? { ...x, ...p } : x)))
 
-  const start = async (nDays = days) => {
+  const start = async (nDays = days, over?: { places: PlanPlace[]; tweaks: DayTweak[] }) => {
     const my = ++run.current
+    const usePlaces = over?.places ?? places
+    const useTweaks = over?.tweaks ?? tweaks
     setStage({ kind: 'running', msg: '准备' })
     try {
       // 出发地是文字：先在高德里定位
@@ -101,13 +105,38 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
       const base: Trip = {
         ...trip,
         days: Array.from({ length: nDays }, (_, i) => trip.days[i] ?? { startTime: '09:00', stops: [] }),
-        plan: { flow: 'places', styles: [], ...trip.plan, places },
+        plan: { flow: 'places', styles: [], ...trip.plan, places: usePlaces, tweaks: useTweaks.filter(t => t.day < nDays) },
       }
       const tools = makePlanTools(amapKey, ratings, msg => { if (my === run.current) setStage({ kind: 'running', msg }) })
-      const r = await planTrip(base, places, tools, { origin, newId: uid })
+      const r = await planTrip(base, usePlaces, tools, { origin, newId: uid })
       if (my === run.current) setStage({ kind: 'done', r })
     } catch (e) {
       if (my === run.current) setStage({ kind: 'error', msg: e instanceof AmapError ? e.message : '排程失败：' + (e instanceof Error ? e.message : String(e)) })
+    }
+  }
+  // 写一句要求再排：大模型只把要求翻成调整，排还是交给排程引擎
+  const [tweaks, setTweaks] = useState<DayTweak[]>(trip.plan?.tweaks ?? [])
+  const [lastAsk, setLastAsk] = useState<{ understood: string; done: string[]; skipped: string[] } | null>(null)
+  const reask = async (request: string) => {
+    if (!done || !request.trim()) return
+    const my = ++run.current
+    try {
+      setStage({ kind: 'running', msg: '正在理解你的要求' })
+      const { tweaks: t } = await readTweaks(llm, done.trip, places, request)
+      if (my !== run.current) return
+      setStage({ kind: 'running', msg: '在高德里找地方' })
+      const find = async (name: string, city?: string) => {
+        const list = await searchPlaces(name, amapKey, { city })
+        const hit = list.find(p => namesMatch(name, p.name)) ?? list[0]
+        return hit ? { name: hit.name, poi: hit.poi, area: hit.area } : null
+      }
+      const a = await applyTweaks(t, places, tweaks, done.trip.days.length, find, uid, namesMatch)
+      setPlaces(a.places); setTweaks(a.tweaks)
+      setLastAsk({ understood: t.understood, done: a.done, skipped: a.skipped })
+      if (my !== run.current) return
+      await start(days, { places: a.places, tweaks: a.tweaks })
+    } catch (e) {
+      if (my === run.current) setStage({ kind: 'error', msg: e instanceof LlmError || e instanceof AmapError ? e.message : '按要求重排失败：' + (e instanceof Error ? e.message : String(e)) })
     }
   }
   const close = () => { run.current++; onClose() }
@@ -224,13 +253,17 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
         <div className="replan-wait" aria-live="polite"><i className="replan-dot" aria-hidden="true" /><p>{stage.msg}…</p></div>
       )}
 
-      {done && <PlanResultView r={done} days={days} onMoreDays={n => { setDays(n); start(n) }} />}
+      {done && <PlanResultView r={done} days={days} onMoreDays={n => { setDays(n); start(n) }} canAsk={!!llm.apiKey} lastAsk={lastAsk} onAsk={reask} />}
     </Sheet>
   )
 }
 
-function PlanResultView({ r, days, onMoreDays }: { r: PlanResult; days: number; onMoreDays: (n: number) => void }) {
+function PlanResultView({ r, days, onMoreDays, canAsk, lastAsk, onAsk }: {
+  r: PlanResult; days: number; onMoreDays: (n: number) => void
+  canAsk: boolean; lastAsk: { understood: string; done: string[]; skipped: string[] } | null; onAsk: (text: string) => void
+}) {
   const t = r.trip
+  const [ask, setAsk] = useState('')
   const errs = r.issues.filter(i => i.level === 'error').length
   return (
     <>
@@ -239,6 +272,21 @@ function PlanResultView({ r, days, onMoreDays }: { r: PlanResult; days: number; 
         {r.unplaced.length ? `，${r.unplaced.length} 个放不下` : '，都排进去了'}
       </p>
       <p className="sheet-note">{r.issues.length ? `还有 ${errs ? `${errs} 处必改、` : ''}${r.issues.length - errs} 处留意` : '按同行人的限制查过，没有问题'}{r.notes.length ? ` · ${r.notes.join('；')}` : ''}</p>
+
+      {lastAsk && (
+        <div className="ask-done">
+          <b>按你的要求：{lastAsk.understood}</b>
+          {lastAsk.done.length > 0 && <ul>{lastAsk.done.map(x => <li key={x}>{x}</li>)}</ul>}
+          {lastAsk.skipped.length > 0 && <p>{lastAsk.skipped.join('；')}</p>}
+        </div>
+      )}
+      <div className="ask-box">
+        <Field label="不满意？写一句要求再排" hint={canAsk ? '限制照样守住' : '先填大模型 Key'}>
+          <textarea className="kinput" rows={2} value={ask} onChange={e => setAsk(e.target.value)} disabled={!canAsk}
+            placeholder="比如：第二天晚点出发、排松一点；想在双廊吃晚饭；喜洲挪到第三天；不去拉市海" />
+        </Field>
+        <button type="button" className="kbtn wide" disabled={!canAsk || !ask.trim()} onClick={() => { onAsk(ask); setAsk('') }}>按要求再排</button>
+      </div>
 
       {(r.unplaced.length > 0 || r.extraDaysNeeded > 0) && (
         <div className="plan-unplaced">

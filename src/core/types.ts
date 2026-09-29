@@ -142,6 +142,20 @@ export interface TripPlan {
   origin?: string
   /** 上次排程用的地点，回来改了再排 */
   places?: PlanPlace[]
+  /** 按要求对某几天的调整（「第二天晚点出发、洱海边吃晚饭」），再排时照样生效 */
+  tweaks?: DayTweak[]
+}
+
+/** 对某一天的排法调整：由「写一句要求再排」翻译而来（src/llm/tweakPlan.ts） */
+export interface DayTweak {
+  /** 第几天，从 0 起 */
+  day: number
+  /** 出发时刻 HH:MM */
+  start?: string
+  /** 排松一点：这天的景点额度打七五折，下午空着也不补 */
+  lighter?: boolean
+  lunchNear?: { name: string; poi: Poi }
+  dinnerNear?: { name: string; poi: Poi }
 }
 
 export interface Trip {

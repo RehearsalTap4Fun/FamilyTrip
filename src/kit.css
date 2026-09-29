@@ -394,3 +394,10 @@
 .rec-src { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font: 500 12.5px/1.5 var(--sans); color: var(--ink2); }
 .rec-src a { color: var(--k-accent); text-decoration: underline; text-underline-offset: 2px; }
 .rec-src a small { margin-left: 3px; color: var(--ink2); text-decoration: none; }
+.ask-box { margin: 12px 0; padding: 12px 14px; border-radius: calc(var(--k-radius) + 4px); background: var(--k-panel); display: flex; flex-direction: column; gap: 8px; }
+.ask-done { margin: 12px 0 0; padding: 12px 14px; border-radius: calc(var(--k-radius) + 4px); border: 1px solid var(--k-accent); display: flex; flex-direction: column; gap: 4px; }
+.ask-done b { font: 700 14px var(--sans); color: var(--ink); }
+.ask-done ul { margin: 0; padding-left: 18px; }
+.ask-done li { font: 500 13px/1.5 var(--sans); color: var(--ink2); }
+.ask-done p { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--warn-ink, var(--ink2)); }
+.replan-btn { margin-top: 10px; }

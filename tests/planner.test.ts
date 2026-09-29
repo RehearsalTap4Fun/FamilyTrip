@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { planTrip, type Candidate, type NearbyPlace, type PlanTools } from '@core/planner'
+import { noNapNote, planTrip, type Candidate, type NearbyPlace, type PlanTools } from '@core/planner'
 import { estDriveMin, distanceKm } from '@core/geo'
 import { carryParty, skeletonTrip } from '@core/trips'
 import { checkDay } from '@core/validate'
 import { scheduleDay, parseHM } from '@core/schedule'
-import type { Poi, Trip } from '@core/types'
+import type { Poi, Stop, Trip } from '@core/types'
 import { seedTrip } from '../src/data/seed'
 
 const P = (lng: number, lat: number): Poi => ({ lng, lat, adcode: '530000' })
@@ -396,6 +396,41 @@ describe('起点终点的默认和给模型看的出发地', () => {
 })
 
 describe('午睡排不进去时照实说原因', () => {
+  // 手工搭一天的时间表：[名字, 类型, 开始, 结束, 开车出发时刻]
+  const day = (rows: [string, Stop['kind'], string, string, string?][]) => rows.map(([name, kind, a, b, dep], i) => ({
+    stop: { id: 's' + i, kind, name, durationMin: parseHM(b) - parseHM(a), status: 'planned' as const }, departAt: parseHM(dep ?? a), start: parseHM(a), end: parseHM(b), overlap: false,
+  }))
+  const NAP = { from: parseHM('12:30'), to: parseHM('14:30') }
+
+  it('午饭后接着长途开车：说赶路、车上将就', () => {
+    const slots = day([['古城', 'sight', '09:00', '12:40'], ['午饭', 'food', '12:40', '13:40'], ['开车 → 丽江', 'drive', '13:40', '15:10'], ['客栈', 'lodging', '15:10', '15:10']])
+    expect(noNapNote(0, slots, 's1', NAP)).toBe('第 1 天午饭后就得赶路，12:30–14:30 的午睡只能在车上将就')
+  })
+
+  it('开车过来的路上（站点自带的车程）也算赶路', () => {
+    const slots = day([['古城', 'sight', '09:00', '12:40'], ['午饭', 'food', '12:40', '13:40'], ['双廊', 'sight', '14:30', '16:00', '13:40'], ['客栈', 'lodging', '16:10', '16:10', '16:00']])
+    expect(noNapNote(1, slots, 's1', NAP)).toContain('第 2 天午饭后就得赶路')
+  })
+
+  it('午饭前的路不算：上午开车、午饭吃得晚就说午饭几点才吃', () => {
+    const slots = day([['高铁 → 大理', 'transit', '09:00', '11:35'], ['古城', 'sight', '11:35', '13:05'], ['午饭', 'food', '13:05', '14:05'], ['客栈', 'lodging', '14:20', '14:20', '14:05']])
+    const note = noNapNote(0, slots, 's2', NAP)
+    expect(note).toBe('第 1 天午饭 13:05 才吃，赶不上 12:30–14:30 的午睡；可以饭后找地方补一觉，或者上午少排一点')
+  })
+
+  it('午饭不晚、也不在路上：说午睡时段被哪几个点排满了', () => {
+    const slots = day([['三塔', 'sight', '09:00', '11:30'], ['午饭', 'food', '11:30', '12:30'], ['喜洲', 'sight', '12:30', '14:00'], ['扎染', 'sight', '14:00', '14:25'], ['小店', 'sight', '14:25', '14:40'], ['客栈', 'lodging', '14:50', '14:50', '14:40']])
+    // 在午睡时段里待不到 20 分钟的（小店 14:25–14:30 只占 5 分钟）不点名
+    expect(noNapNote(2, slots, 's1', NAP)).toBe('第 3 天 12:30–14:30 排满了（喜洲、扎染），午睡没地方睡；想睡就删一个点，或者要求这天排松一点')
+  })
+
+  it('一天没有午饭：路上时间从早算起，不在路上就说排满', () => {
+    const drive = day([['开车 → 丽江', 'drive', '11:00', '15:00'], ['客栈', 'lodging', '15:00', '15:00']])
+    expect(noNapNote(0, drive, undefined, NAP)).toContain('赶路')
+    const busy = day([['古城', 'sight', '09:00', '16:00'], ['客栈', 'lodging', '16:00', '16:00']])
+    expect(noNapNote(0, busy, undefined, NAP)).toContain('排满了（古城）')
+  })
+
   it('坐高铁到了接着逛、午饭吃得晚：说午饭几点才吃，不说「午饭后就得赶路」', async () => {
     const t = { ...base(2), party: { ...base(2).party, mode: 'transit' as const } }
     const KUNMING = P(102.712, 25.040)

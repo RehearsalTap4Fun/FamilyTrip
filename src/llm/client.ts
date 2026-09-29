@@ -120,7 +120,12 @@ async function viaDeepSeek<S extends z.ZodType>(apiKey: string, req: StructuredC
     }
     if (res.status === 401 || res.status === 403) throw new LlmError('DeepSeek API Key 无效', 'auth')
     if (res.status === 429) throw new LlmError('DeepSeek 限流了，等一会儿再试', 'rate')
-    if (!res.ok) throw new LlmError(`DeepSeek 返回错误（${res.status}）`, 'other')
+    if (res.status === 402) throw new LlmError('DeepSeek 账户余额不足，去 platform.deepseek.com 充值', 'auth')
+    // 带上接口给的原因，只报状态码没法查
+    if (!res.ok) {
+      const why = await res.json().then((j: { error?: { message?: string } }) => j?.error?.message ?? '').catch(() => '')
+      throw new LlmError(`DeepSeek 返回错误（${res.status}）${why ? '：' + why : ''}`, 'other')
+    }
     return res.json()
   }
   let j = await call(8000)

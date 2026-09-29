@@ -123,3 +123,16 @@ describe('重排这一天：修复轮出错', () => {
     for (const k of ['"stops"', '"summary"', '"why"', '"sight"', '"lodging"']) expect(s).toContain(k)
   })
 })
+
+describe('DeepSeek 报错带上原因', () => {
+  it('400 时把接口给的原因带出来；余额不足直接说', async () => {
+    const { callStructured } = await import('../src/llm/client')
+    const orig = globalThis.fetch
+    try {
+      globalThis.fetch = (async () => ({ ok: false, status: 400, json: async () => ({ error: { message: 'Invalid max_tokens value' } }) })) as unknown as typeof fetch
+      await expect(callStructured({ provider: 'deepseek', apiKey: 'k' }, { system: 's', user: 'u', schema: DayDraftSchema })).rejects.toThrow('DeepSeek 返回错误（400）：Invalid max_tokens value')
+      globalThis.fetch = (async () => ({ ok: false, status: 402, json: async () => ({}) })) as unknown as typeof fetch
+      await expect(callStructured({ provider: 'deepseek', apiKey: 'k' }, { system: 's', user: 'u', schema: DayDraftSchema })).rejects.toThrow('余额不足')
+    } finally { globalThis.fetch = orig }
+  })
+})

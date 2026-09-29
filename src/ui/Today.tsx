@@ -5,7 +5,10 @@ import { deriveConstraints } from '@core/constraints'
 import { whoFor } from '@core/explain'
 import { cityOf } from '@core/footprint'
 import { partyOnDay } from '@core/party'
-import { checkIn, tripProgress } from '@core/progress'
+import { checkInPlanned, tripProgress } from '@core/progress'
+import { ArrivalInput } from './Arrival'
+import { CheckInSheet } from './CheckIn'
+import type { Rating } from '@core/ratings'
 import { fmtHM, scheduleDay, type Slot } from '@core/schedule'
 import type { Stop, Trip } from '@core/types'
 import { checkDay, TAG_LABEL, type Issue } from '@core/validate'
@@ -21,6 +24,8 @@ interface Props {
   now: Date
   demo: boolean
   onTrip: (t: Trip) => void
+  /** 打卡时顺手记的红黑榜 */
+  onRating?: (r: Rating) => void
 }
 
 const PRIORITY = { 1: '必去', 2: '', 3: '可去' } as const
@@ -45,7 +50,8 @@ function Note({ issue, remedy, callout }: Placed & { callout?: boolean }) {
   )
 }
 
-export function Today({ trip, now, demo, onTrip }: Props) {
+export function Today({ trip, now, demo, onTrip, onRating }: Props) {
+  const [checking, setChecking] = useState<Stop | null>(null)
   const prog = tripProgress(trip, now)
   const liveDay = prog.dayIndex >= 0 && prog.dayIndex < trip.days.length ? prog.dayIndex : -1
   const [picked, setPicked] = useState<number | null>(null)
@@ -84,7 +90,8 @@ export function Today({ trip, now, demo, onTrip }: Props) {
   const inNap = (s?: Slot) => !!(c.nap && s && s.departAt < c.nap.to && s.end > c.nap.from)
   let napLabelShown = false
 
-  const act = (stop: Stop, status: 'done' | 'skipped') => onTrip(checkIn(trip, stop.id, fmtHM(nowMin), status))
+  // 「到了」打开打卡面板：到达时间默认按计划（往往是事后补点的），能改；可以顺手记红黑榜。跳过直接跳
+  const act = (stop: Stop, status: 'done' | 'skipped') => (status === 'done' ? setChecking(stop) : onTrip(checkInPlanned(trip, dayIndex, stop.id, status)))
 
   // 经纬度刻在图廓上：取当天有坐标的点
   const lngs = day.stops.map(s => s.poi?.lng).filter((x): x is number => x != null)
@@ -207,7 +214,7 @@ export function Today({ trip, now, demo, onTrip }: Props) {
                   </div>
                   <div className="m">
                     {[
-                      stop.status === 'done' && <span key="d">已打卡{stop.actualStart ? ` ${stop.actualStart}` : ''}</span>,
+                      stop.status === 'done' && <span key="d" className="arrived">已打卡 <ArrivalInput trip={trip} dayIndex={dayIndex} stop={stop} onTrip={onTrip} /></span>,
                       stop.status === 'skipped' && <span key="s">已跳过</span>,
                       !!stop.driveMin && <span key="dr">开车 {stop.driveMin} 分</span>,
                       stop.kind !== 'lodging' && stop.durationMin > 0 && <span key="du">停 {stop.durationMin} 分</span>,
@@ -258,6 +265,8 @@ export function Today({ trip, now, demo, onTrip }: Props) {
       </section>
 
       <Legend c={c} dp={dp} played={played} planned={planned} title={live ? '今日限制' : `第 ${dayIndex + 1} 天限制`} />
+      <CheckInSheet open={!!checking} trip={trip} dayIndex={dayIndex} stop={checking ?? undefined} onClose={() => setChecking(null)}
+        onDone={(t, r) => { onTrip(t); if (r) onRating?.(r); setChecking(null) }} />
     </div>
   )
 }

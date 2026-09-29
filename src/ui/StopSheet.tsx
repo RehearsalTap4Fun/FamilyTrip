@@ -1,5 +1,7 @@
 // 站点面板：「今天」和「行程」共用。第一层只有最常改的——停留多久、开过来多久、优先级、这里有什么；
 // 名称类型、步行海拔、定时开始收在「更多」。底部实时写出当天检查结果的变化。
+import { ArrivalInput } from './Arrival'
+import { plannedStart } from '@core/progress'
 import { useRef, useState } from 'react'
 import { RULES } from '@core/constraints'
 import { whoForAll } from '@core/explain'
@@ -101,6 +103,11 @@ export function StopSheet({ trip, dayIndex, id, onTrip, onClose, onRemove, open 
         </div>
       </>}>
       {s.kind !== 'drive' && <LocationRow s={s} city={dayCities(trip.days[dayIndex])[0]} onPick={p => patch({ name: p.name, poi: p.poi })} />}
+      {s.status === 'done' && (
+        <Field label="几点到的" hint={`打卡时按计划 ${plannedStart(trip, dayIndex, id) ?? ''} 记的，不对就改`}>
+          <ArrivalInput trip={trip} dayIndex={dayIndex} stop={s} onTrip={onTrip} />
+        </Field>
+      )}
       <StopHow s={s} />
       <StopFields s={s} onChange={patch} />
       <details className="more">

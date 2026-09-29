@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react'
 import { deriveConstraints, limitRules, type Limit } from '@core/constraints'
 import { whoFor, whoForAll } from '@core/explain'
 import { partyOnDay } from '@core/party'
-import { checkIn, tripProgress } from '@core/progress'
+import { checkInPlanned, tripProgress } from '@core/progress'
 import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, Trip } from '@core/types'
 import { checkDay, type Issue } from '@core/validate'
@@ -14,9 +14,16 @@ import { dayTitle, fmtShort, routeCode, stripCode } from './format'
 import { placeIssues } from './placeIssues'
 import { useToast } from './kit/Toast'
 import { IssueSheet, removeStop, StopSheet } from './StopSheet'
+import { CheckInSheet } from './CheckIn'
+import type { Rating } from '@core/ratings'
 import { CHANNEL_COLORS, crossing, maxDriveRun, phaseOf, traceOf, valueAt, type Phase } from './scopeMath'
 
-interface Props { trip: Trip; now: Date; demo: boolean; onTrip: (t: Trip) => void }
+interface Props {
+  trip: Trip; now: Date; demo: boolean; onTrip: (t: Trip) => void
+  /** 打卡时顺手记的红黑榜；撤销时按 id 删掉 */
+  onRating?: (r: Rating) => void
+  onUnrate?: (id: string) => void
+}
 
 const W = 350
 const H = 150
@@ -26,7 +33,8 @@ export function Chip({ issue }: { issue: Issue }) {
   return <span className={'chip-lv lv-' + issue.level} title={issue.message}>{issue.short}</span>
 }
 
-export function ScopeToday({ trip, now, demo, onTrip }: Props) {
+export function ScopeToday({ trip, now, demo, onTrip, onRating, onUnrate }: Props) {
+  const [checking, setChecking] = useState<Stop | null>(null)
   const prog = tripProgress(trip, now)
   const liveDay = prog.dayIndex >= 0 && prog.dayIndex < trip.days.length ? prog.dayIndex : -1
   const [picked, setPicked] = useState<number | null>(null)
@@ -82,10 +90,20 @@ export function ScopeToday({ trip, now, demo, onTrip }: Props) {
   const tips = issues.filter(i => i.level === 'tip')
   const next = live ? prog.next : undefined
   const nextSlot = next ? slots.find(s => s.stop.id === next.id) : undefined
+  // 「到了」打开打卡面板：到达时间默认按计划（往往是事后补点的），能改；可以顺手记红黑榜。跳过直接跳
   const act = (stop: Stop, status: 'done' | 'skipped') => {
+    if (status === 'done') { setChecking(stop); return }
     const before = trip
-    onTrip(checkIn(trip, stop.id, fmtHM(nowMin), status))
-    toast(status === 'done' ? `已到 ${stripCode(stop.name)} · ${fmtHM(nowMin)}` : `已跳过 ${stripCode(stop.name)}`, () => onTrip(before))
+    onTrip(checkInPlanned(trip, dayIndex, stop.id, status))
+    toast(`已跳过 ${stripCode(stop.name)}`, () => onTrip(before))
+  }
+  const checked = (t: Trip, r?: Rating) => {
+    const before = trip, stop = checking!
+    onTrip(t)
+    if (r) onRating?.(r)
+    setChecking(null)
+    const at = t.days[dayIndex].stops.find(s => s.id === stop.id)?.actualStart
+    toast(`已到 ${stripCode(stop.name)} · ${at}${r ? ` · 记进${r.verdict === 'red' ? '红' : '黑'}榜` : ''}`, () => { onTrip(before); if (r) onUnrate?.(r.id) })
   }
   const toggle = (id: string) => setOff(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   const shown = (s: typeof slots[number]) => s.stop.status === 'done' && s.stop.actualStart ? s.stop.actualStart : fmtHM(s.start + delay)
@@ -240,6 +258,7 @@ export function ScopeToday({ trip, now, demo, onTrip }: Props) {
         </button>
       )}
 
+      <CheckInSheet open={!!checking} trip={trip} dayIndex={dayIndex} stop={checking ?? undefined} onClose={() => setChecking(null)} onDone={checked} />
       {stopId && <StopSheet trip={trip} dayIndex={dayIndex} id={stopId} onTrip={onTrip} onClose={() => setStopClosing(true)} open={!stopClosing} onExited={() => { setStopId(null); setStopClosing(false) }}
         onRemove={id => { const before = trip; const name = day.stops.find(x => x.id === id)?.name; setStopId(null); onTrip(removeStop(trip, dayIndex, id)); toast(`已删除 ${name}`, () => onTrip(before)) }} />}
       <IssueSheet trip={trip} issue={issue} onClose={() => setIssue(null)} />

@@ -82,3 +82,23 @@ export function checkIn(trip: Trip, stopId: string, at: string, status: 'done' |
     })),
   }
 }
+
+/** 这一站的计划开始时刻（HH:MM）；找不到就返回 undefined */
+export function plannedStart(trip: Trip, dayIndex: number, stopId: string): string | undefined {
+  const d = trip.days[dayIndex]
+  const sl = d ? scheduleDay(d).find(s => s.stop.id === stopId) : undefined
+  return sl ? `${String(Math.floor(sl.start / 60)).padStart(2, '0')}:${String(sl.start % 60).padStart(2, '0')}` : undefined
+}
+
+/**
+ * 打卡默认按计划时间记（点「到了」往往是事后补点的，按点击那一刻记会把延误算错）；实际几点到的可以再改（setArrival）
+ */
+export function checkInPlanned(trip: Trip, dayIndex: number, stopId: string, status: 'done' | 'skipped' = 'done'): Trip {
+  return checkIn(trip, stopId, plannedStart(trip, dayIndex, stopId) ?? '09:00', status)
+}
+
+/** 手动改到达时间（已打卡的站） */
+export function setArrival(trip: Trip, stopId: string, at: string): Trip {
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(at)) throw new Error(`到达时间看不懂：${at}`)
+  return { ...trip, days: trip.days.map(d => ({ ...d, stops: d.stops.map(s => (s.id === stopId && s.status === 'done' ? { ...s, actualStart: at } : s)) })) }
+}

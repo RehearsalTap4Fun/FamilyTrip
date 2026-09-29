@@ -104,3 +104,23 @@ export function blacklistHit(stop: { kind: StopKind; name: string; poi?: Poi; ho
   const key = placeKey({ kind, name: stop.name, city, poi: stop.poi })
   return list.find(v => v.key === key && v.verdict === 'black')
 }
+
+/** 这一站能不能上红黑榜（吃、住、玩；开车、坐车、回家不算） */
+export function stopRatingKind(stop: { kind: StopKind; home?: boolean }): RatingKind | undefined {
+  return stop.home ? undefined : STOP_TO_RATING[stop.kind]
+}
+
+/**
+ * 打卡时顺手记一笔红榜或黑榜：理由必须写（一句话就行），没写就不记。
+ * 地方按站点的高德 id 对齐（没有就按城市 + 名字），带上这趟的人群标签
+ */
+export function ratingFromStop(
+  stop: { kind: StopKind; name: string; poi?: Poi; home?: boolean },
+  verdict: Verdict, note: string,
+  o: { id: string; at: number; by: string; tripId?: string; city?: string; fit?: FitTag[] },
+): Rating | null {
+  const kind = stopRatingKind(stop)
+  const why = note.trim()
+  if (!kind || !why) return null
+  return { id: o.id, kind, name: stop.name, ...(o.city ? { city: o.city } : {}), ...(stop.poi ? { poi: stop.poi } : {}), verdict, note: why, ...(o.fit?.length ? { fit: o.fit } : {}), by: o.by, ...(o.tripId ? { tripId: o.tripId } : {}), at: o.at }
+}

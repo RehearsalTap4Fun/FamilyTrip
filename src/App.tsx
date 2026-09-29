@@ -103,6 +103,9 @@ function AppInner() {
   const trip = currentTrip(state)
   const onTrip = (t: Trip) => setState(s => withTrip(s, t))
   const onRatings = (ratings: Rating[]) => setState(s => ({ ...s, ratings }))
+  // 打卡时顺手记的一条红黑榜
+  const onRating = (r: Rating) => setState(s => ({ ...s, ratings: [r, ...s.ratings] }))
+  const onUnrate = (id: string) => setState(s => ({ ...s, ratings: s.ratings.filter(r => r.id !== id) }))
   const liveDay = tripProgress(trip, now).dayIndex
   const [switching, setSwitching] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -127,7 +130,7 @@ function AppInner() {
     <div className="app">
       <main className="sheet" key={tab}>
         <div className="sheet-body">
-          {tab === 'today' && (device ? <ScopeToday trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} /> : <Today trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} />)}
+          {tab === 'today' && (device ? <ScopeToday trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} onRating={onRating} onUnrate={onUnrate} /> : <Today trip={trip} now={now} demo={!!state.demoNow} onTrip={onTrip} onRating={onRating} />)}
           {tab === 'trip' && (device ? <ScopeTrip trip={trip} onTrip={onTrip} ratings={state.ratings} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} onSetup={() => setSettingUp(true)} tripCount={state.trips.length} /> : <TripPage trip={trip} onTrip={onTrip} onSwitch={() => setSwitching(true)} onNew={() => setCreating(true)} onPlan={() => setPlanning(true)} onSetup={() => setSettingUp(true)} tripCount={state.trips.length} ratings={state.ratings} />)}
           {tab === 'party' && <FamilyPage roster={roster} onRoster={onRoster} trips={state.trips} now={now} home={state.home} onHome={h => setState(s => ({ ...s, home: h }))}
             onTrips={ts => setState(s => ({ ...s, trips: s.trips.map(t => ts.find(x => x.id === t.id) ?? t) }))} onSettings={() => setSettingsOpen(true)} />}

@@ -486,3 +486,17 @@
 .plan-who span { flex: 1; min-width: 0; }
 .plan-who small { flex-shrink: 0; font: 700 12.5px var(--sans); color: var(--k-accent); }
 .nt-pick { margin-top: -4px; }
+
+/* ——— 到达时间：已打卡的站点一下就能改 ——— */
+.arrive-in { font: inherit; font-variant-numeric: tabular-nums; color: inherit; background: transparent; border: 0; border-bottom: 1px dashed currentColor; border-radius: 0; padding: 0 1px; min-height: 28px; cursor: pointer; }
+.arrive-in::-webkit-calendar-picker-indicator { display: none; }
+.kfield .arrive-in { font: 700 18px var(--sans); min-height: 44px; border: 1px solid var(--k-line); border-radius: var(--k-radius); padding: 0 12px; background: var(--k-surface); color: var(--ink); }
+.arrived { white-space: nowrap; }
+
+/* ——— 打卡面板 ——— */
+.arrive-pick { font: 700 20px var(--sans); max-width: 180px; }
+.ci-verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ci-verdict .rate-key { min-height: 64px; border: 3px solid transparent; }
+.ci-verdict .rate-key.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--k-surface) inset; }
+.ci-verdict .rate-key.off { opacity: .45; }
+.ci-need { color: var(--warn, #B5580B); }

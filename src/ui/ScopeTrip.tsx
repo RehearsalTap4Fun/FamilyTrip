@@ -5,7 +5,7 @@ import { deriveConstraints } from '@core/constraints'
 import { inRange, partyOnDay } from '@core/party'
 import { fmtHM, parseHM, scheduleDay } from '@core/schedule'
 import type { Trip } from '@core/types'
-import { checkDay, checkTrip, LODGING_PLACEHOLDER, type Issue } from '@core/validate'
+import { checkDay, checkTrip, type Issue } from '@core/validate'
 import { uid } from '../store/state'
 import { dayTitle, driveHours, fmtShort, MODE_LABEL, routeCode, stripCode } from './format'
 import { Stepper } from './kit/controls'
@@ -18,6 +18,7 @@ import { AmapError, driveBetween } from '../geo/amap'
 import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
 import { PlanButton, TripBar } from './TripSwitcher'
+import { resizeDays } from '@core/trips'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
@@ -58,7 +59,8 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSe
   const warns = all.filter(i => i.level === 'warn').length
 
   const addDay = () => {
-    onTrip({ ...trip, days: [...trip.days, { startTime: '09:00', stops: [{ id: uid('s'), kind: 'lodging', name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' }] }] })
+    // 和「这趟」里改天数同一套：补一天住处占位，排这趟存着的旧天数作废
+    onTrip(resizeDays(trip, trip.days.length + 1, uid).trip)
     setOpen(trip.days.length)
   }
   const removeDay = (i: number) => {

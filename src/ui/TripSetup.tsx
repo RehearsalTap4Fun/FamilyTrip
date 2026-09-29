@@ -4,6 +4,8 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { deriveConstraints } from '@core/constraints'
 import { partyOnDay } from '@core/party'
 import type { Roster } from '@core/roster'
+import { resizeDays } from '@core/trips'
+import { uid } from '../store/state'
 import type { Member, Party, Pet, Trip } from '@core/types'
 import { endsLine } from './Endpoints'
 import { fmtShort, MODE_LABEL } from './format'
@@ -94,6 +96,15 @@ export function TripSetupSheet({ open, trip, onTrip, roster, onRoster, onClose, 
         <div className="settings">
           <Field label="名称"><input className="kinput" value={trip.title} onChange={e => onTrip({ ...trip, title: e.target.value })} /></Field>
           <Field label="出发日期"><input className="kinput" type="date" value={trip.startDate} onChange={e => e.target.value && onTrip({ ...trip, startDate: e.target.value })} /></Field>
+          <Field label="玩几天" hint={`${fmtShort(trip.startDate, 0)}–${fmtShort(trip.startDate, n - 1)}`}>
+            <Stepper label="天数" value={n} min={1} max={30} format={v => `${v} 天`} onChange={v => {
+              // 加的补在后面；减的从最后往前删，删到排了东西的天就提示，能撤销
+              const before = trip
+              const r = resizeDays(trip, v, uid)
+              onTrip(r.trip)
+              if (r.removedStops) toast(`删掉了最后 ${n - v} 天，里面的 ${r.removedStops} 站也一起删了`, () => onTrip(before))
+            }} />
+          </Field>
           {/* 演示时间只对示例行程生效：自己建的行程永远按真实时间 */}
           {trip.sample && <Toggle on={!!demoNow} onChange={v => onDemoNow(v ? `${trip.startDate}T10:00` : null)} label="演示时间" hint="示例行程用一个假的「现在」看旅途中的样子" />}
           {trip.sample && demoNow && <input className="kinput" type="datetime-local" value={demoNow} onChange={e => onDemoNow(e.target.value || null)} aria-label="演示时间" />}

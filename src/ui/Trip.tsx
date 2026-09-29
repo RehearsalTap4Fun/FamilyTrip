@@ -7,9 +7,10 @@ import { useToast } from './kit/Toast'
 import { inRange } from '@core/party'
 import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, StopKind, StopStatus, Tag, Trip } from '@core/types'
-import { checkDay, checkTrip, LODGING_PLACEHOLDER, TAG_LABEL } from '@core/validate'
+import { checkDay, checkTrip, TAG_LABEL } from '@core/validate'
 import { uid } from '../store/state'
 import { PlanButton, TripBar } from './TripSwitcher'
+import { resizeDays } from '@core/trips'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
@@ -35,7 +36,8 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, onSetup, tripC
   const last = trip.days.length - 1
 
   const addDay = () => {
-    onTrip({ ...trip, days: [...trip.days, { startTime: '09:00', stops: [{ id: uid('s'), kind: 'lodging', name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' }] }] })
+    // 和「这趟」里改天数同一套：补一天住处占位，排这趟存着的旧天数作废
+    onTrip(resizeDays(trip, trip.days.length + 1, uid).trip)
     setOpen(trip.days.length)
   }
 

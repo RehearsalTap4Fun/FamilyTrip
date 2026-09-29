@@ -103,3 +103,18 @@ export function carryParty(from: Party | undefined, keepIds: Set<string>): Party
     pets: from.pets.filter(p => keepIds.has(p.id)).map(strip),
   }
 }
+
+/**
+ * 改天数：加的天补在后面（一个住处占位，和新建时一样）；减的天从最后往前删。
+ * 排这趟里存着的旧天数、排好没采用的结果都作废（按新天数再排）。返回新行程和删掉了几站（给撤销提示用）
+ */
+export function resizeDays(trip: Trip, n: number, newId: (prefix: string) => string): { trip: Trip; removedStops: number } {
+  const days = Math.max(1, Math.min(30, Math.round(n)))
+  if (days === trip.days.length) return { trip, removedStops: 0 }
+  const removedStops = trip.days.slice(days).reduce((a, d) => a + d.stops.filter(s => !(s.kind === 'lodging' && s.name === LODGING_PLACEHOLDER && !s.poi)).length, 0)
+  const next = days < trip.days.length ? trip.days.slice(0, days)
+    : [...trip.days, ...Array.from({ length: days - trip.days.length }, () => ({ startTime: '09:00', stops: [{ id: newId('s'), kind: 'lodging' as const, name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' as const }] }))]
+  const draft = trip.plan?.draft
+  const plan = trip.plan ? { ...trip.plan, ...(draft ? { draft: { ...draft, days: undefined, result: undefined } } : {}), ...(trip.plan.tweaks ? { tweaks: trip.plan.tweaks.filter(t => t.day < days) } : {}) } : undefined
+  return { trip: { ...trip, days: next, ...(plan ? { plan } : {}) }, removedStops }
+}

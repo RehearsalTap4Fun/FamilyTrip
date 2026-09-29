@@ -105,3 +105,25 @@ describe('新建后的空行程', () => {
     expect(issues.find(i => i.code.startsWith('need:'))?.message).toContain('还没定住处')
   })
 })
+
+describe('改天数', () => {
+  it('加的天补在后面、带住处占位；减的从最后删，数出删了几站；排好没采用的作废', async () => {
+    const { resizeDays, skeletonTrip, carryParty } = await import('@core/trips')
+    let k = 0
+    const id = (p: string) => p + ++k
+    const t0 = skeletonTrip({ title: 't', startDate: '2026-11-01', days: 2, mode: 'selfDrive', party: carryParty(undefined, new Set()), flow: 'places', styles: [] }, id)
+    const t = { ...t0, days: [t0.days[0], { ...t0.days[1], stops: [{ id: 'x', kind: 'sight' as const, name: '古城', durationMin: 60 }, ...t0.days[1].stops] }],
+      plan: { ...t0.plan!, tweaks: [{ day: 1, lighter: true }], draft: { days: 2, result: { days: [], plan: t0.plan!, unplaced: [], extraDaysNeeded: 0, notes: [], at: '' }, recs: { region: '大理', wishes: '', at: '', data: {} } } } }
+    const up = resizeDays(t, 4, id)
+    expect(up.trip.days).toHaveLength(4)
+    expect(up.trip.days[3].stops).toMatchObject([{ kind: 'lodging', name: '住处' }])
+    expect(up.removedStops).toBe(0)
+    expect(up.trip.plan!.draft).toMatchObject({ days: undefined, result: undefined, recs: { region: '大理' } })
+    const down = resizeDays(t, 1, id)
+    expect(down.trip.days).toHaveLength(1)
+    expect(down.removedStops).toBe(1) // 删掉的那天有一个景点（住处占位不算）
+    expect(down.trip.plan!.tweaks).toEqual([])
+    expect(resizeDays(t, 0, id).trip.days).toHaveLength(1)
+    expect(resizeDays(t, 2, id).trip).toBe(t)
+  })
+})

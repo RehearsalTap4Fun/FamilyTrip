@@ -134,6 +134,32 @@ export async function driveBetween(from: Poi, to: Poi, key: string, fetchImpl: t
   return parseDrive(j)
 }
 
+/** 一条真实路线：总用时，和沿途的点（每个点记着从起点开到这要几分钟） */
+export interface RoutePath { minutes: number; points: { lng: number; lat: number; t: number }[] }
+
+/**
+ * 驾车路线带沿途坐标（extensions=all）：长途拆成几天时，按真实路线找「开到第 8 小时在哪」。
+ * 每段（step）的用时按它的折线点数平均摊开
+ */
+export function parseRoute(j: any): RoutePath | null {
+  const p = j.route?.paths?.[0]
+  if (!p) return null
+  const points: RoutePath['points'] = []
+  let t = 0
+  for (const st of p.steps ?? []) {
+    const seg = String(st.polyline ?? '').split(';').filter(Boolean).map((x: string) => x.split(',').map(Number)).filter((x: number[]) => x.length === 2 && x.every(Number.isFinite))
+    const dur = Number(st.duration) / 60 || 0
+    seg.forEach(([lng, lat]: number[], i: number) => points.push({ lng, lat, t: t + (seg.length > 1 ? (dur * i) / (seg.length - 1) : 0) }))
+    t += dur
+  }
+  return { minutes: Math.round(Number(p.duration) / 60), points }
+}
+
+export async function drivePath(from: Poi, to: Poi, key: string, fetchImpl: typeof fetch = fetch): Promise<RoutePath | null> {
+  const j = await call('v3/direction/driving', { origin: `${from.lng},${from.lat}`, destination: `${to.lng},${to.lat}`, strategy: '0', extensions: 'all' }, key, fetchImpl)
+  return parseRoute(j)
+}
+
 /** 测一下 Key：搜一次「天安门」，能返回结果就算好用 */
 export async function testAmapKey(key: string, fetchImpl: typeof fetch = fetch): Promise<{ ok: true } | { ok: false; msg: string }> {
   if (!key) return { ok: false, msg: '还没填' }

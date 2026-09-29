@@ -2,6 +2,7 @@
 // 正文来自用户粘贴，或服务器按用户贴的链接代取（server/api-server.mjs）。只提炼原文里有的，不编。
 import { z } from 'zod'
 import { deriveConstraints } from '@core/constraints'
+import { bestTimeOf } from '@core/timeOfDay'
 import { partyOnDay } from '@core/party'
 import type { PlanPlace, Trip } from '@core/types'
 import { callStructured, cut, type LlmConfig, type StructuredCall, type StructuredResult, type Usage } from './client'
@@ -19,6 +20,7 @@ export const GuideSchema = z.object({
     durationMin: z.number().int().nullable().catch(null).describe('建议停留多久（分钟）：原文说了按原文，没说按一般游客估；大景区里的小景点一般 15–40 分钟'),
     area: z.string().nullable().catch(null).describe('它属于哪个大景区（例如伏龙观、宝瓶口属于「都江堰景区」，上清宫、天师洞属于「青城山前山」）；本身就是一个独立景点填 null'),
     note: z.string().describe('原文怎么说这个地方，20 字以内'),
+    bestTime: z.enum(['morning', 'day', 'evening']).nullable().optional().catch(null).describe('最佳时段：看夜景、夜市、灯光、日落的写 evening；看日出、赶早市、要趁早人少的写 morning；白天都行写 day'),
     avoid: z.string().nullable().describe('明显不适合这群人时写原因（20 字以内）：超过他们的限制（海拔、步行、驾驶）、刺激项目、禁止带宠物等。例如「海拔 4680 米，超过外婆的上限」；没有填 null'),
     caution: z.string().nullable().describe('能去但要留意的小事（20 字以内），例如「石板路推车不方便」；没有填 null'),
   })),
@@ -102,6 +104,8 @@ export async function resolveGuide(guide: Guide, tripDays: number, search: (keyw
       why: '园内按这个顺序：' + list.map(p => p.name.replace(area, '').replace(/^[-·\s]+/, '') || p.name).join(' → '),
       note: `含 ${list.length} 处：${list.map(p => p.name.replace(area, '').replace(/^[-·\s]+/, '') || p.name).join('、')}`,
       parts: list.map(p => p.name),
+      // 园区里有要晚上看的（例如古城夜景），整个园区按晚上排
+      ...(list.map(p => bestTimeOf(p.bestTime, p.note)).find(Boolean) ? { bestTime: list.map(p => bestTimeOf(p.bestTime, p.note)).find(Boolean) } : {}),
       ...(list.find(p => p.avoid)?.avoid ? { avoid: list.find(p => p.avoid)!.avoid! } : {}),
       ...(list.find(p => p.caution)?.caution ? { caution: list.find(p => p.caution)!.caution! } : {}),
     })
@@ -122,6 +126,7 @@ export async function resolveGuide(guide: Guide, tripDays: number, search: (keyw
       ...(keepDays && p.day != null && p.day >= 1 ? { prefDay: Math.min(tripDays, p.day) - 1 } : {}),
       ...(p.durationMin && p.durationMin > 0 ? { durationMin: Math.min(480, p.durationMin) } : {}),
       note: p.note, ...(p.avoid ? { avoid: p.avoid } : {}), ...(p.caution ? { caution: p.caution } : {}),
+      ...(p.kind === 'sight' && bestTimeOf(p.bestTime, p.note) ? { bestTime: bestTimeOf(p.bestTime, p.note) } : {}),
     })
   }
   return { places, missing }

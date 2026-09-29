@@ -89,10 +89,12 @@ describe('规则检查', () => {
     expect(checkTrip(t).map(i => [i.code, i.level])).toEqual([['need:petOk', 'warn']])
   })
 
-  it('吃饭站点才要儿童餐', () => {
-    const t = trip(party([adult(), kid(4)], 'transit'), [[stop('sight', 60, { tags: ['restroom'] }), stop('food', 60, { tags: ['restroom'] })]])
-    const kidMenu = checkTrip(t).filter(i => i.code === 'need:kidMenu')
-    expect(kidMenu.map(i => i.stopId)).toEqual([t.days[0].stops[1].id])
+  it('只提醒真正容易出问题的：推车、厕所、儿童餐这类大多有，不标待核；带宠物的景点、住处照样问', () => {
+    const t = trip(party([adult(), kid(2), elder(72)], 'transit', [dog()]), [[stop('sight', 60), stop('food', 60), stop('lodging', 0)]])
+    const codes = (i: number) => checkTrip(t).filter(x => x.stopId === t.days[0].stops[i].id && x.code.startsWith('need:')).map(x => x.code).sort()
+    expect(codes(0)).toEqual(['need:petOk'])
+    expect(codes(1)).toEqual([]) // 饭店不问儿童餐、厕所、软烂、带狗
+    expect(codes(2)).toEqual(['need:elevator', 'need:petOk'])
   })
 
   it('跟团带狗：每天都有 blocker', () => {

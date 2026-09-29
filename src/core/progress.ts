@@ -1,5 +1,5 @@
 // 单次旅程进度：今天第几天、到哪一站了、比计划慢了多少、慢了该砍什么。
-import { parseHM, scheduleDay } from './schedule'
+import { fmtHM, parseHM, scheduleDay } from './schedule'
 import type { Stop, Trip } from './types'
 
 export interface Progress {
@@ -87,7 +87,7 @@ export function checkIn(trip: Trip, stopId: string, at: string, status: 'done' |
 export function plannedStart(trip: Trip, dayIndex: number, stopId: string): string | undefined {
   const d = trip.days[dayIndex]
   const sl = d ? scheduleDay(d).find(s => s.stop.id === stopId) : undefined
-  return sl ? `${String(Math.floor(sl.start / 60)).padStart(2, '0')}:${String(sl.start % 60).padStart(2, '0')}` : undefined
+  return sl ? fmtHM(sl.start) : undefined
 }
 
 /**
@@ -110,8 +110,7 @@ export function setArrival(trip: Trip, stopId: string, at: string): Trip {
 export function backfillDay(trip: Trip, dayIndex: number, before?: number): { trip: Trip; ids: string[] } {
   const d = trip.days[dayIndex]
   if (!d) return { trip, ids: [] }
-  const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
-  const at = new Map(scheduleDay(d).filter(sl => !sl.stop.status || sl.stop.status === 'planned').filter(sl => before == null || sl.start <= before).map(sl => [sl.stop.id, hm(sl.start)]))
+  const at = new Map(scheduleDay(d).filter(sl => !sl.stop.status || sl.stop.status === 'planned').filter(sl => before == null || sl.start <= before).map(sl => [sl.stop.id, fmtHM(sl.start)]))
   if (!at.size) return { trip, ids: [] }
   return {
     trip: { ...trip, days: trip.days.map((x, i) => (i !== dayIndex ? x : { ...x, stops: x.stops.map(s => (at.has(s.id) ? { ...s, status: 'done' as const, actualStart: at.get(s.id) } : s)) })) },

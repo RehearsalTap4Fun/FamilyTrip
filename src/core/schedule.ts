@@ -1,16 +1,21 @@
 // 把一天的行程点排成具体时刻。规则层、进度跟进都基于排好的时刻，不直接读 stop.start。
 import type { Day, Stop } from './types'
 
+/** HH:MM；过了半夜的写成「次日 01:10」「+2天 01:10」（fmtHM 的写法），也认 */
 export function parseHM(s: string): number {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim())
+  const m = /^(?:(次日)|\+(\d+)天)?\s*(\d{1,2}):(\d{2})$/.exec(s.trim())
   if (!m) throw new Error(`时间格式应为 HH:MM：${s}`)
-  return Number(m[1]) * 60 + Number(m[2])
+  const days = m[1] ? 1 : m[2] ? Number(m[2]) : 0
+  return days * 1440 + Number(m[3]) * 60 + Number(m[4])
 }
 
+/** 当天分钟数 → HH:MM；过了半夜不写成 25:10，写「次日 01:10」（再往后「+2天 01:10」） */
 export function fmtHM(min: number): string {
-  const h = Math.floor(min / 60)
-  const m = Math.round(min % 60)
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const total = Math.round(min)
+  const days = Math.floor(total / 1440)
+  const r = total - days * 1440
+  const hm = `${String(Math.floor(r / 60)).padStart(2, '0')}:${String(r % 60).padStart(2, '0')}`
+  return days <= 0 ? hm : days === 1 ? `次日 ${hm}` : `+${days}天 ${hm}`
 }
 
 /** 这个站点贡献的驾驶分钟：drive 站点是它本身，其他站点是「开过来」那段 */

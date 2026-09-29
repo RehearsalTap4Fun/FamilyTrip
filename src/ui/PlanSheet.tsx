@@ -7,6 +7,7 @@ import type { Rating } from '@core/ratings'
 import { fmtHM, scheduleDay } from '@core/schedule'
 import type { DayTweak, PlaceRef, PlanDraft, PlanPlace, Poi, Trip } from '@core/types'
 import { checkDay } from '@core/validate'
+import { inferBestTime } from '@core/timeOfDay'
 import { cityOf } from '@core/footprint'
 import { AmapError, searchPlaces, type Place } from '../geo/amap'
 import { namesMatch } from '../geo/groundDay'
@@ -51,6 +52,19 @@ const KIND_LABEL = { sight: '景点', food: '吃饭', lodging: '住处' } as con
 
 /** 高德分类猜是景点、吃饭还是住处 */
 const kindOf = (p: Place): PlanPlace['kind'] => (p.type.startsWith('餐饮') ? 'food' : p.type.startsWith('住宿') ? 'lodging' : 'sight')
+
+/** 推荐理由、原文说法留作站点上的说明（「晚上灯亮了最好看」这种排程也要看） */
+const withNote = (p: PlanPlace, note?: string): PlanPlace => (p.why || !note?.trim() ? p : { ...p, why: note.trim() })
+
+/** 已经写过的亮点里说了最佳时段（「17:30 以后看日落」）：重排时照着排 */
+function withHighlightTimes(trip: Trip, places: PlanPlace[]): PlanPlace[] {
+  const when = new Map(trip.days.flatMap(d => d.stops).filter(s => s.highlight).map(s => [s.name, `${s.highlight!.when ?? ''} ${s.highlight!.how}`]))
+  return places.map(p => {
+    if (p.bestTime || p.kind !== 'sight' || !when.has(p.name)) return p
+    const b = inferBestTime(when.get(p.name))
+    return b ? { ...p, bestTime: b } : p
+  })
+}
 
 /** 粘贴的一段文字拆成地名：按顿号、逗号、分号、换行、空格隔开 */
 export function splitNames(text: string): string[] {
@@ -120,7 +134,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
 
   const start = async (nDays = days, over?: { places: PlanPlace[]; tweaks: DayTweak[] }) => {
     const my = ++run.current
-    const usePlaces = over?.places ?? places
+    const usePlaces = withHighlightTimes(trip, over?.places ?? places)
     const useTweaks = over?.tweaks ?? tweaks
     setStage({ kind: 'running', msg: '准备' })
     try {
@@ -203,13 +217,13 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
           {recommending ? (
             <Recommend trip={trip} autoRun={regionFirst} saved={draft?.recs} onSave={recs => onDraft({ recs })} onCancel={() => setRecommending(false)} onAdd={list => {
               // AI 推荐的吃饭、住处还没人确认：带上「推荐」标记
-              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, parts: _p, ...p }) => (p.kind === 'sight' ? p : { ...p, suggested: true }))])
+              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note, avoid: _a, caution: _c, parts: _p, ...p }) => withNote(p.kind === 'sight' ? p : { ...p, suggested: true }, note))])
               setRecommending(false)
             }} />
           ) : importing ? (
             <GuideImport trip={trip} saved={draft?.guide} onSave={guide => onDraft({ guide })} onCancel={() => setImporting(false)} onAdd={list => {
               // 攻略里的点并进来：同一个高德地点不重复；原文说法、顾虑只在勾选时看，不存
-              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, parts: _p, ...p }) => p)])
+              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note, avoid: _a, caution: _c, parts: _p, ...p }) => withNote(p, note))])
               setImporting(false)
             }} />
           ) : amapKey && (bulk ? (

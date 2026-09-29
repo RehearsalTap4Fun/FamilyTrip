@@ -43,6 +43,17 @@ const src = (l: Limit) => who(limitRules(l))
 /** 需求只对游玩和吃饭的地方提：服务区、回酒店休息不必有推车道、能带狗 */
 const NEEDS_APPLY: Stop['kind'][] = ['sight', 'food']
 
+/**
+ * 值得核实的条件：没有就真出问题、而且不少地方确实没有的。
+ * 住处的电梯（老人、行动不便）、无障碍（轮椅）、能带宠物；景点的无障碍、能带宠物（不少景区禁宠）。
+ * 推车能走、厕所方便、儿童餐、软烂清淡这类大概率都有，只在排程和推荐时考虑，不标「待核」
+ */
+const CHECK_WORTHY: Partial<Record<Stop['kind'], Tag[]>> = {
+  lodging: ['elevator', 'accessible', 'petOk'],
+  sight: ['accessible', 'petOk'],
+  food: [],
+}
+
 function overlapLen(a0: number, a1: number, b0: number, b1: number): number {
   return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0))
 }
@@ -165,6 +176,8 @@ export function checkDay(trip: Trip, dayIndex: number): Issue[] {
     const undecided = st.kind === 'lodging' && ((!st.poi && st.name === LODGING_PLACEHOLDER) || !!st.suggested)
     for (const [tag, by] of needs) {
       if (tags.has(tag)) continue
+      // 只提醒真正容易出问题的：推车、厕所、儿童餐、软烂这类大多地方都有，不一站站去问（用户 2026-09-29）
+      if (!CHECK_WORTHY[st.kind]?.includes(tag)) continue
       // 住宿缺项影响一整晚，是 warn；景点标签常常没人标过，只提示去确认
       push(undecided
         ? { level: 'tip', stopId: st.id, code: 'need:' + tag, short: `${TAG_LABEL[tag]}？`, message: st.suggested ? `「${st.name}」是推荐的，订之前确认${TAG_LABEL[tag]}（${who(by)}）` : `还没定住处，找的时候要${TAG_LABEL[tag]}（${who(by)}）`, rules: by }

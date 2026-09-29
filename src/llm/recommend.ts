@@ -27,6 +27,7 @@ export const ProposalsSchema = z.object({
         // 漏写、写错都当没给（catch），不让一个次要字段把整个推荐弄失败
         durationMin: z.number().int().nullable().catch(null).describe('建议玩多久（分钟），按这群人的节奏估；餐厅填 null'),
         note: z.string().describe('推荐理由，15 字以内'),
+        bestTime: z.enum(['morning', 'day', 'evening']).nullable().optional().catch(null).describe('最佳时段：看夜景、夜市、灯光、日落的写 evening；看日出、赶早市、要趁早人少的写 morning；白天都行写 day'),
       })).describe('这天去的地方：上午、下午都要有安排，景点 2–4 个，可以加 1 家有名的餐厅'),
     })),
     sources: z.array(z.number().int()).catch([]).describe('这个方案主要参考了哪几篇网上攻略（填编号，如 [1, 4]）；没给参考攻略就填 []'),
@@ -121,7 +122,7 @@ export function proposalToGuide(p: Proposal, tripDays: number): Guide {
     summary: p.pitch,
     tips: [],
     places: p.days.flatMap(d => d.places.map(pl => ({
-      name: pl.name, city: pl.city || d.city, kind: pl.kind, day: d.day, durationMin: pl.kind === 'sight' ? pl.durationMin ?? null : null, note: pl.note, area: null, avoid: null, caution: null,
+      name: pl.name, city: pl.city || d.city, kind: pl.kind, day: d.day, durationMin: pl.kind === 'sight' ? pl.durationMin ?? null : null, note: pl.note, bestTime: pl.bestTime ?? null, area: null, avoid: null, caution: null,
     }))),
   }
 }

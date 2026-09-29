@@ -2,7 +2,7 @@
 import type { NearbyKind, PlanTools } from '@core/planner'
 import { aggregate, type Rating } from '@core/ratings'
 import { distanceKm } from '@core/geo'
-import { AMAP_TYPES, driveBetween, searchAround, searchCitySights, type Place } from './amap'
+import { AMAP_TYPES, drivePath, driveBetween, searchAround, searchCitySights, type Place } from './amap'
 
 const RADIUS: Record<NearbyKind, number> = { food: 2500, lodging: 6000, serviceArea: 20000, sight: 15000 }
 
@@ -17,6 +17,7 @@ export function makePlanTools(amapKey: string, ratings: Rating[], onProgress?: (
     verdictOf: p => { const v = byName.get(p.name); return v === 'red' || v === 'black' ? v : undefined },
     ...(amapKey ? {
       drive: async (a, b) => (await driveBetween(a, b, amapKey))?.minutes ?? null,
+      route: (a, b) => drivePath(a, b, amapKey),
       nearby: async (what, at) => {
         let list: Place[]
         if (what === 'sight') {

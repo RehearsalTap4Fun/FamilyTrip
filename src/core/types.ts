@@ -146,6 +146,8 @@ export interface PlanPlace {
   why?: string
   /** 固定开始时刻 HH:MM（门票预约之类） */
   start?: string
+  /** 最佳时段：看夜景的排在晚饭后，看日出、赶早市的排在当天第一站（src/core/timeOfDay.ts） */
+  bestTime?: 'morning' | 'evening'
   durationMin?: number
   tags?: Tag[]
   walkKm?: number

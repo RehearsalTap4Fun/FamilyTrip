@@ -486,3 +486,139 @@ describe('回住处晚一点能接受', () => {
     expect(late(at(fmtHM(endBy + 31)))).toBe(true)
   })
 })
+
+describe('长途自驾一天开不完', () => {
+  const BJ = P(116.40, 39.90), CD = P(104.07, 30.67)
+  const three = () => [cand('大理古城', DALI.古城), cand('喜洲古镇', DALI.喜洲), cand('双廊', DALI.双廊)]
+  const noSight = fake({ nearby: async (w, p) => (w === 'sight' ? [] : fake().nearby!(w, p)) })
+  const ends = (t: Trip) => t.days.map(d => { const sl = scheduleDay(d); return sl.length ? sl[sl.length - 1].end : 0 })
+  const driveOf = (t: Trip, d: number) => t.days[d].stops.reduce((a, s) => a + (s.kind === 'drive' ? s.durationMin : s.driveMin ?? 0), 0)
+
+  it('天数够：拆成几个赶路日，每天开到上限、晚上在路上住；任何一天都不排过半夜', async () => {
+    const r = await planTrip(base(18), three(), noSight, { origin: BJ, end: { name: '家', poi: BJ }, newId })
+    expect(Math.max(...ends(r.trip))).toBeLessThan(24 * 60)
+    expect(r.notes.some(n => n.includes('去程开车约') && n.includes('一天开不完'))).toBe(true)
+    expect(r.notes.some(n => n.includes('返程开车约'))).toBe(true)
+    // 第 1 天是纯赶路：不玩景点，晚上住在路上（离北京和大理都很远）
+    const d0 = r.trip.days[0].stops
+    expect(d0.some(s => s.kind === 'sight')).toBe(false)
+    const inn = d0[d0.length - 1]
+    expect(inn.kind).toBe('lodging')
+    expect(distanceKm(inn.poi!, BJ)).toBeGreaterThan(200)
+    expect(distanceKm(inn.poi!, DALI.古城)).toBeGreaterThan(200)
+    expect(driveOf(r.trip, 0)).toBeLessThanOrEqual(8 * 60 + 30)
+    // 三个景点都排进去了，最后一天到家
+    expect(r.unplaced).toHaveLength(0)
+    const last = r.trip.days[17].stops
+    expect(last[last.length - 1]).toMatchObject({ home: true })
+  })
+
+  it('天数不够来回：不硬排半夜还在开的车，先只排当地的，照实说要加几天', async () => {
+    for (const n of [3, 9]) {
+      const r = await planTrip(base(n), three(), noSight, { origin: BJ, end: { name: '家', poi: BJ }, newId })
+      expect(Math.max(...ends(r.trip))).toBeLessThan(24 * 60)
+      expect(r.notes.some(x => x.includes('自驾来回排不下') && x.includes('高铁、飞机'))).toBe(true)
+      expect(r.extraDaysNeeded).toBeGreaterThan(0)
+      expect(Math.max(...r.trip.days.map((_, d) => driveOf(r.trip, d)))).toBeLessThan(3 * 60)
+    }
+  })
+
+  it('稍微紧一点（成都到大理 5 天）：每天多开一点排下，提示超了上限；每天都在当天结束', async () => {
+    const r = await planTrip(base(5), three(), noSight, { origin: CD, end: { name: '家', poi: CD }, newId })
+    expect(Math.max(...ends(r.trip))).toBeLessThan(24 * 60)
+    expect(r.trip.days.some(d => d.stops.some(s => s.kind === 'sight'))).toBe(true)
+    expect(r.notes.filter(x => x.includes('太累的话'))).toHaveLength(0) // 不重复提示路上多久
+  })
+})
+
+describe('时间写法', () => {
+  it('过了半夜写「次日」，解析也认', () => {
+    expect(fmtHM(25 * 60 + 10)).toBe('次日 01:10')
+    expect(fmtHM(2 * 1440 + 65)).toBe('+2天 01:05')
+    expect(fmtHM(9 * 60)).toBe('09:00')
+    expect(parseHM('次日 01:10')).toBe(25 * 60 + 10)
+    expect(parseHM('+2天 01:05')).toBe(2 * 1440 + 65)
+    expect(parseHM(fmtHM(1600))).toBe(1600)
+  })
+})
+
+describe('最佳时段', () => {
+  it('说明里写了晚上好看的：排在晚饭后；要趁早的排第一站；一天不排两个夜景', async () => {
+    const r = await planTrip(base(2), [
+      cand('大理古城', DALI.古城, { why: '晚上灯亮了最好看', durationMin: 90 }),
+      cand('崇圣寺三塔', DALI.三塔, { durationMin: 90 }),
+      cand('洱海公园', DALI.洱海公园, { why: '早上人少，看日出', durationMin: 60 }),
+      cand('双廊', DALI.双廊, { bestTime: 'evening', durationMin: 90 }),
+    ], fake({ nearby: async (w, p) => (w === 'sight' ? [] : fake().nearby!(w, p)) }), { newId })
+    const slotsOf = (d: number) => scheduleDay(r.trip.days[d])
+    const all = [0, 1].flatMap(d => slotsOf(d).map(sl => ({ ...sl, d })))
+    const gc = all.find(x => x.stop.name === '大理古城')!, sl = all.find(x => x.stop.name === '双廊')!
+    // 两个夜景分在两天，都在晚饭之后
+    expect(gc.d).not.toBe(sl.d)
+    for (const x of [gc, sl]) {
+      expect(x.start).toBeGreaterThanOrEqual(parseHM('18:30'))
+      const dinner = slotsOf(x.d).filter(s => s.stop.kind === 'food').pop()!
+      expect(dinner.end).toBeLessThanOrEqual(x.start)
+    }
+    // 看日出的是那天第一站
+    const ep = all.find(x => x.stop.name === '洱海公园')!
+    expect(slotsOf(ep.d).find(s => s.stop.kind === 'sight')!.stop.name).toBe('洱海公园')
+  })
+
+  it('从说明文字认时段', async () => {
+    const { inferBestTime, bestTimeOf } = await import('@core/timeOfDay')
+    expect(inferBestTime('晚上灯亮了最好看')).toBe('evening')
+    expect(inferBestTime('洱海边看日落')).toBe('evening')
+    expect(inferBestTime('赶早市吃早点')).toBe('morning')
+    expect(inferBestTime('吃喜洲粑粑')).toBeUndefined()
+    expect(bestTimeOf('day', '晚上灯亮了最好看')).toBeUndefined() // 模型说白天都行就按模型
+    expect(bestTimeOf(null, '看夜景')).toBe('evening')
+  })
+})
+
+describe('按真实路线找每天开到哪', () => {
+  it('解析高德路线：每个点记着开到这要几分钟', async () => {
+    const { parseRoute } = await import('../src/geo/amap')
+    const r = parseRoute({ route: { paths: [{ duration: '7200', steps: [{ duration: '3600', polyline: '100,25;101,25;102,25' }, { duration: '3600', polyline: '102,25;102,26' }] }] } })!
+    expect(r.minutes).toBe(120)
+    expect(r.points.map(p => p.t)).toEqual([0, 30, 60, 60, 120])
+    expect(parseRoute({ route: { paths: [] } })).toBeNull()
+  })
+
+  it('路线绕远（成都到大理先往南绕西昌）：落脚点在路线上，不在直线上', async () => {
+    const CD = P(104.07, 30.67)
+    // 假路线：先往南到西昌（102.26, 27.89），再往西到大理，每段 11 小时 / 2
+    const via = P(102.26, 27.89)
+    const pts = (a: Poi, b: Poi, t0: number, t1: number) => Array.from({ length: 21 }, (_, i) => ({ lng: a.lng + (b.lng - a.lng) * i / 20, lat: a.lat + (b.lat - a.lat) * i / 20, t: t0 + (t1 - t0) * i / 20 }))
+    const route = async (a: Poi, b: Poi) => {
+      const toDali = distanceKm(b, DALI.古城) < 50
+      const [s, e] = toDali ? [a, b] : [a, b]
+      const line = toDali ? [...pts(s, via, 0, 360), ...pts(via, e, 360, 720)] : [...pts(s, via, 0, 360), ...pts(via, e, 360, 720)]
+      return { minutes: 720, points: line }
+    }
+    const r = await planTrip(base(5), [cand('大理古城', DALI.古城), cand('喜洲古镇', DALI.喜洲)], fake({ route, nearby: async (w, p) => (w === 'sight' ? [] : fake().nearby!(w, p)) }), { origin: CD, end: { name: '家', poi: CD }, newId })
+    const inn = r.trip.days[0].stops[r.trip.days[0].stops.length - 1]
+    // 开 5 小时（一个司机上限）落在成都—西昌那一段上：比直线的几分之几更靠南
+    const onRoute = distanceKm(inn.poi!, via) < distanceKm(CD, via)
+    expect(onRoute).toBe(true)
+    expect(inn.poi!.lat).toBeLessThan(29.5)
+  })
+})
+
+describe('赶路日的饭', () => {
+  it('午饭、晚饭都在路上的歇脚处吃，时间像样，中间隔着开车；不在直线上另找位置', async () => {
+    const BJ = P(116.40, 39.90)
+    const r = await planTrip(base(18), [cand('大理古城', DALI.古城), cand('喜洲古镇', DALI.喜洲)], fake({ nearby: async (w, p) => (w === 'sight' ? [] : fake().nearby!(w, p)) }), { origin: BJ, end: { name: '家', poi: BJ }, newId })
+    for (const d of [0, 1, 2]) {
+      const sl = scheduleDay(r.trip.days[d])
+      const meals = sl.filter(s => s.stop.kind === 'food')
+      const lunch = meals.find(m => m.stop.name.includes('午饭'))!, dinner = meals.find(m => m.stop.name.includes('晚饭') || m.start >= 16 * 60 + 30)!
+      expect(lunch.start).toBeGreaterThanOrEqual(11 * 60)
+      expect(lunch.start).toBeLessThanOrEqual(13 * 60 + 30)
+      expect(dinner.start).toBeGreaterThanOrEqual(16 * 60 + 30)
+      const between = sl.filter(s => s.start > lunch.start && s.start < dinner.start && s.stop.kind === 'drive')
+      expect(between.length).toBeGreaterThan(0)
+      expect(sl[sl.length - 1].end).toBeLessThan(22 * 60)
+    }
+  })
+})

@@ -1,5 +1,6 @@
 // 「今天」：一天一页地图。高速从上走到下，站点是地图符号，警告是引线注记，底部是图例。
 import { Fragment, useMemo, useState } from 'react'
+import { HowLine } from './Highlights'
 import { deriveConstraints } from '@core/constraints'
 import { whoFor } from '@core/explain'
 import { cityOf } from '@core/footprint'
@@ -179,7 +180,8 @@ export function Today({ trip, now, demo, onTrip }: Props) {
                   <div className="body">
                     {regionEl}
                     <div className="drive-label"><span>{stripCode(stop.name)} · {stop.durationMin} 分</span></div>
-                    {napLabel && <div className="nap-label">{napLabel}</div>}
+                    <HowLine s={stop} />
+                  {napLabel && <div className="nap-label">{napLabel}</div>}
                     {notes.map((n, k) => <Note key={k} {...n} callout />)}
                   </div>
                 </li>
@@ -214,6 +216,7 @@ export function Today({ trip, now, demo, onTrip }: Props) {
                       tipTags.length > 0 && <em key="t">{tipTags.join('、')}未确认</em>,
                     ].filter(Boolean).flatMap((el, k) => (k ? [' ', el] : [el]))}
                   </div>
+                  <HowLine s={stop} />
                   {napLabel && <div className="nap-label">{napLabel}</div>}
                   {notes.map((n, k) => <Note key={k} {...n} callout />)}
                   {liveHere && stop.status !== 'done' && (

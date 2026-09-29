@@ -18,6 +18,7 @@ import { AmapError, driveBetween } from '../geo/amap'
 import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
 import { TripActions } from './TripSwitcher'
+import { HighlightsCard } from './Highlights'
 import { fillDrives } from '../geo/fillDrives'
 import { useSettings } from './Settings'
 
@@ -87,6 +88,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, trip
         <span className={'run' + (fails ? ' fail' : warns ? ' hold' : '')}>{fails || warns ? `${fails ? `${fails} 必改 ` : ''}${warns} 留意` : '没问题'}</span>
       </header>
       <TripActions count={tripCount} onSwitch={onSwitch} onNew={onNew} trip={trip} onPlan={onPlan} />
+      <HighlightsCard trip={trip} onTrip={onTrip} />
       <ol className="sweeps">
         {trip.days.map((d, i) => {
           const c = deriveConstraints(partyOnDay(trip.party, i))

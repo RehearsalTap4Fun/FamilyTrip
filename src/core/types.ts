@@ -93,6 +93,19 @@ export interface Stop {
   actualStart?: string
   /** 排程工具在附近推荐的（吃饭、住处、服务区），还没人确认过 */
   suggested?: boolean
+  /** 这里怎么玩最好（AI 写的亮点介绍，src/llm/highlights.ts） */
+  highlight?: StopHighlight
+}
+
+export interface StopHighlight {
+  /** 最受推崇的玩法，一句能照着做的话 */
+  how: string
+  /** 最佳时段，例如「17:30 以后看日落」 */
+  when?: string
+  /** 避坑、预约、穿着 */
+  tip?: string
+  /** 对这群同行者的提醒（老人、小孩、宠物） */
+  family?: string
 }
 
 export interface Day {
@@ -170,7 +183,11 @@ export interface Trip {
   sample?: boolean
   /** 和同行好友共享：拿到分享码的人都能看、能改这一趟（src/sync/share.ts） */
   share?: TripShare
+  /** 这趟的亮点：3–5 句，可以指向某一站 */
+  highlights?: TripHighlight[]
 }
+
+export interface TripHighlight { text: string; stopId?: string }
 
 export interface TripShare {
   code: string

@@ -11,6 +11,7 @@ import { dayImpact } from './impact'
 import { DayImpactView } from './ImpactView'
 import { Chips, Field, Segmented, Stepper, Tiles } from './kit/controls'
 import { Sheet } from './kit/Sheet'
+import { StopHow } from './Highlights'
 import { LineIcon } from './symbols'
 import { cityOf } from '@core/footprint'
 import { regionName } from '../data/regions'
@@ -100,6 +101,7 @@ export function StopSheet({ trip, dayIndex, id, onTrip, onClose, onRemove, open 
         </div>
       </>}>
       {s.kind !== 'drive' && <LocationRow s={s} city={dayCities(trip.days[dayIndex])[0]} onPick={p => patch({ name: p.name, poi: p.poi })} />}
+      <StopHow s={s} />
       <StopFields s={s} onChange={patch} />
       <details className="more">
         <summary>更多</summary>

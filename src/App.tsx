@@ -7,6 +7,7 @@ import { sortTrips } from '@core/trips'
 import { NewTripSheet } from './ui/NewTrip'
 import { TripSwitcher } from './ui/TripSwitcher'
 import { PlanSheet } from './ui/PlanSheet'
+import { carryHighlights } from './ui/Highlights'
 import { useToast } from './ui/kit/Toast'
 import { StorageSection } from './ui/CloudSync'
 import { JoinSheet, ShareCard } from './ui/ShareTrip'
@@ -190,7 +191,8 @@ function TripsLayer({ state, setState, now, switching, creating, planning, onSwi
       <PlanSheet open={planning} trip={currentTrip(state)} ratings={state.ratings} onClose={() => onPlanning(false)}
         onApply={t => {
           const before = state
-          setState(s => withTrip(s, t))
+          // 重新排程后站点换了：原来写好的玩法按名字接过来
+          setState(s => withTrip(s, carryHighlights(currentTrip(s), t)))
           onPlanning(false)
           toast(`已排好「${t.title}」`, () => setState(before))
         }} />

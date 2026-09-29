@@ -172,6 +172,22 @@ export interface TripPlan {
   places?: PlanPlace[]
   /** 按要求对某几天的调整（「第二天晚点出发、洱海边吃晚饭」），再排时照样生效 */
   tweaks?: DayTweak[]
+  /** 「排这趟」的进度：没点「采用」也留着，下次打开接着来 */
+  draft?: PlanDraft
+}
+
+/** 排这趟面板没完成的进度。AI 推荐、导入攻略的结果由各自面板解释（这里不依赖 llm 层的类型） */
+export interface PlanDraft {
+  /** 正在列的要去的地方、按要求的调整、天数 */
+  places?: PlanPlace[]
+  tweaks?: DayTweak[]
+  days?: number
+  /** 排好了还没采用的结果；清单一改就作废 */
+  result?: { days: Day[]; plan: TripPlan; unplaced: { candidate: PlanPlace; reason: string }[]; extraDaysNeeded: number; notes: string[]; at: string }
+  /** 上次 AI 推荐：地区、要求、方案（和选中后核实过的点） */
+  recs?: { region: string; wishes: string; at: string; data: unknown }
+  /** 上次导入的攻略：原文（链接或正文）、读出来的结果 */
+  guide?: { text: string; at: string; data: unknown }
 }
 
 /** 对某一天的排法调整：由「写一句要求再排」翻译而来（src/llm/tweakPlan.ts） */

@@ -190,6 +190,11 @@ function TripsLayer({ state, setState, now, switching, creating, planning, onSwi
           onPlanning(true)
         }} />
       <PlanSheet open={planning} trip={currentTrip(state)} ratings={state.ratings} onClose={() => onPlanning(false)}
+        onDraft={patch => setState(s => {
+          // 按 id 改当前这趟：只合并给出的几项，推荐和导入各存各的不互相盖掉
+          const t = currentTrip(s)
+          return withTrip(s, { ...t, plan: { flow: 'places', styles: [], ...t.plan, draft: { ...t.plan?.draft, ...patch } } })
+        })}
         onApply={t => {
           const before = state
           // 重新排程后站点换了：原来写好的玩法按名字接过来

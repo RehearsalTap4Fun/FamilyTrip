@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { planTrip, type PlanResult } from '@core/planner'
 import type { Rating } from '@core/ratings'
 import { fmtHM, scheduleDay } from '@core/schedule'
-import type { DayTweak, PlaceRef, PlanPlace, Poi, Trip } from '@core/types'
+import type { DayTweak, PlaceRef, PlanDraft, PlanPlace, Poi, Trip } from '@core/types'
+import { checkDay } from '@core/validate'
 import { cityOf } from '@core/footprint'
 import { AmapError, searchPlaces, type Place } from '../geo/amap'
 import { namesMatch } from '../geo/groundDay'
@@ -29,6 +30,16 @@ interface Props {
   ratings: Rating[]
   onApply: (t: Trip) => void
   onClose: () => void
+  /** 进度存回行程（没点「采用」也留着）：只改给出的那几项 */
+  onDraft: (patch: Partial<PlanDraft>) => void
+}
+
+/** 存着的「排好了还没采用」还原成结果；规则层的问题现查 */
+function restoreResult(trip: Trip, d?: PlanDraft): PlanResult | null {
+  const r = d?.result
+  if (!r?.days?.length) return null
+  const t: Trip = { ...trip, days: r.days, plan: r.plan }
+  return { trip: t, unplaced: r.unplaced, extraDaysNeeded: r.extraDaysNeeded, notes: r.notes, issues: t.days.flatMap((_, i) => checkDay(t, i)).filter(i => i.level !== 'tip') }
 }
 
 type Stage = { kind: 'list' } | { kind: 'running'; msg: string } | { kind: 'done'; r: PlanResult } | { kind: 'error'; msg: string }
@@ -43,7 +54,8 @@ export function splitNames(text: string): string[] {
   return [...new Set(text.split(/[、，,;；\n\r\t]+|\s{2,}/).map(s => s.replace(/^[\d.)）\s-]+/, '').trim()).filter(s => s.length >= 2))]
 }
 
-export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
+export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft }: Props) {
+  const draft = trip.plan?.draft
   const { amapKey, llm, home } = useSettings()
   // 起点终点：行程里存了就用（null 是明确不设）；没存过（旧行程）默认现居地，旧版只存了出发地文字的先空着、排的时候再定位
   const endsOf = (t: Trip): { from?: PlaceRef; to?: PlaceRef } => ({
@@ -51,26 +63,29 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
     to: t.plan?.to === null ? undefined : t.plan?.to ?? homeRef(home),
   })
   const [ends, setEnds] = useState(() => endsOf(trip))
-  const [places, setPlaces] = useState<PlanPlace[]>(trip.plan?.places ?? [])
-  const [stage, setStage] = useState<Stage>({ kind: 'list' })
+  const [places, setPlaces] = useState<PlanPlace[]>(draft?.places ?? trip.plan?.places ?? [])
+  const [stage, setStage] = useState<Stage>(() => { const r = restoreResult(trip, draft); return r ? { kind: 'done', r } : { kind: 'list' } })
   const [q, setQ] = useState('')
   const [found, setFound] = useState<{ kind: 'idle' } | { kind: 'loading' } | { kind: 'done'; list: Place[] } | { kind: 'error'; msg: string }>({ kind: 'idle' })
   const [bulk, setBulk] = useState(false)
   const [importing, setImporting] = useState(false)
   // 「只知道大概去哪」建的行程、还没有地点：打开就直接让 AI 推荐
-  const regionFirst = trip.plan?.flow === 'region' && !(trip.plan?.places?.length)
+  const regionFirst = trip.plan?.flow === 'region' && !(draft?.places ?? trip.plan?.places)?.length
   const [recommending, setRecommending] = useState(regionFirst)
   const [bulkText, setBulkText] = useState('')
   const [bulkMsg, setBulkMsg] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
-  const [days, setDays] = useState(trip.days.length)
+  const [days, setDays] = useState(draft?.days ?? trip.days.length)
   const run = useRef(0)
 
   useEffect(() => {
     if (!open) return
-    setPlaces(trip.plan?.places ?? []); setStage({ kind: 'list' }); setQ(''); setFound({ kind: 'idle' })
-    setBulk(false); setImporting(false); setRecommending(regionFirst); setTweaks(trip.plan?.tweaks ?? []); setLastAsk(null); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(trip.days.length); setEnds(endsOf(trip))
+    // 上次没做完的接着来：列到一半的地点、排好还没采用的结果
+    const r = restoreResult(trip, draft)
+    setPlaces(draft?.places ?? trip.plan?.places ?? []); setStage(r ? { kind: 'done', r } : { kind: 'list' }); setQ(''); setFound({ kind: 'idle' })
+    setBulk(false); setImporting(false); setRecommending(regionFirst); setTweaks(draft?.tweaks ?? trip.plan?.tweaks ?? []); setLastAsk(null); setBulkText(''); setBulkMsg(''); setEditing(null); setDays(draft?.days ?? trip.days.length); setEnds(endsOf(trip))
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // 搜索优先在已经加过的点所在城市附近
   const city = places.length ? cityOf(places[places.length - 1].poi.adcode ?? '') || undefined : undefined
@@ -116,11 +131,15 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
       const base: Trip = {
         ...trip,
         days: Array.from({ length: nDays }, (_, i) => trip.days[i] ?? { startTime: '09:00', stops: [] }),
-        plan: { flow: 'places', styles: [], ...trip.plan, places: usePlaces, tweaks: useTweaks.filter(t => t.day < nDays), from: from ?? null, to: ends.to ?? null },
+        plan: { flow: 'places', styles: [], ...trip.plan, places: usePlaces, tweaks: useTweaks.filter(t => t.day < nDays), from: from ?? null, to: ends.to ?? null, draft: undefined },
       }
       const tools = makePlanTools(amapKey, ratings, msg => { if (my === run.current) setStage({ kind: 'running', msg }) })
       const r = await planTrip(base, usePlaces, tools, { origin, end: ends.to, newId: uid })
-      if (my === run.current) setStage({ kind: 'done', r })
+      if (my === run.current) {
+        setStage({ kind: 'done', r })
+        // 排好了先存着：没点「采用」关掉，下次打开还在
+        onDraft({ result: { days: r.trip.days, plan: r.trip.plan!, unplaced: r.unplaced, extraDaysNeeded: r.extraDaysNeeded, notes: r.notes, at: new Date().toISOString() } })
+      }
     } catch (e) {
       if (my === run.current) setStage({ kind: 'error', msg: e instanceof AmapError ? e.message : '排程失败：' + (e instanceof Error ? e.message : String(e)) })
     }
@@ -128,6 +147,13 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
   // 写一句要求再排：大模型只把要求翻成调整，排还是交给排程引擎
   const [tweaks, setTweaks] = useState<DayTweak[]>(trip.plan?.tweaks ?? [])
   const [lastAsk, setLastAsk] = useState<{ understood: string; done: string[]; skipped: string[] } | null>(null)
+  // 清单、调整、天数一改就存进行程；和存着的一样就不动（刚打开时）。改了清单，排好的结果就作废
+  useEffect(() => {
+    if (!open) return
+    const saved = { places: draft?.places ?? trip.plan?.places ?? [], tweaks: draft?.tweaks ?? trip.plan?.tweaks ?? [], days: draft?.days ?? trip.days.length }
+    if (JSON.stringify(saved) === JSON.stringify({ places, tweaks, days })) return
+    onDraft({ places, tweaks, days, result: undefined })
+  }, [places, tweaks, days]) // eslint-disable-line react-hooks/exhaustive-deps
   const reask = async (request: string) => {
     if (!done || !request.trim()) return
     const my = ++run.current
@@ -158,7 +184,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
     <Sheet open={open} onClose={close} title={done ? '排好了，看看' : `排「${trip.title}」`}
       done={done ? '采用' : stage.kind === 'running' ? '排着呢' : `开始排${sights ? `（${places.length} 个点）` : ''}`}
       doneDisabled={stage.kind === 'running' || (!done && !sights)}
-      onDone={done ? () => onApply(done.trip) : () => start()}
+      onDone={done ? () => onApply({ ...done.trip, plan: { ...done.trip.plan!, draft: draft?.recs || draft?.guide ? { recs: draft.recs, guide: draft.guide } : undefined } }) : () => start()}
       footer={done ? <button type="button" className="kbtn wide" onClick={() => setStage({ kind: 'list' })}>回去改地点</button> : undefined}>
 
       {(stage.kind === 'list' || stage.kind === 'error') && (
@@ -170,13 +196,13 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose }: Props) {
             <div><TripEnds from={ends.from} to={ends.to} onChange={(from, to) => setEnds({ from, to })} /><p className="sheet-note">第一天从起点出发、最后一天回到终点，这两段路算进当天；不自驾的长途按高铁、飞机粗估。</p></div>
           </details>
           {recommending ? (
-            <Recommend trip={trip} autoRun={regionFirst} onCancel={() => setRecommending(false)} onAdd={list => {
+            <Recommend trip={trip} autoRun={regionFirst} saved={draft?.recs} onSave={recs => onDraft({ recs })} onCancel={() => setRecommending(false)} onAdd={list => {
               // AI 推荐的吃饭、住处还没人确认：带上「推荐」标记
               setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, parts: _p, ...p }) => (p.kind === 'sight' ? p : { ...p, suggested: true }))])
               setRecommending(false)
             }} />
           ) : importing ? (
-            <GuideImport trip={trip} onCancel={() => setImporting(false)} onAdd={list => {
+            <GuideImport trip={trip} saved={draft?.guide} onSave={guide => onDraft({ guide })} onCancel={() => setImporting(false)} onAdd={list => {
               // 攻略里的点并进来：同一个高德地点不重复；原文说法、顾虑只在勾选时看，不存
               setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note: _n, avoid: _a, caution: _c, parts: _p, ...p }) => p)])
               setImporting(false)

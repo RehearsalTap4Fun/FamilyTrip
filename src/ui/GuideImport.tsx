@@ -1,7 +1,7 @@
 // 导入攻略：贴链接或正文 → 取正文（链接走服务器代取）→ 大模型提炼路线和地点、标出和同行者冲突的 → 高德核实 → 勾选后加进要去的地方。
 // 「不适合」的点默认不勾、「要留意」的照常勾上，让人自己决定；找不到的点列出来，可以回去手动搜。
 import { useState } from 'react'
-import type { Trip } from '@core/types'
+import type { PlanDraft, Trip } from '@core/types'
 import { AmapError, searchPlaces } from '../geo/amap'
 import { namesMatch } from '../geo/groundDay'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
@@ -15,7 +15,12 @@ interface Props {
   trip: Trip
   onAdd: (places: ImportedPlace[]) => void
   onCancel: () => void
+  /** 上次导入读出来的结果（存在行程里），打开就接着勾 */
+  saved?: PlanDraft['guide']
+  onSave: (g: PlanDraft['guide']) => void
 }
+
+type Done = Extract<Stage, { kind: 'done' }>
 
 type Stage =
   | { kind: 'input' }
@@ -23,10 +28,10 @@ type Stage =
   | { kind: 'done'; guide: Guide; places: ImportedPlace[]; missing: string[]; source: string; usd: number }
   | { kind: 'error'; msg: string }
 
-export function GuideImport({ trip, onAdd, onCancel }: Props) {
+export function GuideImport({ trip, onAdd, onCancel, saved, onSave }: Props) {
   const { amapKey, llm } = useSettings()
-  const [text, setText] = useState('')
-  const [stage, setStage] = useState<Stage>({ kind: 'input' })
+  const [text, setText] = useState(saved?.text ?? '')
+  const [stage, setStage] = useState<Stage>(() => ((saved?.data as Done | undefined)?.kind === 'done' ? saved!.data as Done : { kind: 'input' }))
 
   const run = async () => {
     const raw = text.trim()
@@ -51,7 +56,9 @@ export function GuideImport({ trip, onAdd, onCancel }: Props) {
       const { places, missing } = await resolveGuide(guide, trip.days.length,
         async (k, city) => (await searchPlaces(k, amapKey, { city })).map(p => ({ name: p.name, area: p.area, poi: p.poi, type: p.type })),
         namesMatch, (i, n, name) => setStage({ kind: 'busy', msg: `在高德里核实 ${i}/${n}：${name}` }))
-      setStage({ kind: 'done', guide, places, missing, source, usd: usage.usd })
+      const done: Done = { kind: 'done', guide, places, missing, source, usd: usage.usd }
+      setStage(done)
+      onSave({ text: raw, at: new Date().toISOString(), data: done })
     } catch (e) {
       const msg = e instanceof FetchGuideError || e instanceof LlmError || e instanceof AmapError ? e.message : '导入失败：' + (e instanceof Error ? e.message : String(e))
       setStage({ kind: 'error', msg })

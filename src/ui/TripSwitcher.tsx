@@ -75,24 +75,23 @@ export function TripActions({ count, onSwitch, onNew, trip, onPlan }: { count: n
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>新建行程
         </button>
       </div>
-      {flow === 'places' && onPlan && (
-        <button type="button" className="card-btn plan-cta" onClick={onPlan}>
-          <span className="cbody">
-            <span className="cname">{trip?.plan?.places?.length ? '改地点，重新排' : '排这趟：列出要去的地方'}</span>
-            <span className="csub">{trip?.plan?.places?.length ? `上次排了 ${trip.plan.places.length} 个点` : '按同行人的限制，自动安排开车、吃饭、午睡和住处'}</span>
-          </span>
-          <svg className="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
-        </button>
-      )}
-      {flow === 'region' && onPlan && (
-        <button type="button" className="card-btn plan-cta" onClick={onPlan}>
-          <span className="cbody">
-            <span className="cname">{trip?.plan?.places?.length ? '改地点，重新排' : `让 AI 推荐「${trip?.plan?.region ?? '这里'}」怎么玩`}</span>
-            <span className="csub">{trip?.plan?.places?.length ? `上次排了 ${trip.plan.places.length} 个点` : '按同行人的限制给几个方案，挑一个自动排好开车、吃饭、午睡和住处'}</span>
-          </span>
-          <svg className="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
-        </button>
-      )}
+      {onPlan && (flow === 'places' || flow === 'region') && (() => {
+        // 有没做完的进度：排好了没采用 / 推荐过 / 列了一半，就说接着来
+        const d = trip?.plan?.draft
+        const applied = trip?.plan?.places?.length ?? 0
+        const [name, sub] = d?.result ? ['排好了还没采用，接着看', `上次排的 ${d.result.days.length} 天都在，点「采用」才会换掉现在的行程`]
+          : d?.places?.length && JSON.stringify(d.places) !== JSON.stringify(trip?.plan?.places ?? []) ? ['接着列要去的地方', `已经加了 ${d.places.length} 个点，还没排`]
+          : applied ? ['改地点，重新排', `上次排了 ${applied} 个点`]
+          : d?.recs ? ['接着看上次的推荐', `${d.recs.region || '这里'}的方案都存着，不用重新搜`]
+          : flow === 'places' ? ['排这趟：列出要去的地方', '按同行人的限制，自动安排开车、吃饭、午睡和住处']
+          : [`让 AI 推荐「${trip?.plan?.region ?? '这里'}」怎么玩`, '按同行人的限制给几个方案，挑一个自动排好开车、吃饭、午睡和住处']
+        return (
+          <button type="button" className="card-btn plan-cta" onClick={onPlan}>
+            <span className="cbody"><span className="cname">{name}</span><span className="csub">{sub}</span></span>
+            <svg className="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
+          </button>
+        )
+      })()}
     </>
   )
 }

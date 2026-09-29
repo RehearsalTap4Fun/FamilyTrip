@@ -6,6 +6,7 @@ import { namesMatch } from '../geo/groundDay'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
 import { resolveGuide, type ImportedPlace } from '../llm/importGuide'
 import { proposalToGuide, recommend, type Proposal } from '../llm/recommend'
+import { searchGuides, type WebRef } from '../llm/webSearch'
 import { Field } from './kit/controls'
 import { PickPlaces } from './PickPlaces'
 import { useSettings } from './Settings'
@@ -18,15 +19,18 @@ interface Props {
   onCancel: () => void
 }
 
+/** 这次有没有联网：搜到的攻略、搜索花了多少钱（元），或者没搜的原因 */
+type Web = { refs: WebRef[]; yuan: number } | { refs: []; why: string }
+
 type Stage =
   | { kind: 'input' }
   | { kind: 'busy'; msg: string }
-  | { kind: 'proposals'; list: Proposal[]; usd: number }
-  | { kind: 'pick'; p: Proposal; places: ImportedPlace[]; missing: string[]; list: Proposal[]; usd: number }
+  | { kind: 'proposals'; list: Proposal[]; usd: number; web: Web }
+  | { kind: 'pick'; p: Proposal; places: ImportedPlace[]; missing: string[]; list: Proposal[]; usd: number; web: Web }
   | { kind: 'error'; msg: string }
 
 export function Recommend({ trip, autoRun, onAdd, onCancel }: Props) {
-  const { amapKey, llm } = useSettings()
+  const { amapKey, llm, zhipuKey } = useSettings()
   const [region, setRegion] = useState(trip.plan?.region ?? '')
   const [wishes, setWishes] = useState('')
   const [stage, setStage] = useState<Stage>({ kind: 'input' })
@@ -35,19 +39,28 @@ export function Recommend({ trip, autoRun, onAdd, onCancel }: Props) {
   const errMsg = (e: unknown) => (e instanceof LlmError || e instanceof AmapError ? e.message : '推荐失败：' + (e instanceof Error ? e.message : String(e)))
   const run = async () => {
     if (!region.trim()) return
-    setStage({ kind: 'busy', msg: `${PROVIDER_LABEL[llm.provider]} 正在按你们的情况挑` })
     try {
-      const { proposals, usage } = await recommend(llm, { trip, region: region.trim(), wishes })
+      // 填了智谱 Key：先上网搜一轮攻略；搜不到或出错就照旧凭模型知识推荐，并说明
+      let web: Web = { refs: [], why: '没填智谱 Key，凭 AI 自己的知识推荐' }
+      if (zhipuKey) {
+        setStage({ kind: 'busy', msg: '正在网上搜攻略' })
+        try {
+          const r = await searchGuides(trip, region.trim(), zhipuKey)
+          web = r.refs.length ? { refs: r.refs, yuan: r.cost } : { refs: [], why: '网上没搜到合适的攻略，凭 AI 自己的知识推荐' }
+        } catch (e) { web = { refs: [], why: `联网搜索没成功（${e instanceof Error ? e.message : String(e)}），凭 AI 自己的知识推荐` } }
+      }
+      setStage({ kind: 'busy', msg: `${PROVIDER_LABEL[llm.provider]} 正在按你们的情况挑${web.refs.length ? `（参考 ${web.refs.length} 篇攻略）` : ''}` })
+      const { proposals, usage } = await recommend(llm, { trip, region: region.trim(), wishes, refs: web.refs })
       if (!proposals.length) { setStage({ kind: 'error', msg: '没给出方案，换个说法再试（比如写具体一点的地区）' }); return }
-      setStage({ kind: 'proposals', list: proposals, usd: usage.usd })
+      setStage({ kind: 'proposals', list: proposals, usd: usage.usd, web })
     } catch (e) { setStage({ kind: 'error', msg: errMsg(e) }) }
   }
-  const choose = async (p: Proposal, list: Proposal[], usd: number) => {
+  const choose = async (p: Proposal, list: Proposal[], usd: number, web: Web) => {
     try {
       const { places, missing } = await resolveGuide(proposalToGuide(p, trip.days.length), trip.days.length,
         async (k, city) => (await searchPlaces(k, amapKey, { city })).map(x => ({ name: x.name, area: x.area, poi: x.poi, type: x.type })),
         namesMatch, (i, n, name) => setStage({ kind: 'busy', msg: `在高德里核实 ${i}/${n}：${name}` }))
-      setStage({ kind: 'pick', p, places, missing, list, usd })
+      setStage({ kind: 'pick', p, places, missing, list, usd, web })
     } catch (e) { setStage({ kind: 'error', msg: errMsg(e) }) }
   }
   useEffect(() => {
@@ -64,17 +77,19 @@ export function Recommend({ trip, autoRun, onAdd, onCancel }: Props) {
   }
 
   if (stage.kind === 'pick') {
-    const { p, places, missing, list, usd } = stage
+    const { p, places, missing, list, usd, web } = stage
     return (
-      <PickPlaces places={places} missing={missing} dayLabel="方案" backLabel="换个方案" onBack={() => setStage({ kind: 'proposals', list, usd })} onAdd={onAdd}
-        head={<><b>{p.title}</b><small>AI 推荐 · 约 ${usd.toFixed(3)}</small><p>{p.fit}</p></>} />
+      <PickPlaces places={places} missing={missing} dayLabel="方案" backLabel="换个方案" onBack={() => setStage({ kind: 'proposals', list, usd, web })} onAdd={onAdd}
+        head={<><b>{p.title}</b><small>AI 推荐 · 约 ${usd.toFixed(3)}{'yuan' in web ? ` + 搜索 ¥${web.yuan.toFixed(2)}` : ''}</small><p>{p.fit}</p><Sources p={p} refs={web.refs} /></>} />
     )
   }
 
   if (stage.kind === 'proposals') {
     return (
       <div className="gi">
-        <p className="sheet-note">按 {trip.days.length} 天、这群人的限制挑的，信息可能不是最新的：选中后会在高德里逐个核实。</p>
+        <p className="sheet-note">{'yuan' in stage.web
+          ? `参考了网上 ${stage.web.refs.length} 篇攻略（智谱搜索 · 约 ¥${stage.web.yuan.toFixed(2)}），按 ${trip.days.length} 天、这群人的限制挑的；选中后会在高德里逐个核实。`
+          : `${stage.web.why}，信息可能不是最新的：选中后会在高德里逐个核实。`}</p>
         {stage.list.map((p, i) => (
           <article key={i} className="rec-card">
             <h4>{p.title}</h4>
@@ -84,7 +99,8 @@ export function Recommend({ trip, autoRun, onAdd, onCancel }: Props) {
               {p.days.map(d => <li key={d.day}><b>第 {d.day} 天 · {d.city}</b>{d.places.map(x => x.name).join('、')}</li>)}
             </ol>
             {p.skipped.length > 0 && <p className="skipped">没放进来：{p.skipped.map(x => `${x.name}（${x.reason}）`).join('；')}</p>}
-            <button type="button" className="kbtn primary wide" onClick={() => choose(p, stage.list, stage.usd)}>用这个方案</button>
+            <Sources p={p} refs={stage.web.refs} />
+            <button type="button" className="kbtn primary wide" onClick={() => choose(p, stage.list, stage.usd, stage.web)}>用这个方案</button>
           </article>
         ))}
         <div className="foot-row">
@@ -110,6 +126,18 @@ export function Recommend({ trip, autoRun, onAdd, onCancel }: Props) {
         <button type="button" className="kbtn" onClick={onCancel}>返回</button>
         <button type="button" className="kbtn primary" disabled={!region.trim() || stage.kind === 'busy'} onClick={run}>推荐方案</button>
       </div>
+    </div>
+  )
+}
+
+/** 方案参考了哪几篇网上攻略：点开是原帖 */
+function Sources({ p, refs }: { p: Proposal; refs: WebRef[] }) {
+  const used = [...new Set(p.sources)].map(i => refs[i - 1]).filter((r): r is WebRef => !!r).slice(0, 4)
+  if (!used.length) return null
+  return (
+    <div className="rec-src">
+      <span>参考：</span>
+      {used.map(r => <a key={r.url} href={r.url} target="_blank" rel="noopener noreferrer">{r.title.slice(0, 18)}<small>{r.site}</small></a>)}
     </div>
   )
 }

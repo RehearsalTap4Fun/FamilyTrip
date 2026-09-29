@@ -391,3 +391,6 @@
 .rec-card li { font: 500 13px/1.5 var(--sans); color: var(--ink2); }
 .rec-card li b { color: var(--ink); margin-right: 6px; font-weight: 700; }
 .rec-card .skipped { margin: 0; font: 500 12.5px/1.5 var(--sans); color: var(--warn-ink, var(--ink2)); }
+.rec-src { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font: 500 12.5px/1.5 var(--sans); color: var(--ink2); }
+.rec-src a { color: var(--k-accent); text-decoration: underline; text-underline-offset: 2px; }
+.rec-src a small { margin-left: 3px; color: var(--ink2); text-decoration: none; }

@@ -8,6 +8,7 @@ import { STYLES } from '@core/trips'
 import type { Trip } from '@core/types'
 import { callStructured, type LlmConfig, type StructuredCall, type StructuredResult, type Usage } from './client'
 import type { Guide } from './importGuide'
+import type { WebRef } from './webSearch'
 import { describeLimits, describeMembers } from './routePrompt'
 
 export const ProposalsSchema = z.object({
@@ -23,14 +24,16 @@ export const ProposalsSchema = z.object({
         name: z.string().describe('高德地图上能搜到的正式名称'),
         city: z.string().describe('所在城市'),
         kind: z.enum(['sight', 'food', 'lodging']).describe('sight 景点或体验；food 有名的具体餐厅；lodging 具体住处（一般不用给）'),
-        durationMin: z.number().int().nullable().describe('建议玩多久（分钟），按这群人的节奏估；餐厅填 null'),
+        // 漏写、写错都当没给（catch），不让一个次要字段把整个推荐弄失败
+        durationMin: z.number().int().nullable().catch(null).describe('建议玩多久（分钟），按这群人的节奏估；餐厅填 null'),
         note: z.string().describe('推荐理由，15 字以内'),
       })).describe('这天去的地方：上午、下午都要有安排，景点 2–4 个，可以加 1 家有名的餐厅'),
     })),
+    sources: z.array(z.number().int()).catch([]).describe('这个方案主要参考了哪几篇网上攻略（填编号，如 [1, 4]）；没给参考攻略就填 []'),
     skipped: z.array(z.object({
       name: z.string(),
       reason: z.string().describe('为什么不适合这群人，20 字以内'),
-    })).describe('这个地区很热门、但故意没放进来的地方（最多 3 个）'),
+    })).catch([]).describe('这个地区很热门、但故意没放进来的地方（最多 3 个）'),
   })).describe('2 到 3 个方案，彼此要有明显区别（路线、节奏或玩法不同）'),
 })
 export type Proposals = z.infer<typeof ProposalsSchema>
@@ -41,11 +44,13 @@ export interface RecommendInput {
   region: string
   /** 另外的要求，例如「想看雪山」「少走路」 */
   wishes?: string
+  /** 联网搜到的攻略摘要（webSearch.ts），有就让模型参考并注明出处 */
+  refs?: WebRef[]
 }
 
 const MODE_CN = { selfDrive: '自驾', tour: '跟团', transit: '公共交通' } as const
 
-export function buildRecommendPrompt({ trip, region, wishes }: RecommendInput): { system: string; user: string } {
+export function buildRecommendPrompt({ trip, region, wishes, refs = [] }: RecommendInput): { system: string; user: string } {
   // 整趟里会同行的每个人都算上，限制按最严的
   const everyone = { ...trip.party, members: trip.party.members.map(m => ({ ...m, days: undefined })), pets: trip.party.pets.map(p => ({ ...p, days: undefined })) }
   const c = deriveConstraints(partyOnDay(everyone, 0))
@@ -62,6 +67,10 @@ export function buildRecommendPrompt({ trip, region, wishes }: RecommendInput): 
     '7. 先在 regionCities 里列出这个地区包含的主要城市 / 片区。每个方案每天的 city 都必须是其中之一，不能换成别的地区。',
     '8. 出发地只是起点、不是目的地：不要在出发地安排游玩；第一天从出发地出发、当天到达这个地区（路远就把第一天当赶路日，只在到达的城市排一两个点）。不要安排返程那天，除非用户要求。',
     '9. 地区里个别地方超出了同行者的限制（例如海拔），就只把那些地方放进 skipped，同一个城市里不超的照样可以去（例如古城海拔没超，就不要因为附近的雪山超了而不去这个城市）。',
+    ...(refs.length ? [
+      '10. 下面给了网上搜到的攻略摘要（带编号）。优先采用里面多次出现、适合这群人的地方和路线；摘要里提到但不适合这群人的放进 skipped；在 sources 里写这个方案主要参考了哪几篇（编号）。',
+      '    摘要来自网上，可能过时或夸大：你确定不存在或已关闭的地方不要用。',
+    ] : []),
   ].join('\n')
   const user = [
     `地区：${region}（方案都要在这个地区里）`,
@@ -70,6 +79,7 @@ export function buildRecommendPrompt({ trip, region, wishes }: RecommendInput): 
     '他们的限制：', ...describeLimits(c).map(l => '- ' + l),
     ...(styles.length ? ['想怎么玩：' + styles.map((s, i) => `${STYLES[s].label}${styles.length > 1 ? (i === 0 ? '（主）' : '（辅）') : ''}：偏向${STYLES[s].seek}`).join('；')] : []),
     ...(wishes?.trim() ? [`另外的要求：${wishes.trim()}`] : []),
+    ...(refs.length ? ['', '网上搜到的攻略（摘要）：', ...refs.map((r, i) => `[${i + 1}] ${r.title}（${r.site}${r.date ? ' ' + r.date : ''}）\n${r.content}`)] : []),
   ].join('\n')
   return { system, user }
 }

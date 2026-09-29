@@ -13,12 +13,25 @@ const proposal = (title: string): Proposal => ({
     { day: 1, city: '大理', places: [{ name: '大理古城', city: '', kind: 'sight', durationMin: 150, note: '慢逛' }, { name: '崇圣寺三塔', city: '大理', kind: 'sight', durationMin: null, note: '拍倒影' }] },
     { day: 2, city: '丽江', places: [{ name: '束河古镇', city: '丽江', kind: 'sight', durationMin: 120, note: '人少' }] },
   ],
+  sources: [],
   skipped: [{ name: '玉龙雪山冰川公园', reason: '海拔 4506 米，超过外婆的上限' }],
 })
 
 const system0 = () => buildRecommendPrompt({ trip: t, region: '滇西北' }).system
 
 describe('AI 推荐方案', () => {
+  it('次要字段漏了（建议时长、参考出处、没放进来的）不让整个推荐失败；格式说明里仍然要求填', async () => {
+    const { ProposalsSchema } = await import('../src/llm/recommend')
+    const { parseLooseJson, jsonShape } = await import('../src/llm/client')
+    const raw = { regionCities: ['大理'], proposals: [{ title: 'x', pitch: 'p', fit: 'f', days: [{ day: 1, city: '大理', places: [{ name: '大理古城', city: '大理', kind: 'sight', note: '' }] }] }] }
+    const got = parseLooseJson(JSON.stringify(raw), ProposalsSchema)
+    expect(got.proposals[0]).toMatchObject({ sources: [], skipped: [] })
+    expect(got.proposals[0].days[0].places[0].durationMin).toBeNull()
+    const shape = jsonShape(ProposalsSchema)
+    expect(shape).toContain('"sources"')
+    expect(shape).toContain('"durationMin"')
+  })
+
   it('提示词带上地区、天数、出行方式、玩法、整趟所有同行者和他们的限制', () => {
     const { system, user } = buildRecommendPrompt({ trip: t, region: '滇西北', wishes: '想看雪山' })
     expect(system).toContain('2 到 3 个')

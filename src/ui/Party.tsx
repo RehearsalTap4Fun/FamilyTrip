@@ -201,7 +201,7 @@ export function PartyPage({ trip, onTrip, demoNow, onDemoNow, onReset, theme, on
         <Field label="智谱 API Key" hint="联网搜索攻略用；只存在这台设备上">
           <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={zhipuKey} placeholder="选填" onChange={e => onZhipuKey(e.target.value.trim())} />
         </Field>
-        <p className="sheet-note">到智谱开放平台（bigmodel.cn）控制台的「API Keys」里创建。联网搜索还在接入中：接好后，AI 推荐方案会先到攻略网站上搜一轮，推荐附带原帖链接。</p>
+        <p className="sheet-note">到智谱开放平台（bigmodel.cn）控制台的「API Keys」里创建，要复制完整（中间有个点）。填了以后，AI 推荐方案会先到网上搜一轮攻略，方案附原帖链接；每次搜索约 ¥0.2。不填就凭 AI 自己的知识推荐。</p>
         <button type="button" className="kbtn danger wide" onClick={() => setEditing({ kind: 'reset' })}>恢复示例行程</button>
       </div>
 

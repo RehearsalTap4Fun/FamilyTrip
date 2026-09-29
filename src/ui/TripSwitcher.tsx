@@ -77,28 +77,28 @@ export function TripBar({ count, onSwitch, onNew }: { count: number; onSwitch: (
   )
 }
 
-/** 当前这趟的「排这趟」入口（按进度提示接着来） */
-export function PlanCta({ trip, onPlan }: { trip?: Trip; onPlan?: () => void }) {
+/** 「排这趟」入口按进度说什么：按钮上的短字、完整说明（悬停提示、读屏） */
+export function planState(trip?: Trip): { short: string; name: string; sub: string } | null {
   const flow = trip?.plan?.flow
+  if (flow !== 'places' && flow !== 'region') return null
+  // 有没做完的进度：排好了没采用 / 推荐过 / 列了一半，就说接着来
+  const d = trip?.plan?.draft
+  const applied = trip?.plan?.places?.length ?? 0
+  if (d?.result) return { short: '看排好的', name: '排好了还没采用，接着看', sub: `上次排的 ${d.result.days.length} 天都在，点「采用」才会换掉现在的行程` }
+  if (d?.places?.length && JSON.stringify(d.places) !== JSON.stringify(trip?.plan?.places ?? [])) return { short: '接着排', name: '接着列要去的地方', sub: `已经加了 ${d.places.length} 个点，还没排` }
+  if (applied) return { short: '重新排', name: '改地点，重新排', sub: `上次排了 ${applied} 个点` }
+  if (d?.recs) return { short: '看推荐', name: '接着看上次的推荐', sub: `${d.recs.region || '这里'}的方案都存着，不用重新搜` }
+  if (flow === 'places') return { short: '排这趟', name: '排这趟：列出要去的地方', sub: '按同行人的限制，自动安排开车、吃饭、午睡和住处' }
+  return { short: 'AI 推荐', name: `让 AI 推荐「${trip?.plan?.region ?? '这里'}」怎么玩`, sub: '按同行人的限制给几个方案，挑一个自动排好开车、吃饭、午睡和住处' }
+}
+
+/** 标题右边的小按钮：改地点、重新排（不再占一整块） */
+export function PlanButton({ trip, onPlan }: { trip?: Trip; onPlan?: () => void }) {
+  const st = planState(trip)
+  if (!st || !onPlan) return null
   return (
-    <>
-      {onPlan && (flow === 'places' || flow === 'region') && (() => {
-        // 有没做完的进度：排好了没采用 / 推荐过 / 列了一半，就说接着来
-        const d = trip?.plan?.draft
-        const applied = trip?.plan?.places?.length ?? 0
-        const [name, sub] = d?.result ? ['排好了还没采用，接着看', `上次排的 ${d.result.days.length} 天都在，点「采用」才会换掉现在的行程`]
-          : d?.places?.length && JSON.stringify(d.places) !== JSON.stringify(trip?.plan?.places ?? []) ? ['接着列要去的地方', `已经加了 ${d.places.length} 个点，还没排`]
-          : applied ? ['改地点，重新排', `上次排了 ${applied} 个点`]
-          : d?.recs ? ['接着看上次的推荐', `${d.recs.region || '这里'}的方案都存着，不用重新搜`]
-          : flow === 'places' ? ['排这趟：列出要去的地方', '按同行人的限制，自动安排开车、吃饭、午睡和住处']
-          : [`让 AI 推荐「${trip?.plan?.region ?? '这里'}」怎么玩`, '按同行人的限制给几个方案，挑一个自动排好开车、吃饭、午睡和住处']
-        return (
-          <button type="button" className="card-btn plan-cta" onClick={onPlan}>
-            <span className="cbody"><span className="cname">{name}</span><span className="csub">{sub}</span></span>
-            <svg className="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" /></svg>
-          </button>
-        )
-      })()}
-    </>
+    <button type="button" className="kbtn plan-btn" onClick={onPlan} title={`${st.name}：${st.sub}`} aria-label={`${st.name}。${st.sub}`}>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 12.5 12.5 3M12.5 3H7.5M12.5 3v5" /></svg>{st.short}
+    </button>
   )
 }

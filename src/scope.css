@@ -58,7 +58,10 @@
 /* ——— 抬头、按天、通道 ——— */
 .bez-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 2px 2px 10px; }
 .bez-top h1 { font: 900 22px/1.2 var(--sans); color: var(--seg); letter-spacing: .04em; }
-.bez-top h1 small { font-weight: 400; font-size: 12px; color: var(--ink2); margin-left: 8px; letter-spacing: 0; }
+.bez-top h1 { flex: 1; min-width: 0; }
+/* 日期、方式整行放在标题下面：右边有「重新排」按钮时不被挤断 */
+.bez-top h1 small { display: block; font-weight: 400; font-size: 12px; color: var(--ink2); margin: 2px 0 0; letter-spacing: 0; }
+.bez-top .run { flex-shrink: 0; }
 .run { font: 400 20px var(--mono); color: var(--seg); display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
 .run small { font: 500 11px var(--sans); color: var(--ink2); }
 .run.hold { font: 700 14px var(--sans); color: var(--ink2); }

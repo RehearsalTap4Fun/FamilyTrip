@@ -9,7 +9,7 @@ import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, StopKind, StopStatus, Tag, Trip } from '@core/types'
 import { checkDay, checkTrip, LODGING_PLACEHOLDER, TAG_LABEL } from '@core/validate'
 import { uid } from '../store/state'
-import { PlanCta, TripBar } from './TripSwitcher'
+import { PlanButton, TripBar } from './TripSwitcher'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
@@ -47,8 +47,8 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, onSetup, tripC
           <h1 className="title">{trip.title}</h1>
           <p className="sub">{fmtShort(trip.startDate, 0)}–{fmtShort(trip.startDate, Math.max(0, last))} · {trip.days.length} 天 · {MODE_LABEL[trip.party.mode]} · {errs || warns ? `检查 ${errs} 处必改、${warns} 处留意` : '检查没有问题'}</p>
         </div>
+        <PlanButton trip={trip} onPlan={onPlan} />
       </header>
-      <PlanCta trip={trip} onPlan={onPlan} />
       <TripSetupCard trip={trip} onOpen={onSetup} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
       <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); setPin({ day: d, id }) }} />

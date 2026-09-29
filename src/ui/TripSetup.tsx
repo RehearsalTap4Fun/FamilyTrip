@@ -21,15 +21,22 @@ export function partyLine(p: Party): string {
   return `${MODE_LABEL[p.mode]} · ${p.members.length} 人${p.pets.length ? ` + ${p.pets.length} 只宠物` : ''}（${names.slice(0, 5).join('、')}${names.length > 5 ? '…' : ''}）`
 }
 
-/** 行程页上的摘要卡片 */
+/** 行程页上的摘要卡片：出行方式、几个人、几天、哪天出发、起点终点各一个胶囊，名字小字列在下面；点开改 */
 export function TripSetupCard({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
+  const p = trip.party
   const ends = endsLine(trip)
+  const names = [...p.members.map(m => m.name), ...p.pets.map(x => x.name)]
   return (
-    <button type="button" className="card-btn trip-setup" onClick={onOpen}>
-      <LineIcon name={trip.party.mode === 'transit' ? 'transit' : trip.party.mode} size={18} />
+    <button type="button" className="card-btn trip-setup" onClick={onOpen} aria-label={`这趟：${partyLine(p)}，${trip.days.length} 天，${fmtShort(trip.startDate, 0)} 出发${ends ? `，${ends}` : ''}。点开修改`}>
       <span className="cbody">
-        <span className="cname">这趟：{partyLine(trip.party)}</span>
-        <span className="csub">{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发{ends ? ` · ${ends}` : ''}</span>
+        <span className="ts-pills">
+          <span className="ts-pill mode"><LineIcon name={p.mode === 'transit' ? 'transit' : p.mode} size={15} />{MODE_LABEL[p.mode]}</span>
+          <span className="ts-pill">{p.members.length} 人{p.pets.length ? ` + ${p.pets.length} 宠物` : ''}</span>
+          <span className="ts-pill">{trip.days.length} 天</span>
+          <span className="ts-pill">{fmtShort(trip.startDate, 0)} 出发</span>
+          {ends && <span className="ts-pill">{ends}</span>}
+        </span>
+        <span className="csub ts-names">{names.join('、')}</span>
       </span>
       <span className="add">改</span>
     </button>

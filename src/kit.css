@@ -337,8 +337,6 @@
 .plan-day .day-chips { margin: 0 0 6px; }
 .replan-list li.drive { opacity: .7; }
 .replan-list li.drive .b b { font-weight: 500; font-size: 14px; }
-.plan-cta { margin: -4px 0 12px; border-color: var(--k-accent); }
-.plan-cta .cname { color: var(--k-accent); }
 .plan-soon { margin: -4px 2px 12px; }
 
 /* ——— 导入攻略 ——— */
@@ -483,7 +481,15 @@
 .roster-add div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .roster-add .chip { min-height: 40px; padding: 0 14px; background: var(--k-surface); border: 1px dashed var(--k-line); border-radius: 999px; font: 700 14px var(--sans); color: var(--ink); }
 .trip-setup { margin: 0 0 12px; min-height: 58px; }
-.trip-setup .cname { font-size: 14.5px; }
+/* 「这趟」：一项一个胶囊，不连成一句话 */
+.ts-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.ts-pill { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 10px; border-radius: 999px; background: var(--k-panel); border: 1px solid var(--k-line); font: 700 13px/1 var(--sans); color: var(--ink); white-space: nowrap; }
+.ts-pill.mode { background: var(--ink); border-color: var(--ink); color: var(--k-surface); }
+.ts-pill.mode svg { stroke: currentColor; }
+.ts-names { margin-top: 6px; }
+/* 标题右边的「重新排」小按钮 */
+.plan-btn { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 12px; font: 700 13px var(--sans); color: var(--k-accent); border-color: var(--k-accent); }
+.plan-btn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .trip-setup .add { flex-shrink: 0; font: 700 13px var(--sans); color: var(--k-accent); }
 .plan-who { width: 100%; display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; padding: 10px 12px; background: var(--k-surface); border: 1px solid var(--k-line); border-radius: var(--k-radius); text-align: left; font: 700 14px/1.4 var(--sans); color: var(--ink); }
 .plan-who span { flex: 1; min-width: 0; }

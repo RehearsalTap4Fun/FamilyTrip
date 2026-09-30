@@ -19,7 +19,9 @@ const g = (k: MapKeys): GmapOpts => ({ token: k.gmap!, apiBase: k.apiBase, fetch
 export async function mapSearch(q: string, k: MapKeys, opts: { city?: string; near?: Poi } = {}): Promise<Place[]> {
   const tasks: Promise<Place[]>[] = []
   if (k.amap) tasks.push(searchPlaces(q, k.amap, { city: opts.city, fetchImpl: k.fetchImpl }))
-  if (k.gmap) tasks.push(gSearch(q, g(k), opts.near && !inChina(opts.near) ? opts.near : undefined).then(list => list.filter(p => !inChina(p.poi))))
+  // Google 的搜索只认一句话：城市名（不是行政区划码）带进去，「小樽 音乐盒堂」比光搜「音乐盒堂」准得多
+  const gq = opts.city && !/^\d+$/.test(opts.city) && !q.includes(opts.city) ? `${opts.city} ${q}` : q
+  if (k.gmap) tasks.push(gSearch(gq, g(k), opts.near && !inChina(opts.near) ? opts.near : undefined).then(list => list.filter(p => !inChina(p.poi))))
   if (!tasks.length) return []
   const got = await Promise.allSettled(tasks)
   const ok = got.filter((x): x is PromiseFulfilledResult<Place[]> => x.status === 'fulfilled')

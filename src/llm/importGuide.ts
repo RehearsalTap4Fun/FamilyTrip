@@ -1,5 +1,6 @@
 // 导入攻略：一篇游记正文 → 大模型提炼路线与地点（标出与这群同行者冲突的地方）→ 高德核实 → 排程引擎的输入（PlanPlace）。
 // 正文来自用户粘贴，或服务器按用户贴的链接代取（server/api-server.mjs）。只提炼原文里有的，不编。
+import { distanceKm } from '@core/geo'
 import { z } from 'zod'
 import { deriveConstraints } from '@core/constraints'
 import { bestTimeOf } from '@core/timeOfDay'
@@ -66,6 +67,9 @@ export interface ImportedPlace extends PlanPlace { note: string; avoid?: string;
 
 export interface SearchHit { name: string; area: string; poi: PlanPlace['poi']; type?: string }
 
+/** 一趟的地方离「这趟在哪一带」超过这么远就不认（多半搜到了外地同名的） */
+const REGION_KM = 500
+
 /** 高德里这些分类不是玩的地方（「马久邑」会搜到「马久邑村村委会」、「离堆公园」会搜到「离堆公园站」公交站）：同名时排到后面 */
 const NOT_PLACE = /^(政府机构|公司企业|商务住宅|金融保险|科教文化服务;学校|公共设施;公共厕所|交通设施服务;(停车场|公交车站|地铁站|火车站|长途汽车站|港口码头))/
 const rank = (h: SearchHit) => (h.type && NOT_PLACE.test(h.type) ? 1 : 0)
@@ -74,9 +78,25 @@ const rank = (h: SearchHit) => (h.type && NOT_PLACE.test(h.type) ? 1 : 0)
  * 逐个在高德里找：先在它所在的城市找，找不到再带上城市名搜一次；名字要对得上（两个连着的字相同）。
  * 原文按天写、而且天数和这趟一样，就把原文的日子记成「想在哪天」（只是偏好，排程放不下或那天空了会挪）；否则交给排程引擎自己分天。
  */
-export async function resolveGuide(guide: Guide, tripDays: number, search: (keyword: string, city?: string) => Promise<SearchHit[]>, match: (q: string, found: string) => boolean, onProgress?: (i: number, n: number, name: string) => void): Promise<{ places: ImportedPlace[]; missing: string[] }> {
+export async function resolveGuide(guide: Guide, tripDays: number, searchRaw: (keyword: string, city?: string) => Promise<SearchHit[]>, match: (q: string, found: string) => boolean, onProgress?: (i: number, n: number, name: string) => void): Promise<{ places: ImportedPlace[]; missing: string[] }> {
+  // 同一个词只搜一次：下面先整体搜一轮认地区，逐个核实时直接用缓存
+  const memo = new Map<string, Promise<SearchHit[]>>()
+  const search0 = (k: string, city?: string) => { const key = k + '\u0001' + (city ?? ''); if (!memo.has(key)) memo.set(key, searchRaw(k, city)); return memo.get(key)! }
   const places: ImportedPlace[] = []
   const missing: string[] = []
+  // 先认这趟在哪一带：所有地方各搜一次，取第一个对得上的结果的坐标中位数；之后离这一带 500 公里以外的结果都不认。
+  // 北海道的「音乐盒堂」「缆车」被对到了上海五原路、北京八达岭（2026-09-30 用户反馈）：高德不认「札幌」，就全国搜同名的
+  const firstHits: { lng: number; lat: number }[] = []
+  for (const p of guide.places) {
+    const q = p.area && p.kind === 'sight' ? p.area : p.name
+    const list = await search0(q, p.city).catch(() => [] as SearchHit[])
+    const h = list.find(x => match(q, x.name)) ?? list.find(x => x.poi.gid)
+    if (h) firstHits.push(h.poi)
+  }
+  const med = (xs: number[]) => { const a = [...xs].sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : NaN }
+  const center = firstHits.length >= 3 ? { lng: med(firstHits.map(p => p.lng)), lat: med(firstHits.map(p => p.lat)) } : undefined
+  const near = (h: SearchHit) => !center || distanceKm(center, h.poi) <= REGION_KM
+  const search = async (k: string, city?: string) => (await search0(k, city)).filter(near)
   // 原文天数和这趟一样才沿用它的分天；原文是一日游、这趟有两天，照搬等于全挤在第一天（2026-09-29 都江堰青城山那篇就是这样）
   const keepDays = guide.days != null && guide.days === tripDays
   const seen = new Set<string>()
@@ -114,15 +134,19 @@ export async function resolveGuide(guide: Guide, tripDays: number, search: (keyw
     if (merged.has(p)) continue
     onProgress?.(i + 1, guide.places.length, p.name)
     const pickHit = (list: SearchHit[]) => list.filter(h => match(p.name, h.name)).sort((a, b) => rank(a) - rank(b))[0]
-    let hit = pickHit(await search(p.name, p.city))
-    if (!hit && p.city && !p.name.includes(p.city)) hit = pickHit(await search(p.city + p.name, p.city))
+    let got: SearchHit[] = await search(p.name, p.city)
+    let hit: SearchHit | undefined = pickHit(got)
+    if (!hit && p.city && !p.name.includes(p.city)) { const more = await search(p.city + p.name, p.city); hit = pickHit(more); got = [...got, ...more] }
+    // 国外的地方 Google 常给英文、日文名（白色恋人公园 → Shiroi Koibito Park）：字对不上时信 Google 的第一个（上面已经限在这一带），名字用原文的中文
+    let foreign = false
+    if (!hit) { hit = got.find(h => h.poi.gid); foreign = !!hit }
     if (!hit) { missing.push(p.name); continue }
     const key = hit.poi.amapId ?? `${hit.poi.lng},${hit.poi.lat}`
     if (seen.has(key)) continue
     seen.add(key)
     places.push({
       id: 'g' + (i + 1) + '-' + key,
-      name: hit.name, kind: p.kind, poi: hit.poi, area: hit.area,
+      name: foreign ? p.name : hit.name, kind: p.kind, poi: hit.poi, area: foreign ? [hit.area, hit.name].filter(Boolean).join(' · ') : hit.area,
       ...(keepDays && p.day != null && p.day >= 1 ? { prefDay: Math.min(tripDays, p.day) - 1 } : {}),
       ...(p.durationMin && p.durationMin > 0 ? { durationMin: Math.min(480, p.durationMin) } : {}),
       note: p.note, ...(p.avoid ? { avoid: p.avoid } : {}), ...(p.caution ? { caution: p.caution } : {}),

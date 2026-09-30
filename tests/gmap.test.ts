@@ -132,3 +132,64 @@ describe('国内高德、国外 Google', () => {
     expect((await tools.nearby!('food', tokyo)).map(p => p.name)).toEqual(['一兰拉面'])
   })
 })
+
+import { strayCandidates, type Candidate } from '../src/core/planner'
+import { resolveGuide, type Guide } from '../src/llm/importGuide'
+import { namesMatch } from '../src/geo/groundDay'
+
+describe('北海道混进上海、北京（2026-09-30）', () => {
+  const hk = (name: string, lng: number, lat: number, kind: 'sight' | 'food' = 'sight'): Candidate => ({ id: name, name, kind, poi: { lng, lat } })
+  const hokkaido = [hk('小樽运河', 141.0, 43.2), hk('北海道大学', 141.34, 43.08), hk('洞爷湖', 140.84, 42.63), hk('昭和新山', 140.86, 42.54), hk('狸小路', 141.35, 43.06)]
+
+  it('排程：离其他地方都很远的单个地方拿出来，不排「飞去上海吃午饭」', () => {
+    const shanghai = hk('天空音乐盒(上海五原路店)', 121.44, 31.21), beijing = hk('八达岭上山缆车', 116.01, 40.36), ramen = hk('万藏本店(虹梅路店)', 121.38, 31.19, 'food')
+    const got = strayCandidates([...hokkaido, shanghai, ramen, beijing])
+    expect([...got.keys()].map(c => c.name).sort()).toEqual([beijing.name, ramen.name, shanghai.name].sort())
+    // 正常的长距离行程不误伤：大理、丽江、香格里拉相隔三四百公里
+    expect(strayCandidates([hk('大理古城', 100.16, 25.69), hk('丽江古城', 100.23, 26.87), hk('独克宗', 99.7, 27.82), hk('泸沽湖', 100.77, 27.7)]).size).toBe(0)
+  })
+
+  it('核实地点：先认出这趟在哪一带，500 公里外同名的不认', async () => {
+    const guide = { days: 5, places: [
+      { name: '小樽运河', kind: 'sight', city: '小樽' }, { name: '北海道大学', kind: 'sight', city: '札幌' }, { name: '洞爷湖', kind: 'sight', city: '洞爷湖' },
+      { name: '小樽音乐盒堂', kind: 'sight', city: '小樽' },
+    ] } as unknown as Guide
+    const db: Record<string, { name: string; lng: number; lat: number }[]> = {
+      小樽运河: [{ name: '小樽运河', lng: 141.0, lat: 43.2 }],
+      北海道大学: [{ name: '北海道大学', lng: 141.34, lat: 43.08 }],
+      洞爷湖: [{ name: '洞爷湖', lng: 140.84, lat: 42.63 }],
+      // 高德先给上海的「音乐盒」，Google 的小樽那家排在后面
+      小樽音乐盒堂: [{ name: '天空音乐盒(上海五原路店)', lng: 121.44, lat: 31.21 }, { name: '小樽音乐盒堂本馆', lng: 141.0, lat: 43.19 }],
+    }
+    const calls: string[] = []
+    const r = await resolveGuide(guide, 5, async k => { calls.push(k); return (db[k] ?? []).map(h => ({ name: h.name, area: '', poi: { lng: h.lng, lat: h.lat } })) }, namesMatch)
+    expect(r.places.map(p => p.name)).toEqual(['小樽运河', '北海道大学', '洞爷湖', '小樽音乐盒堂本馆'])
+    expect(new Set(calls).size).toBe(calls.length) // 同一个词只搜一次
+  })
+
+  it('核实地点：国外 Google 给的是英文、日文名也认（限在这一带），名字用中文、原名附在后面', async () => {
+    const guide = { days: 3, places: [
+      { name: '小樽运河', kind: 'sight', city: '小樽' }, { name: '北海道大学', kind: 'sight', city: '札幌' }, { name: '洞爷湖', kind: 'sight', city: '洞爷湖' },
+      { name: '白色恋人公园', kind: 'sight', city: '札幌' }, { name: '有珠山缆车', kind: 'sight', city: '洞爷湖' },
+    ] } as unknown as Guide
+    const g = (name: string, lng: number, lat: number) => ({ name, area: '日本 札幌', poi: { lng, lat, gid: 'g-' + name, cc: 'JP' } })
+    const db: Record<string, ReturnType<typeof g>[]> = {
+      小樽运河: [g('小樽運河', 141.0, 43.2)], 北海道大学: [g('北海道大学', 141.34, 43.08)], 洞爷湖: [g('洞爷湖', 140.84, 42.63)],
+      白色恋人公园: [g('Shiroi Koibito Park', 141.27, 43.09)],
+      // 高德给的八达岭缆车在 500 公里外，被挡掉；剩下 Google 的
+      有珠山缆车: [{ name: '八达岭上山缆车', area: '北京', poi: { lng: 116.01, lat: 40.36 } } as unknown as ReturnType<typeof g>, g('Usuzan Ropeway', 140.84, 42.55)],
+    }
+    const r = await resolveGuide(guide, 3, async k => db[k] ?? [], namesMatch)
+    expect(r.places.map(p => p.name)).toEqual(['小樽運河', '北海道大学', '洞爷湖', '白色恋人公园', '有珠山缆车'])
+    expect(r.places[3].area).toContain('Shiroi Koibito Park')
+    expect(r.missing).toEqual([])
+  })
+
+  it('搜国外的地方：城市名带进 Google 的搜索词', async () => {
+    const qs: string[] = []
+    const f = (async (url: string, init: RequestInit) => { if (url.endsWith('/gmap/search')) qs.push(JSON.parse(String(init.body)).q); return new Response(JSON.stringify({ places: [] })) }) as unknown as typeof fetch
+    await mapSearch('音乐盒堂', { amap: '', gmap: 'tok', apiBase: 'https://s/api', fetchImpl: f }, { city: '小樽' })
+    await mapSearch('音乐盒堂', { amap: '', gmap: 'tok', apiBase: 'https://s/api', fetchImpl: f }, { city: '530100' })
+    expect(qs).toEqual(['小樽 音乐盒堂', '音乐盒堂'])
+  })
+})

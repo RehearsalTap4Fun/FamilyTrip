@@ -284,10 +284,32 @@ function refineDays(days: Candidate[][], budgets: DayBudget[], pinned: (c: Candi
   return out
 }
 
+/**
+ * 离群的地方：到所有地方坐标中位数的距离，既超过 800 公里、又超过其余地方离中心距离（中位数）的 5 倍。至少 4 个有坐标的地方才判断。
+ * 真正跨很远的行程（北京自驾大理）景点都在目的地一带，不受影响
+ */
+export function strayCandidates(cands: Candidate[]): Map<Candidate, number> {
+  const out = new Map<Candidate, number>()
+  const withPoi = cands.filter(c => c.poi && Number.isFinite(c.poi.lng))
+  if (withPoi.length < 4) return out
+  const med = (xs: number[]) => { const a = [...xs].sort((x, y) => x - y); return a[Math.floor(a.length / 2)] }
+  const center = { lng: med(withPoi.map(c => c.poi.lng)), lat: med(withPoi.map(c => c.poi.lat)) }
+  const dist = new Map(withPoi.map(c => [c, distanceKm(center, c.poi)]))
+  for (const c of withPoi) {
+    const d = dist.get(c)!
+    // 其余地方离中心的距离取中位数（不取平均：几个搜错的会把平均拉大，互相掩护）
+    const typical = med(withPoi.filter(x => x !== c).map(x => dist.get(x)!))
+    if (d > 800 && d > 5 * Math.max(typical, 20)) out.set(c, d)
+  }
+  return out
+}
+
 /** 一天里的一个非开车节点；开车段和路上的服务区由 expand 按真实车程生成 */
 interface Node { stop: Stop; poi?: Poi; meal?: 'lunch' | 'dinner' }
 
 const MEAL_AT = { lunch: LUNCH, dinner: DINNER }
+/** 交通枢纽：不当景点 */
+const HUB = /(机场|空港|航站楼|火车站|高铁站|动车站|客运站|Airport|Station)$/i
 
 export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanTools, opts: { origin?: Poi; end?: { name: string; poi: Poi }; newId: (prefix: string) => string }): Promise<PlanResult> {
   const days = trip.days.length
@@ -304,6 +326,24 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   const capOf = (d: number) => Math.max(60, cons[d].activeMin.value * (tweakOf(d)?.lighter ? 0.75 : 1))
   const maxCap = Math.max(...trip.days.map((_, d) => capOf(d)))
   // 最佳时段：给了的照用，没给的从说明里认（「晚上灯亮了最好看」）
+  // 离其他地方都很远的单个地方先拿出来：多半是核实地点时对到了外地同名的（北海道行程里混进上海的音乐盒店、北京的缆车），
+  // 照排就会排出「飞去上海吃午饭」。放进「放不下」并说明，让人自己看
+  const strays = strayCandidates(candidates)
+  candidates = candidates.filter(c => !strays.has(c))
+  // 机场、火车站不当景点排（AI 方案常把「新千岁机场」列成第一天的景点）：去程返程本来就在那儿起落
+  const hubs = candidates.filter(c => c.kind === 'sight' && HUB.test(c.name))
+  candidates = candidates.filter(c => !hubs.includes(c))
+  // 第一天大半在路上（飞机、高铁到了离回住处不到五小时：只够吃个晚饭、逛个夜市）：方案里写的「第 1 天」其实是到的第二天，「第几天」整体往后挪一天。
+  // 北海道 5 天：从成都飞过去 17:30 才到，札幌那天的景点全挤进第 2 天、第 4 天空着（2026-09-30）
+  if (opts.origin && days > 2 && trip.party.mode !== 'selfDrive' && candidates.some(c => c.prefDay === 0)) {
+    const pts = candidates.filter(c => c.poi)
+    if (pts.length) {
+      const m = (xs: number[]) => [...xs].sort((x, y) => x - y)[Math.floor(xs.length / 2)]
+      const center = { lng: m(pts.map(c => c.poi.lng)), lat: m(pts.map(c => c.poi.lat)) }
+      const arrive = parseHM(startOf(0)) + estLegMin(opts.origin, center, trip.party.mode)
+      if (cons[0].endBy.value - arrive < 300) candidates = candidates.map(c => (c.prefDay != null ? { ...c, prefDay: Math.min(days - 1, c.prefDay + 1) } : c))
+    }
+  }
   const sights = candidates.filter(c => c.kind === 'sight').map(c0 => {
     const bt = bestTimeOf(c0.bestTime, c0.why)
     // 没给时长的按景点大小估（夜景晚上逛一圈，最多一个半小时）；认不出的按节奏默认
@@ -490,6 +530,8 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
   let free = sights.filter(s => regionDay(s.day) == null)
   const pinnedAll = sights.filter(s => regionDay(s.day) != null)
   const unplaced: Unplaced[] = []
+  for (const [c, km] of strays) unplaced.push({ candidate: c, reason: `离这趟其他地方太远（约 ${Math.round(km / 100) * 100} 公里），多半搜到了外地同名的地方，核对一下` })
+  for (const c of hubs) unplaced.push({ candidate: c, reason: '机场、车站不当景点排：去程返程会从这儿走' })
   const pinnedOn = () => Array.from({ length: days }, (_, d) => pinnedAll.filter(s => regionDay(s.day) === d))
   let daySights: Candidate[][] = []
   for (let guard = 0; guard < 200; guard++) {

@@ -1,4 +1,5 @@
 // 「今天」：一天一页地图。高速从上走到下，站点是地图符号，警告是引线注记，底部是图例。
+import { legText } from './Leg'
 import { Fragment, useMemo, useState } from 'react'
 import { HowLine } from './Highlights'
 import { deriveConstraints } from '@core/constraints'
@@ -235,7 +236,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
                     {[
                       stop.status === 'done' && <span key="d" className="arrived">已打卡 <ArrivalInput trip={trip} dayIndex={dayIndex} stop={stop} onTrip={onTrip} /></span>,
                       stop.status === 'skipped' && <span key="s">已跳过</span>,
-                      !!stop.driveMin && <span key="dr">开车 {stop.driveMin} 分</span>,
+                      !!stop.driveMin && <span key="dr">{stop.leg ? legText(stop.leg) : `${trip.party.mode === 'selfDrive' ? '开车' : '路上'} ${stop.driveMin} 分`}</span>,
                       stop.kind !== 'lodging' && stop.durationMin > 0 && <span key="du">停 {stop.durationMin} 分</span>,
                       !!stop.walkKm && <span key="w">步行 {stop.walkKm} km</span>,
                       stop.altitudeM != null && <span key="a">海拔 {stop.altitudeM} m</span>,

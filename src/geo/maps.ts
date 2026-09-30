@@ -1,9 +1,9 @@
 // 地图统一入口：国内用高德，国外用 Google（经自家服务器转给 Cloudflare Worker）。按坐标在不在国内自动选。
 // 界面和排程引擎都走这里，不直接调 amap.ts / gmap.ts。
-import type { Poi } from '@core/types'
+import type { Leg, Poi } from '@core/types'
 import { distanceKm } from '@core/geo'
-import { AmapError, driveBetween, drivePath, regionAt, searchPlaces, type Drive, type Place, type RoutePath } from './amap'
-import { gDrive, gRegion, gRoute, gSearch, type GmapOpts } from './gmap'
+import { AmapError, driveBetween, drivePath, regionAt, searchPlaces, transitBetween, type Drive, type Place, type RoutePath } from './amap'
+import { gDrive, gRegion, gRoute, gSearch, gTransit, type GmapOpts } from './gmap'
 import { inChina } from './inChina'
 
 /** 高德 Key、国外地图访问口令：都只存在这台设备上 */
@@ -44,6 +44,12 @@ export async function mapDrive(a: Poi, b: Poi, k: MapKeys): Promise<Drive | null
 export async function mapRoute(a: Poi, b: Poi, k: MapKeys): Promise<RoutePath | null> {
   if (inChina(a) && inChina(b)) return k.amap ? drivePath(a, b, k.amap, k.fetchImpl) : null
   return k.gmap ? gRoute(a, b, g(k)) : null
+}
+
+/** 公交地铁怎么坐：两头都在国内问高德，否则问 Google。没方案返回 null（排程改按估算） */
+export async function mapTransit(a: Poi, b: Poi, k: MapKeys): Promise<Leg | null> {
+  if (inChina(a) && inChina(b)) return k.amap ? transitBetween(a, b, k.amap, k.fetchImpl) : null
+  return k.gmap ? gTransit(a, b, g(k)) : null
 }
 
 export interface MapRegion { city: string; district: string; country?: string; cc?: string }

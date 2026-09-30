@@ -1,5 +1,6 @@
 // 站点面板：「今天」和「行程」共用。第一层只有最常改的——停留多久、开过来多久、优先级、这里有什么；
 // 名称类型、步行海拔、定时开始收在「更多」。底部实时写出当天检查结果的变化。
+import { LegSteps } from './Leg'
 import { ArrivalInput } from './Arrival'
 import { plannedStart } from '@core/progress'
 import { useRef, useState } from 'react'
@@ -65,9 +66,14 @@ function StopFields({ s, onChange }: { s: Stop; onChange: (p: Partial<Stop>) => 
         {s.kind === 'lodging' ? <p className="sheet-note">{s.home ? '行程终点：回到这里就结束了。' : '住宿是一天的终点，不计时长。'}</p> :
           <Stepper label="时长" value={s.durationMin} step={drive ? 5 : 15} min={0} max={720} onChange={durationMin => onChange({ durationMin })} format={dur} />}
       </Field>
+      {!drive && s.leg && (
+        <Field label="怎么去" hint="从上一站到这里">
+          <LegSteps leg={s.leg} to={s.poi} name={s.name} />
+        </Field>
+      )}
       {!drive && (
-        <Field label="开过来" hint="从上一站开到这里">
-          <Stepper label="开过来" value={s.driveMin ?? 0} step={5} min={0} max={600} onChange={v => onChange({ driveMin: v || undefined })} format={v => (v ? dur(v) : '不开车')} />
+        <Field label={s.leg ? '路上' : '开过来'} hint={s.leg ? '按实际情况改' : '从上一站开到这里'}>
+          <Stepper label={s.leg ? '路上' : '开过来'} value={s.driveMin ?? 0} step={5} min={0} max={600} onChange={v => onChange({ driveMin: v || undefined, ...(s.leg ? { leg: { ...s.leg, min: v } } : {}) })} format={v => (v ? dur(v) : s.leg ? '就在旁边' : '不开车')} />
         </Field>
       )}
       {(s.kind === 'sight' || s.kind === 'food' || s.kind === 'rest') && (

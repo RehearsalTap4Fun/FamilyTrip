@@ -5,7 +5,7 @@ import { distanceKm } from '@core/geo'
 import { AMAP_TYPES, searchAround, searchCitySights, type Place } from './amap'
 import { gNearby } from './gmap'
 import { inChina } from './inChina'
-import { hasMaps, mapDrive, mapRoute, type MapKeys } from './maps'
+import { hasMaps, mapDrive, mapRoute, mapTransit, type MapKeys } from './maps'
 
 const RADIUS: Record<NearbyKind, number> = { food: 2500, lodging: 6000, serviceArea: 20000, sight: 15000 }
 
@@ -24,6 +24,8 @@ export function makePlanTools(keys: MapKeys | string, ratings: Rating[], onProgr
     ...(hasMaps(k) ? {
       drive: async (a, b) => (await mapDrive(a, b, k))?.minutes ?? null,
       route: (a, b) => mapRoute(a, b, k),
+      // 查不到（没 Key、没方案、出错）都当没有，排程按估算
+      transit: (a, b) => mapTransit(a, b, k).catch(() => null),
       nearby: async (what, at) => {
         let list: Place[]
         if (!inChina(at)) {

@@ -1,6 +1,6 @@
 // 国外地图（Google）：经自家服务器 /trip/api/gmap/* 转给 Cloudflare Worker（worker/src/gmap.js），Worker 再问 Google。
 // 访问口令存在这台设备上（设置里填），和高德 Key 一样不同步、不导出。返回的数据和高德那套同样形状。
-import type { Poi } from '@core/types'
+import type { Leg, Poi } from '@core/types'
 import { syncApi } from '../sync/client'
 import { AmapError, type Drive, type Place, type RoutePath } from './amap'
 
@@ -32,6 +32,7 @@ export const gSearch = async (q: string, o: GmapOpts, near?: Poi): Promise<Place
 export const gNearby = async (at: Poi, kind: NearbyKind, radius: number, o: GmapOpts): Promise<Place[]> => (await call<{ places: Place[] }>('nearby', { at: pt(at), kind, radius }, o)).places
 export const gDrive = (from: Poi, to: Poi, o: GmapOpts): Promise<Drive | null> => call<Drive | null>('drive', { from: pt(from), to: pt(to) }, o)
 export const gRoute = (from: Poi, to: Poi, o: GmapOpts): Promise<RoutePath | null> => call<RoutePath | null>('route', { from: pt(from), to: pt(to) }, o)
+export const gTransit = (from: Poi, to: Poi, o: GmapOpts): Promise<Leg | null> => call<Leg | null>('transit', { from: pt(from), to: pt(to) }, o)
 export const gRegion = (at: Poi, o: GmapOpts): Promise<Region | null> => call<Region | null>('region', { at: pt(at) }, o)
 
 /** 设置里「测一下」：随便查一个地方（东京塔），通了就行 */

@@ -1,5 +1,6 @@
 // 「行程」：每天一张卡，曲线对着当天最严的上限。点开一天：站点可左滑跳过 / 删除、按住把手拖动排序、点一下打开面板。
 // 以后主要是 AI 排好、这里微调，所以没有表单，只有面板。
+import { legText } from './Leg'
 import { mapDrive, hasMaps } from '../geo/maps'
 import { useState } from 'react'
 import { deriveConstraints } from '@core/constraints'
@@ -120,7 +121,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSe
               <button type="button" className="sw-hd" onClick={() => setOpen(isOpen ? null : i)} aria-expanded={isOpen}>
                 <span className="d mono">{i + 1}<small>{fmtShort(trip.startDate, i)}</small></span>
                 <span className="b">
-                  <span className="rt">{dayTitle(d)}<span>{driveHours(d) > 0 ? `驾车 ${driveHours(d).toFixed(1)}h` : ''}</span></span>
+                  <span className="rt">{dayTitle(d)}<span>{driveHours(d) > 0 ? `${trip.party.mode === 'selfDrive' ? '驾车' : '路上'} ${driveHours(d).toFixed(1)}h` : ''}</span></span>
                   <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
                     <line x1="0" x2={W} y1={py(c.activeMin.value)} y2={py(c.activeMin.value)} className="trig" stroke="var(--seg-dim)" />
                     <path d={pts.map((p, k) => `${k ? 'L' : 'M'}${px(p.t).toFixed(1)} ${py(p.v).toFixed(1)}`).join(' ')} className={'trace-mini' + (failed ? ' fail' : planned > c.activeMin.value ? ' warn' : '')} />
@@ -154,6 +155,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSe
                             <span className="t mono pin">{sl ? fmtHM(sl.start) : ''}</span>
                             <span className="n pin">
                               {st.kind === 'drive' ? <>{code && <span className="code mono">{code}</span>}{stripCode(st.name)}</> : st.name}
+                              {st.leg && <span className="leg-mini">{legText(st.leg)}</span>}
                               {mine.map((x, k) => <span key={k} role="button" tabIndex={0} className="chip-tap" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setIssue(x) }} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setIssue(x) } }}><Chip issue={x} /></span>)}
                             </span>
                             <span className="dur mono">{st.kind === 'lodging' ? (st.home ? '到家' : '住') : `${st.durationMin}′`}</span>

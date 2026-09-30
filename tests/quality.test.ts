@@ -124,7 +124,9 @@ function evaluate(route: Route, trip: Trip, unplacedMust: string[], overloaded =
     const dinner = foods.filter(f => f.start >= dinnerLo && f.start <= dinnerHi)
     // 最后一天早到家：中午前到家不用在外面吃午饭，19:30 前到家晚饭回家吃
     const homeAt = last && trip.plan?.to ? end : Infinity
-    const homeDinner = homeAt <= 19 * 60 + 30 || (last && day.stops[day.stops.length - 1]?.why?.includes('到家吃晚饭'))
+    // 最后一天傍晚在高铁、飞机上（17:00–19:30 大半在路上）：路上或到家再吃，也算
+    const onBoard = last && sl.some(x => x.stop.kind === 'transit' && Math.min(x.end, 19.5 * 60) - Math.max(x.start, 17 * 60) >= 90)
+    const homeDinner = homeAt <= 19 * 60 + 30 || onBoard || (last && /到家吃晚饭|到家再吃/.test(day.stops[day.stops.length - 1]?.why ?? ''))
     const homeLunch = homeAt <= 12 * 60 + 30
     if (!lunch.length && !homeLunch) hard.push(`${tag} 没有像样的午饭（${foods.map(f => fmtHM(f.start)).join('、') || '一顿都没有'}）`)
     if (!dinner.length && !homeDinner) hard.push(`${tag} 没有像样的晚饭（${foods.map(f => fmtHM(f.start)).join('、') || '一顿都没有'}）`)

@@ -1,6 +1,6 @@
 // 高德 Web 服务 API：地点搜索、驾车路线。浏览器直连（接口允许跨域），Key 由用户自己在设置里填。
 // 小程序端走云函数转发，用同一套解析。
-import type { Poi } from '@core/types'
+import type { Leg, LegStep, Poi } from '@core/types'
 
 const BASE = 'https://restapi.amap.com'
 
@@ -132,6 +132,48 @@ export function parseDrive(j: any): Drive | null {
 export async function driveBetween(from: Poi, to: Poi, key: string, fetchImpl: typeof fetch = fetch): Promise<Drive | null> {
   const j = await call('v3/direction/driving', { origin: `${from.lng},${from.lat}`, destination: `${to.lng},${to.lat}`, strategy: '0', extensions: 'base' }, key, fetchImpl)
   return parseDrive(j)
+}
+
+/** 线路名去掉方向括号：「地铁1号线(八通线)(环球度假区--古城)」→ 线名「地铁1号线(八通线)」、开往「古城」 */
+export function cleanLine(name: string): { line: string; toward?: string } {
+  const m = /^(.*)\(([^()]*?)--([^()]*?)\)$/.exec(name.trim())
+  return m ? { line: m[1].trim(), toward: m[3].trim() } : { line: name.trim() }
+}
+
+/**
+ * 公交地铁换乘方案（v3/direction/transit/integrated，strategy 3 = 最少步行：带老人孩子，最快的那个常要走 40 分钟）：取高德推荐的第一个，按「步行 → 几号线从哪站到哪站 → 步行」拆开。
+ * city 是起点所在城市（行政区划码），跨城时 cityd 是终点城市。搜不到方案返回 null
+ */
+export function parseTransit(j: any): Leg | null {
+  const t = j.route?.transits?.[0]
+  if (!t) return null
+  const steps: LegStep[] = []
+  for (const seg of t.segments ?? []) {
+    const w = seg.walking
+    if (w && Number(w.distance) > 50) steps.push({ by: 'walk', min: Math.max(1, Math.round(Number(w.duration) / 60)) })
+    for (const b of (seg.bus?.buslines ?? []).slice(0, 1)) {
+      const { line } = cleanLine(str(b.name))
+      steps.push({ by: str(b.type).includes('地铁') ? 'subway' : 'bus', min: Math.max(1, Math.round(Number(b.duration) / 60)), line, from: str(b.departure_stop?.name), to: str(b.arrival_stop?.name), stops: Number(b.via_num ?? 0) + 1 })
+    }
+    const r = seg.railway
+    if (r && str(r.name)) steps.push({ by: 'rail', min: Math.max(1, Math.round(Number(r.time ?? 0) / 60)), line: str(r.name), from: str(r.departure_stop?.name), to: str(r.arrival_stop?.name) })
+  }
+  const min = Math.round(Number(t.duration) / 60)
+  return { by: 'transit', min, steps, summary: legSummary(steps) }
+}
+
+/** 一句话：「地铁2号线 → 公交 K18」；全程走路就是「步行 12′」 */
+export function legSummary(steps: LegStep[]): string {
+  const rides = steps.filter(s => s.by !== 'walk')
+  if (!rides.length) return `步行 ${steps.reduce((a, s) => a + s.min, 0)}′`
+  return rides.map(s => s.line ?? '').filter(Boolean).join(' → ')
+}
+
+export async function transitBetween(from: Poi, to: Poi, key: string, fetchImpl: typeof fetch = fetch): Promise<Leg | null> {
+  const city = from.adcode ?? to.adcode
+  if (!city) return null
+  const j = await call('v3/direction/transit/integrated', { origin: `${from.lng},${from.lat}`, destination: `${to.lng},${to.lat}`, city, cityd: to.adcode ?? city, strategy: '3', nightflag: '0', extensions: 'base' }, key, fetchImpl)
+  return parseTransit(j)
 }
 
 /** 一条真实路线：总用时，和沿途的点（每个点记着从起点开到这要几分钟） */

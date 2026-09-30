@@ -188,7 +188,7 @@ export function DayEditor({ trip, dayIndex, onTrip, onRemoved, onReplan }: Props
                   <label className="field">名称<input value={s.name} onChange={e => patch(s.id, { name: e.target.value })} /></label>
                   <label className="field">类型<select value={s.kind} onChange={e => patch(s.id, { kind: e.target.value as StopKind })}>{(Object.keys(KIND_LABEL) as StopKind[]).map(k => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</select></label>
                   <label className="field">{s.kind === 'drive' ? '开车（分）' : '停留（分）'}<input inputMode="numeric" value={s.durationMin} onChange={e => patch(s.id, { durationMin: num(e.target.value) ?? 0 })} /></label>
-                  {s.kind !== 'drive' && <label className="field">开过来（分）<input inputMode="numeric" value={s.driveMin ?? ''} onChange={e => patch(s.id, { driveMin: num(e.target.value) })} /></label>}
+                  {s.kind !== 'drive' && <label className="field">{s.leg ? '路上（分）' : '开过来（分）'}<input inputMode="numeric" value={s.driveMin ?? ''} onChange={e => patch(s.id, { driveMin: num(e.target.value) })} /></label>}
                   <label className="field">定时开始<input type="time" value={s.start ?? ''} onChange={e => patch(s.id, { start: e.target.value || undefined })} /></label>
                   <label className="field">步行（km）<input inputMode="decimal" value={s.walkKm ?? ''} onChange={e => patch(s.id, { walkKm: num(e.target.value) })} /></label>
                   <label className="field">海拔（m）<input inputMode="numeric" value={s.altitudeM ?? ''} onChange={e => patch(s.id, { altitudeM: num(e.target.value) })} /></label>

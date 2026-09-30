@@ -2,6 +2,7 @@
 // 户外手持机的反射式液晶屏：字少、数字大，「谁定的」用通道色点表示，问题只给短标签。
 import { daysUntil } from '@core/trips'
 import { HowLine } from './Highlights'
+import { LegLine } from './Leg'
 import { useMemo, useState } from 'react'
 import { deriveConstraints, limitRules, type Limit } from '@core/constraints'
 import { whoFor, whoForAll } from '@core/explain'
@@ -214,6 +215,7 @@ export function ScopeToday({ trip, now, demo, onTrip, onRating, onUnrate }: Prop
       {next && nextSlot ? (
         <section className="stop-card">
           <div className="n">{next.name}<span className="t mono">{fmtHM(nextSlot.start + delay)}</span></div>
+          <LegLine s={next} />
           <HowLine s={next} />
           {(byStop.get(next.id) ?? []).map((p, k) => <p key={k} className={'fix lv-' + p.issue.level}>{p.restAt ? `停够 ${p.restAt.durationMin} 分，解决「${p.issue.short}」` : p.issue.short}</p>)}
           {prog.suggestSkip.length > 0 && <p className="fix lv-warn">可跳过：{prog.suggestSkip.map(s => s.name).join('、')}</p>}

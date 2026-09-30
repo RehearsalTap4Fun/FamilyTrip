@@ -8,7 +8,7 @@ import { bestTimeOf, inferDurationMin } from './timeOfDay'
 import { distanceKm, estDriveMin, estLegMin, LONG_HAUL_KM, longHaul } from './geo'
 import { partyOnDay } from './party'
 import { fmtHM, parseHM, scheduleDay } from './schedule'
-import type { DayTweak, PlanPlace, Poi, Stop, Trip, TripStyle } from './types'
+import type { DayTweak, Leg, PlanPlace, Poi, Stop, Trip, TripStyle } from './types'
 import { checkDay, LATE_GRACE_MIN, LODGING_PLACEHOLDER, type Issue } from './validate'
 
 /** 排程的输入就是行程计划里的地点 */
@@ -23,6 +23,8 @@ export interface PlanTools {
   drive?: (a: Poi, b: Poi) => Promise<number | null>
   /** 真实路线和沿途的点（长途拆成几天时找每天开到哪）；没有就沿直线估 */
   route?: (a: Poi, b: Poi) => Promise<{ minutes: number; points: { lng: number; lat: number; t: number }[] } | null>
+  /** 公共交通怎么坐（坐哪条线、几站、多久）；没有方案返回 null */
+  transit?: (a: Poi, b: Poi) => Promise<Leg | null>
   /** 周边找吃饭、住处、服务区 */
   nearby?: (what: NearbyKind, at: Poi) => Promise<NearbyPlace[]>
   /** 红黑榜：黑榜不推荐，红榜优先 */
@@ -308,6 +310,9 @@ export function strayCandidates(cands: Candidate[]): Map<Candidate, number> {
 interface Node { stop: Stop; poi?: Poi; meal?: 'lunch' | 'dinner' }
 
 const MEAL_AT = { lunch: LUNCH, dinner: DINNER }
+/** 走路：一公里内走过去；按每小时 4 公里、街道比直线绕三成算 */
+const WALK_KM = 1
+const WALK_KMH = 4
 /** 交通枢纽：不当景点 */
 const HUB = /(机场|空港|航站楼|火车站|高铁站|动车站|客运站|Airport|Station)$/i
 
@@ -369,6 +374,30 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       driveCache.set(k, m ?? estDriveMin(a, b))
     }
     return driveCache.get(k)!
+  }
+  // 公共交通的一段路怎么走（同一段只问一次）：一公里内走路；否则问地图的公交地铁方案；
+  // 公交要比打车慢一倍半还多（乡下一小时一班、绕大圈）就写打车；地图没方案、没 Key 就按开车 1.4 倍估，标「估」
+  const legCache = new Map<string, Promise<Leg>>()
+  const legOf = (a: Poi, b: Poi): Promise<Leg> => {
+    const k = `${a.lng},${a.lat}>${b.lng},${b.lat}`
+    if (!legCache.has(k)) legCache.set(k, (async (): Promise<Leg> => {
+      const km = distanceKm(a, b)
+      if (km < 0.15) return { by: 'walk', min: 2, summary: '就在旁边' }
+      const walk = Math.max(3, Math.round((km * 1.3) / WALK_KMH * 60))
+      if (km <= WALK_KM) return { by: 'walk', min: walk, summary: `步行 ${walk}′`, steps: [{ by: 'walk', min: walk }] }
+      const drive = await driveMin(a, b)
+      let t: Leg | null = null
+      if (tools.transit) { try { t = await tools.transit(a, b) } catch { t = null } }
+      if (t && t.min > 0) {
+        if (t.steps?.length && t.steps.every(x => x.by === 'walk')) return { ...t, by: 'walk' }
+        // 走过去不比坐车慢，或者二十分钟内走得到：就走（故宫到景山，高德给了三趟公交 45 分钟）
+        if (walk <= Math.max(20, t.min + 5)) return { by: 'walk', min: walk, summary: `步行 ${walk}′`, steps: [{ by: 'walk', min: walk }] }
+        if (t.min <= drive * 2.5 + 20) return t
+        return { by: 'taxi', min: drive + 5, summary: `打车（坐公交要 ${t.min} 分钟）`, steps: [{ by: 'other', min: drive + 5 }] }
+      }
+      return { by: 'transit', min: Math.round(drive * 1.4), summary: '公交地铁（估）', estimated: true }
+    })())
+    return legCache.get(k)!
   }
   // 真实路线（带沿途的点），同一段只要一次：长途拆天找落脚点、路上找服务区都沿它
   const routeCache = new Map<string, Promise<Awaited<ReturnType<NonNullable<PlanTools['route']>>>>>()
@@ -667,9 +696,12 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
             why: h.by === 'rail' ? '按高铁粗估，含进出站约 1 小时；具体班次自己查' : '按飞机粗估，含往返机场、值机候机约 3 小时；具体航班自己查',
           })
           out.push({ ...x.stop, driveMin: undefined })
+        } else if (x.poi && at && mode === 'transit') {
+          // 公共交通：写清楚怎么走（步行、坐哪条线、打车）
+          const leg = await legOf(at, x.poi)
+          out.push({ ...x.stop, driveMin: leg.min || undefined, leg: { ...leg, from: { lng: at.lng, lat: at.lat } } })
         } else if (x.poi && at) {
-          const raw = await driveMin(at, x.poi)
-          const m = trip.party.mode === 'transit' ? Math.round(raw * 1.4) : raw
+          const m = await driveMin(at, x.poi)
           if (m > limit) {
             const parts = Math.ceil(m / (limit - 5))
             const each = Math.round(m / parts)
@@ -806,6 +838,8 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
           if (move < stay) o = alt
         }
       }
+      // 最后一天要赶回家、能吃晚饭的空档在 16:30 以前（吃完午饭没多久就要去赶飞机高铁）：不硬塞一顿「晚饭」，路上或到家再吃
+      if (which === 'dinner' && endHere && !o.atTail && !o.sa && o.t < 16 * 60 + 30) { tail.stop = { ...tail.stop, why: '行程终点 · 晚饭路上或到家再吃' }; return }
       // 要求在哪附近吃这顿：就在那儿找（车程照实算）
       const anchor = which === 'lunch' ? tw?.lunchNear : tw?.dinnerNear
       // 后面接着的是固定时刻的站（晚饭后看夜景），而且离上一站远：先开过去，在它附近吃（不吃完再开夜路）
@@ -1027,6 +1061,15 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       if (endAt <= c.endBy.value + LATE_GRACE_MIN) break
       const pool = nodes.filter(x => x.stop.kind === 'sight' && !x.stop.start && (x.stop.suggested && !stopCand.has(x.stop.id) || (stopCand.has(x.stop.id) && !stopCand.get(x.stop.id)!.must)))
       let drop = pool.find(x => !stopCand.has(x.stop.id))
+      // 大景区午饭后接着逛的那半截：前半截已经逛过了，先把它缩短（缩到半小时以下就不要了），不去砍别的地方
+      const cont = drop ? undefined : nodes.find(x => x.stop.kind === 'sight' && x.stop.name.endsWith('（吃完接着逛）'))
+      if (cont) {
+        const keep = Math.floor((cont.stop.durationMin - (endAt - c.endBy.value - LATE_GRACE_MIN)) / 5) * 5
+        if (keep >= 30) cont.stop = { ...cont.stop, durationMin: keep }
+        else nodes.splice(nodes.indexOf(cont), 1)
+        await deferMeals()
+        continue
+      }
       if (!drop && pool.length) {
         let best = Infinity
         for (const x of pool) {

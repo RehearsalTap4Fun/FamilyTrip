@@ -531,3 +531,12 @@
 .rb-zoom-t { flex-shrink: 0; font: 500 11.5px var(--sans); color: var(--ink2); white-space: nowrap; }
 .rb-zoom .rb-reset { width: auto; padding: 0 10px; border-radius: 999px; font-size: 12.5px; }
 @media (max-width: 380px) { .rb-zoom-t { display: none; } }
+/* 公共交通的一段路（src/ui/Leg.tsx） */
+.leg-steps { display: flex; flex-direction: column; gap: 4px; }
+.leg-steps .leg-sum { margin: 0; font: 600 14px/1.5 var(--sans); color: var(--ink); }
+.leg-steps ol { margin: 0; padding: 0 0 0 2px; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.leg-steps li { font: 500 13px/1.5 var(--sans); color: var(--ink2); padding-left: 14px; position: relative; }
+.leg-steps li::before { content: ''; position: absolute; left: 3px; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--seg-dim, #928D83); }
+.leg-steps li.by-walk::before { background: transparent; border: 1.5px solid var(--seg-dim, #928D83); width: 5px; height: 5px; }
+.leg-mini { display: block; font: 500 12px/1.4 var(--sans); color: var(--ink2); margin-top: 1px; }
+.leg-steps .leg-link { align-self: flex-start; margin-top: 2px; font: 600 13px var(--sans); color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }

@@ -5,7 +5,7 @@
 //        GET    /sync/:id                         → { version, blob, updatedAt }（不存在时 version 0）
 //        PUT    /sync/:id  { blob, baseVersion }  → 200 { version, updatedAt }；版本不一致 409 并返回当前记录
 //        DELETE /sync/:id                         → 删除
-//   3. 国外地图（Google）转发：POST /gmap/search|nearby|drive|route|region → 环境变量 GMAP_URL 指向的 Cloudflare Worker（worker/）。
+//   3. 国外地图（Google）转发：POST /gmap/search|nearby|drive|route|transit|region → 环境变量 GMAP_URL 指向的 Cloudflare Worker（worker/）。
 //        服务器不碰 Google Key；访问口令由 app 带在 X-Trip-Token 里，原样转给 Worker 校验。没配 GMAP_URL 回 503。
 //   GET /health → { ok, time }
 // 部署：/opt/trip/api-server.mjs，systemd trip-api（scripts/trip-api.service），DATA_DIR=/var/lib/trip/sync。
@@ -27,7 +27,7 @@ const ORIGINS = new Set(['https://47.109.97.108', 'http://47.109.97.108', 'http:
 /** 只认这些攻略平台（含子域名）。短链接跳转的每一跳都要在这里面 */
 export const HOSTS = ['xiaohongshu.com', 'xhslink.com', 'xhslink.cn', 'mafengwo.cn', 'ctrip.com', 'qyer.com', 'douyin.com', 'iesdouyin.com', 'mp.weixin.qq.com', 'zhihu.com', 'dianping.com']
 const MAX_BYTES = 3 * 1024 * 1024
-const GMAP_OPS = new Set(['search', 'nearby', 'drive', 'route', 'region'])
+const GMAP_OPS = new Set(['search', 'nearby', 'drive', 'route', 'transit', 'region'])
 const TIMEOUT_MS = 12000
 const MAX_TEXT = 20000
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'

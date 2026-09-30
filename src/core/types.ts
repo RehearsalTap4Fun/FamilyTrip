@@ -60,6 +60,11 @@ export type Tag =
 
 export type StopKind = 'sight' | 'food' | 'lodging' | 'drive' | 'transit' | 'rest'
 
+/** 一段路里的一步：走路，或坐一条线从哪站到哪站 */
+export interface LegStep { by: 'walk' | 'subway' | 'bus' | 'rail' | 'tram' | 'ferry' | 'other'; min: number; line?: string; from?: string; to?: string; stops?: number }
+/** 两站之间怎么走（公共交通的行程用）：walk 步行、transit 公交地铁、taxi 打车（公交不便或太绕） */
+export interface Leg { by: 'walk' | 'transit' | 'taxi'; min: number; summary: string; steps?: LegStep[]; estimated?: boolean; /** 从哪出发（「打开地图查换乘」用） */ from?: { lng: number; lat: number } }
+
 export interface Poi {
   lng: number
   lat: number
@@ -83,8 +88,10 @@ export interface Stop {
   start?: string
   durationMin: number
   walkKm?: number
-  /** drive 类站点的净驾驶时长；也可以挂在其他站点上表示到达这里要开多久 */
+  /** drive 类站点的净驾驶时长；也可以挂在其他站点上表示到达这里要开多久（公共交通时是路上多久） */
   driveMin?: number
+  /** 公共交通的行程：从上一站怎么到这里（步行 / 坐哪条线 / 打车），时长就是 driveMin */
+  leg?: Leg
   altitudeM?: number
   tags?: Tag[]
   poi?: Poi

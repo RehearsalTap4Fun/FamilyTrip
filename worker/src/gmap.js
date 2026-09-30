@@ -7,6 +7,7 @@
 //   /v1/nearby  { at: {lng,lat}, kind, radius }            → { places: Place[] }   周边：sight / food / lodging / serviceArea
 //   /v1/drive   { from, to }                               → { minutes, km } | null
 //   /v1/route   { from, to }                               → { minutes, points: [{lng,lat,t}] } | null   带沿途坐标
+//   /v1/transit { from, to, at? }                          → { by, min, summary, steps } | null   公共交通（at：出发时刻 ISO，不给按现在）
 //   /v1/region  { at }                                     → { country, cc, city, district } | null
 // 省钱：只要必要的字段（字段越少计费档越低）；同样的请求缓存（地点 7 天、路线 1 天）。
 // 这个文件不依赖 Cloudflare 专有的东西，测试里直接调 handle()。
@@ -105,6 +106,34 @@ export function timedPoints(pts, minutes) {
 
 const seconds = d => Number(String(d ?? '').replace(/s$/, ''))
 
+const TRANSIT_FIELDS = ['routes.duration', 'routes.legs.steps.travelMode', 'routes.legs.steps.staticDuration',
+  'routes.legs.steps.transitDetails.transitLine.nameShort', 'routes.legs.steps.transitDetails.transitLine.name', 'routes.legs.steps.transitDetails.transitLine.vehicle.type',
+  'routes.legs.steps.transitDetails.stopDetails.departureStop.name', 'routes.legs.steps.transitDetails.stopDetails.arrivalStop.name', 'routes.legs.steps.transitDetails.stopCount'].join(',')
+
+const VEHICLE = { SUBWAY: 'subway', METRO_RAIL: 'subway', MONORAIL: 'subway', BUS: 'bus', INTERCITY_BUS: 'bus', TROLLEYBUS: 'bus', SHARE_TAXI: 'bus', TRAM: 'tram', LIGHT_RAIL: 'tram', FERRY: 'ferry', RAIL: 'rail', HEAVY_RAIL: 'rail', COMMUTER_TRAIN: 'rail', HIGH_SPEED_TRAIN: 'rail', LONG_DISTANCE_TRAIN: 'rail', CABLE_CAR: 'other', FUNICULAR: 'other', GONDOLA_LIFT: 'other' }
+
+/** Google 的公共交通路线 → 同路的一段路：连着的几步走路并成一步，每坐一条线一步（线名、上下车站、几站） */
+export function transitLeg(r) {
+  if (!r) return null
+  const steps = []
+  for (const st of (r.legs ?? []).flatMap(l => l.steps ?? [])) {
+    const min = seconds(st.staticDuration) / 60
+    if (st.travelMode === 'TRANSIT' && st.transitDetails) {
+      const td = st.transitDetails
+      steps.push({ by: VEHICLE[td.transitLine?.vehicle?.type] ?? 'other', min: Math.max(1, Math.round(min)), line: td.transitLine?.nameShort || td.transitLine?.name || '', from: td.stopDetails?.departureStop?.name ?? '', to: td.stopDetails?.arrivalStop?.name ?? '', stops: td.stopCount ?? undefined })
+    } else {
+      const last = steps[steps.length - 1]
+      if (last && last.by === 'walk') last.min += min
+      else steps.push({ by: 'walk', min })
+    }
+  }
+  for (const x of steps) if (x.by === 'walk') x.min = Math.max(1, Math.round(x.min))
+  const walks = steps.filter(x => !(x.by === 'walk' && x.min < 2))
+  const rides = walks.filter(x => x.by !== 'walk')
+  const minutes = Math.round(seconds(r.duration) / 60)
+  return { by: 'transit', min: minutes, steps: walks, summary: rides.length ? rides.map(x => x.line).filter(Boolean).join(' → ') : `步行 ${minutes}′` }
+}
+
 async function google(url, init, env, f) {
   const r = await f(url, init)
   const j = await r.json().catch(() => ({}))
@@ -152,6 +181,12 @@ export async function run(op, b, env, f = fetch) {
       if (!wantPath) return { minutes, km: Math.round(Number(r.distanceMeters ?? 0) / 100) / 10 }
       return { minutes, points: timedPoints(decodePolyline(r.polyline?.encodedPolyline ?? ''), minutes) }
     }
+    case 'transit': {
+      if (!isPoint(b.from) || !isPoint(b.to)) throw Object.assign(new Error('缺 from / to'), { status: 400 })
+      const body = { origin: { location: { latLng: { latitude: b.from.lat, longitude: b.from.lng } } }, destination: { location: { latLng: { latitude: b.to.lat, longitude: b.to.lng } } }, travelMode: 'TRANSIT', languageCode: 'zh-CN', ...(typeof b.at === 'string' ? { departureTime: b.at } : {}) }
+      const j = await google(ROUTES, post(TRANSIT_FIELDS, key, body), env, f)
+      return transitLeg(j.routes?.[0])
+    }
     case 'region': {
       if (!isPoint(b.at)) throw Object.assign(new Error('缺 at'), { status: 400 })
       const u = `${GEOCODE}?latlng=${b.at.lat},${b.at.lng}&language=zh-CN&result_type=locality|administrative_area_level_1|country&key=${encodeURIComponent(key)}`
@@ -167,13 +202,13 @@ export async function run(op, b, env, f = fetch) {
 }
 
 const CACHE_VER = 'v2'
-const TTL = { search: 7 * 86400, nearby: 7 * 86400, region: 30 * 86400, drive: 86400, route: 86400 }
+const TTL = { search: 7 * 86400, nearby: 7 * 86400, region: 30 * 86400, drive: 86400, route: 86400, transit: 86400 }
 
 /** cache：Cloudflare 的 caches.default；测试里传一个 Map 包装或不传 */
 export async function handle(req, env, opts = {}) {
   const f = opts.fetch ?? fetch
   const url = new URL(req.url)
-  const m = /^\/v1\/(search|nearby|drive|route|region)$/.exec(url.pathname)
+  const m = /^\/v1\/(search|nearby|drive|route|transit|region)$/.exec(url.pathname)
   if (url.pathname === '/health') return json({ ok: true, key: !!env.GOOGLE_KEY, token: !!env.ACCESS_TOKEN })
   if (!m) return json({ error: 'not found' }, 404)
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)

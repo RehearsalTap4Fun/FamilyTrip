@@ -242,6 +242,12 @@
 .fp-trip b { font: 700 15px var(--sans); margin-right: 8px; }
 .fp-trip small { font-size: 12px; color: var(--ink2); }
 .fp-trip p { font-size: 14px; color: var(--ink2); margin-top: 3px; line-height: 1.5; }
+.fp-layer { display: inline-flex; margin-top: 12px; padding: 3px; gap: 2px; border-radius: 999px; background: var(--k-panel); }
+.fp-layer button { min-width: 64px; min-height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; font: 600 14px var(--sans); color: var(--ink2); cursor: pointer; }
+.fp-layer button.on { background: var(--k-surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.fp-layer button:disabled { opacity: .45; cursor: default; }
+.fp-country { stroke-width: 0.8; }
+.fp-cn { cursor: pointer; }
 /* 地点搜索 */
 .search-row { display: flex; gap: 8px; }
 .search-row .kinput { flex: 1; }

@@ -4,6 +4,7 @@
 import { z } from 'zod'
 import { deriveConstraints } from '@core/constraints'
 import { partyOnDay } from '@core/party'
+import { fuzzTime } from '@core/fuzzyTime'
 import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Stop, StopHighlight, Trip, TripHighlight } from '@core/types'
 import { callStructured, type LlmConfig, type StructuredCall, type StructuredResult, type Usage } from './client'
@@ -14,14 +15,14 @@ const nul = <T extends z.ZodType>(t: T) => t.nullable().catch(null)
 
 export const HighlightsSchema = z.object({
   trip: z.array(z.object({
-    text: z.string().describe('一句亮点，30 字以内，具体到做什么，例如「傍晚在双廊玉几岛看洱海日落」'),
+    text: z.string().describe('一句亮点，30 字以内，具体到做什么，例如「傍晚在双廊玉几岛看洱海日落」；时间只说清晨、上午、正午、下午、傍晚、夜晚'),
     stop: nul(z.string()).describe('这句说的是行程里哪个地方（名字照抄行程）'),
     refs: z.array(z.number().int()).catch([]).describe('网上哪几篇推荐、好评了这件事（填参考攻略的编号，如 [2, 5]）'),
   })).catch([]).describe('网上攻略里推荐、好评的，并且这趟真的排到了的事；没有就给 []，不凑数'),
   stops: z.array(z.object({
     name: z.string().describe('地方的名字，照抄清单'),
     how: z.string().describe('这里最受推崇的玩法，一句能照着做的话，40 字以内；不要写「风景优美」这种空话'),
-    when: nul(z.string()).describe('最佳时段，例如「17:30 以后看日落」「早上 9 点前人少」；没有讲究填 null'),
+    when: nul(z.string()).describe('最佳时段，只用清晨、上午、正午、下午、傍晚、夜晚这类说法，例如「傍晚看日落」「上午早些人少」，不写几点几分；没有讲究填 null'),
     tip: nul(z.string()).describe('避坑、预约、穿着，30 字以内；没有填 null'),
     family: nul(z.string()).describe('对这群同行者的提醒（老人、小孩、宠物），30 字以内；没有填 null'),
   })).catch([]),
@@ -37,7 +38,7 @@ export function buildHighlightsPrompt(trip: Trip, refs: WebRef[] = []): { system
     '你给一个家庭写这趟行程的亮点介绍，让他们出发前就知道每个地方怎么玩最好。',
     '规则：',
     '1. 写具体、能照着做的玩法：去哪个角落、做什么、吃什么、从哪条路走（例如「骑电动车走洱海西线，从才村到喜洲，沿途麦田」），不要写「风景优美」「值得一去」这种空话。',
-    '2. 最佳时段只在真有讲究时写（日出日落、避开旅行团、演出场次）。',
+    '2. 最佳时段只在真有讲究时写（日出日落、避开旅行团、演出场次），而且只说清晨、上午、正午、下午、傍晚、夜晚，不写具体钟点（几点几分会和行程排的时刻打架，让他们自己调）。所有字段都不写具体钟点。',
     '3. 结合这群同行者的情况写 family：老人走不了的台阶有没有替代路线、小孩能玩什么、狗能不能进。',
     '4. 拿不准的就填 null，不要编；只写清单里的地方，名字一字不差地照抄。每个地方单独一条，内容只写这个地方本身，不要把别处（路上的服务区、别的景点）的安排写进来。',
     ...(refs.length ? [
@@ -121,7 +122,8 @@ export function applyHighlights(trip: Trip, h: Highlights, refs: WebRef[] = []):
   for (const x of h.stops) {
     const s = find(x.name)
     if (!s || !x.how.trim()) continue
-    per.set(s.id, { how: x.how.trim(), ...(x.when ? { when: x.when } : {}), ...(x.tip ? { tip: x.tip } : {}), ...(x.family ? { family: x.family } : {}) })
+    // 具体钟点一律换成模糊时段（模型偶尔还是会写「17:30 以后」）
+    per.set(s.id, { how: fuzzTime(x.how.trim()), ...(x.when ? { when: fuzzTime(x.when) } : {}), ...(x.tip ? { tip: fuzzTime(x.tip) } : {}), ...(x.family ? { family: fuzzTime(x.family) } : {}) })
   }
   const order = new Map(all.map((s, i) => [s.id, i]))
   const used = new Set<string>()
@@ -135,7 +137,7 @@ export function applyHighlights(trip: Trip, h: Highlights, refs: WebRef[] = []):
     used.add(s.id)
     // 出处最多两篇，同一个网站只列一篇
     const uniq = src.filter((r, i) => src.findIndex(y => y.site === r.site) === i)
-    highlights.push({ text: x.text.trim(), stopId: s.id, refs: uniq.slice(0, 2).map(r => ({ title: r.title, url: r.url, site: r.site })) })
+    highlights.push({ text: fuzzTime(x.text.trim()), stopId: s.id, refs: uniq.slice(0, 2).map(r => ({ title: r.title, url: r.url, site: r.site })) })
   }
   highlights.sort((a, b) => order.get(a.stopId!)! - order.get(b.stopId!)!)
   return {

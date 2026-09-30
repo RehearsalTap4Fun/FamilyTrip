@@ -13,6 +13,7 @@ describe('这趟的亮点', () => {
     const { system, user } = buildHighlightsPrompt(t, [{ title: '双廊看日落', url: 'https://x', site: 'Trip.com', content: '玉几岛' }])
     expect(system).toContain('不要写「风景优美」「值得一去」这种空话')
     expect(system).toContain('family')
+    expect(system).toContain('不写具体钟点')
     expect(system).toContain('超出这群人限制的')
     expect(system).toContain('不凑条数')
     expect(system).toContain('必须是行程里排到了的地方')
@@ -35,7 +36,8 @@ describe('这趟的亮点', () => {
     }
     const out = applyHighlights(t, h, refs)
     const stops = out.days.flatMap(d => d.stops)
-    expect(stops.find(s => s.name === sightNames[0])!.highlight).toEqual({ how: '从东门进，先上城楼', when: '17:30 以后', family: '推车走北门坡道' })
+    // 具体钟点写回时换成模糊时段
+    expect(stops.find(s => s.name === sightNames[0])!.highlight).toEqual({ how: '从东门进，先上城楼', when: '傍晚', family: '推车走北门坡道' })
     expect(stops.find(s => s.name === sightNames[1])!.highlight).toEqual({ how: '坐游船', tip: '提前一天预约' })
     expect(stops.find(s => s.name === sightNames[2])!.highlight).toBeUndefined()
     expect(stops.find(s => s.name === sightNames[3])!.highlight).toBeUndefined()

@@ -1,5 +1,6 @@
 // 「这趟的亮点」卡片（行程页顶部）与站点的「怎么玩」。亮点由 AI 按网上的推荐、好评写（src/llm/highlights.ts），附出处、按行程先后排；写完可撤销、可重写。
 import { useState } from 'react'
+import { fuzzTime } from '@core/fuzzyTime'
 import type { Stop, Trip } from '@core/types'
 import { regionAt } from '../geo/amap'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
@@ -62,7 +63,7 @@ export function HighlightsCard({ trip, onTrip }: { trip: Trip; onTrip: (t: Trip)
         {list.map((h, i) => {
           const d = dayOf(h.stopId)
           return (
-            <li key={i}>{d >= 0 && <em className="mono">D{d + 1}</em>}{h.text}
+            <li key={i}>{d >= 0 && <em className="mono">D{d + 1}</em>}{fuzzTime(h.text)}
               {h.refs?.length ? <span className="hl-src">{h.refs.map((r, k) => <a key={k} href={r.url} target="_blank" rel="noreferrer noopener">{r.site || '出处'}</a>)}</span> : null}
             </li>
           )
@@ -80,10 +81,10 @@ export function StopHow({ s }: { s: Stop }) {
   return (
     <div className="hl-how">
       <b>怎么玩</b>
-      <p>{h.how}</p>
-      {h.when && <p><span>时间</span>{h.when}</p>}
-      {h.tip && <p><span>提醒</span>{h.tip}</p>}
-      {h.family && <p><span>你们家</span>{h.family}</p>}
+      <p>{fuzzTime(h.how)}</p>
+      {h.when && <p><span>时段</span>{fuzzTime(h.when)}</p>}
+      {h.tip && <p><span>提醒</span>{fuzzTime(h.tip)}</p>}
+      {h.family && <p><span>你们家</span>{fuzzTime(h.family)}</p>}
     </div>
   )
 }
@@ -91,7 +92,8 @@ export function StopHow({ s }: { s: Stop }) {
 /** 「今天」页当前站下面的一行 */
 export function HowLine({ s }: { s?: Stop }) {
   if (!s?.highlight) return null
-  return <p className="hl-line">怎么玩：{s.highlight.how}{s.highlight.when ? ` · ${s.highlight.when}` : ''}</p>
+  // 以前写好的里可能有具体钟点：显示时也换成模糊时段
+  return <p className="hl-line">怎么玩：{fuzzTime(s.highlight.how)}{s.highlight.when ? ` · ${fuzzTime(s.highlight.when)}` : ''}</p>
 }
 
 /** 重新排程后站点换了：按名字把原来写好的玩法接到新站点上，整趟亮点指向的站点也跟着换 */

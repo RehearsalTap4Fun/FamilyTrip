@@ -47,12 +47,32 @@ export function fuzzTime(text: string | undefined): string | undefined {
     const pa = periodOf(a), pb = periodOf(b < a ? b + 12 * 60 : b)
     return pa === pb ? pa : `${pa}到${pb}`
   })
+  // 单个钟点先换成带标记的「时段 + 分钟」，下面按句子再看：同一句里两个钟点落进同一个时段
+  // （「11:30 到店，避开 12 点午市排队」都成了正午），早的那个说「正午早些」，晚的那个后面接着名词就把时段词省掉（「避开午市排队」）
   out = out.replace(ONE, (m, pre, hh, mm, cn, suf) => {
     const t = toMin(pre, hh, mm, cn)
     if (!Number.isFinite(t) || t >= 24 * 60) return m
-    const p = periodOf(t)
-    return suf && /前/.test(suf) ? `${p}早些` : suf && /开始|起/.test(suf) ? `${p}${suf}` : p
+    const tail = suf && /前/.test(suf) ? '早些' : suf && /开始|起/.test(suf) ? suf : suf && /后/.test(suf) ? 'AFTER' : ''
+    return `\u0001${periodOf(t)}\u0002${t}\u0002${tail}\u0003`
   })
+  out = out.split(/(?<=[。！？；\n])/).map(sentence => {
+    const marks = [...sentence.matchAll(/\u0001(.+?)\u0002(\d+)\u0002(.*?)\u0003/g)].map(x => ({ p: x[1], t: Number(x[2]) }))
+    let k = -1
+    return sentence.replace(/\u0001(.+?)\u0002(\d+)\u0002(.*?)\u0003(.?)/g, (_m, p: string, ts: string, tail: string, next: string) => {
+      k++
+      const t = Number(ts)
+      const same = marks.filter(x => x.p === p)
+      const tl = tail === 'AFTER' ? '' : tail
+      if (same.length < 2) return p + tl + next
+      const first = marks.findIndex(x => x.p === p) === k
+      if (first) return p + (tl || (t < Math.max(...same.map(x => x.t)) ? '早些' : '')) + next
+      // 后面那个：原文说「几点后」的写「稍晚」；紧跟着名词就省掉时段词（连前面的空格），否则照写
+      if (tail === 'AFTER') return '\u0004稍晚' + next
+      return (/[\u4e00-\u9fa5]/.test(next) ? '\u0004' : p + tl) + next
+    })
+  }).join('').replace(/\s*\u0004/g, '')
   // 「傍晚以后看日落」这类换完多出来的字、重复的时段词收一收
-  return out.replace(/(清晨|上午|正午|下午|傍晚|夜晚)\s*(以后|之后)/g, '$1').replace(/(早上|上午|下午|晚上|傍晚)(清晨|上午|正午|下午|傍晚|夜晚)/g, '$2').replace(/\s{2,}/g, ' ').trim()
+  return out.replace(/(清晨|上午|正午|下午|傍晚|夜晚)\s*(以后|之后)/g, '$1')
+    // 时段词和后面的词重了（「正午午市」「夜晚夜市」「清晨早市」）：留后面的
+    .replace(/正午(?=午市|午饭|午餐|中午)|夜晚(?=夜市|夜景|夜游|晚上)|清晨(?=早市|早饭|早餐|早上)|傍晚(?=晚市|晚饭|晚餐)/g, '').replace(/(早上|上午|下午|晚上|傍晚)(清晨|上午|正午|下午|傍晚|夜晚)/g, '$2').replace(/\s{2,}/g, ' ').trim()
 }

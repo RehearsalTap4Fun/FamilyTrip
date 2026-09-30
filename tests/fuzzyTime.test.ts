@@ -18,4 +18,14 @@ describe('怎么玩里的钟点换成模糊时段', () => {
     expect(fuzzTime('门票 80 元，3 条路线，上午去最好')).toBe('门票 80 元，3 条路线，上午去最好')
     expect(fuzzTime(undefined)).toBeUndefined()
   })
+
+  it('同一句两个钟点落进同一个时段：早的说「早些」，晚的省掉时段词；时段词和后面重了只留后面的', () => {
+    expect(fuzzTime('11:30 到店，避开 12 点午市排队')).toBe('正午早些到店，避开午市排队')
+    expect(fuzzTime('中午12点午市人多')).toBe('午市人多')
+    expect(fuzzTime('晚上8点逛夜市')).toBe('夜晚逛夜市')
+    expect(fuzzTime('晚上8点夜市最热闹')).toBe('夜市最热闹')
+    expect(fuzzTime('9 点开门，10 点后旅行团多')).toBe('上午早些开门，稍晚旅行团多')
+    // 不同句子各算各的
+    expect(fuzzTime('17:30 看日落。18:00 回住处')).toBe('傍晚看日落。傍晚回住处')
+  })
 })

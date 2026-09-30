@@ -1,8 +1,9 @@
 // 导入攻略：贴链接或正文 → 取正文（链接走服务器代取）→ 大模型提炼路线和地点、标出和同行者冲突的 → 高德核实 → 勾选后加进要去的地方。
 // 「不适合」的点默认不勾、「要留意」的照常勾上，让人自己决定；找不到的点列出来，可以回去手动搜。
+import { hasMaps, mapSearch } from '../geo/maps'
 import { useState } from 'react'
 import type { PlanDraft, Trip } from '@core/types'
-import { AmapError, searchPlaces } from '../geo/amap'
+import { AmapError } from '../geo/amap'
 import { namesMatch } from '../geo/groundDay'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
 import { fetchGuide, FetchGuideError, findUrl } from '../llm/fetchGuide'
@@ -29,7 +30,9 @@ type Stage =
   | { kind: 'error'; msg: string }
 
 export function GuideImport({ trip, onAdd, onCancel, saved, onSave }: Props) {
-  const { amapKey, llm } = useSettings()
+  const { llm, maps } = useSettings()
+  // 高德或国外地图有一个就能搜地点、算车程
+  const canMap = hasMaps(maps)
   const [text, setText] = useState(saved?.text ?? '')
   const [stage, setStage] = useState<Stage>(() => ((saved?.data as Done | undefined)?.kind === 'done' ? saved!.data as Done : { kind: 'input' }))
 
@@ -54,7 +57,7 @@ export function GuideImport({ trip, onAdd, onCancel, saved, onSave }: Props) {
       setStage({ kind: 'busy', msg: `${PROVIDER_LABEL[llm.provider]} 正在读攻略` })
       const { guide, usage } = await extractGuide(llm, trip, body)
       const { places, missing } = await resolveGuide(guide, trip.days.length,
-        async (k, city) => (await searchPlaces(k, amapKey, { city })).map(p => ({ name: p.name, area: p.area, poi: p.poi, type: p.type })),
+        async (k, city) => (await mapSearch(k, maps, { city })).map(p => ({ name: p.name, area: p.area, poi: p.poi, type: p.type })),
         namesMatch, (i, n, name) => setStage({ kind: 'busy', msg: `在高德里核实 ${i}/${n}：${name}` }))
       const done: Done = { kind: 'done', guide, places, missing, source, usd: usage.usd }
       setStage(done)
@@ -65,10 +68,10 @@ export function GuideImport({ trip, onAdd, onCancel, saved, onSave }: Props) {
     }
   }
 
-  if (!llm.apiKey || !amapKey) {
+  if (!llm.apiKey || !canMap) {
     return (
       <div className="gi">
-        <p className="sheet-note">导入攻略要用大模型读正文、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !amapKey ? '和' : ''}{!amapKey ? '高德 Key' : ''}。</p>
+        <p className="sheet-note">导入攻略要用大模型读正文、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !canMap ? '和' : ''}{!canMap ? '高德 Key' : ''}。</p>
         <button type="button" className="kbtn wide" onClick={onCancel}>返回</button>
       </div>
     )

@@ -1,6 +1,7 @@
 // 在高德里搜地方：选中一条，名字和坐标、行政区划、高德 id 一起写进站点。
+import { hasMaps, mapSearch } from '../geo/maps'
 import { useEffect, useRef, useState } from 'react'
-import { AmapError, searchPlaces, type Place } from '../geo/amap'
+import { AmapError, type Place } from '../geo/amap'
 import { Sheet } from './kit/Sheet'
 import { useSettings } from './Settings'
 
@@ -13,7 +14,9 @@ interface Props {
 }
 
 export function PlaceSearch({ open, keyword, city, onPick, onClose }: Props) {
-  const { amapKey } = useSettings()
+  const { maps } = useSettings()
+  // 高德或国外地图有一个就能搜地点、算车程
+  const canMap = hasMaps(maps)
   const [q, setQ] = useState(keyword)
   const [state, setState] = useState<{ kind: 'idle' } | { kind: 'loading' } | { kind: 'done'; list: Place[] } | { kind: 'error'; msg: string }>({ kind: 'idle' })
   const seq = useRef(0)
@@ -23,18 +26,18 @@ export function PlaceSearch({ open, keyword, city, onPick, onClose }: Props) {
     const my = ++seq.current
     setState({ kind: 'loading' })
     try {
-      const list = await searchPlaces(text.trim(), amapKey, { city })
+      const list = await mapSearch(text.trim(), maps, { city })
       if (my === seq.current) setState({ kind: 'done', list })
     } catch (e) {
       if (my === seq.current) setState({ kind: 'error', msg: e instanceof AmapError ? e.message : '搜索失败' })
     }
   }
   // 打开时直接用站点现在的名字搜一次
-  useEffect(() => { if (open) { setQ(keyword); if (amapKey) run(keyword); else setState({ kind: 'idle' }) } }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setQ(keyword); if (canMap) run(keyword); else setState({ kind: 'idle' }) } }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Sheet open={open} onClose={onClose} title="在高德里找" done="取消" doneTone="plain">
-      {!amapKey ? (
+      {!canMap ? (
         <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key（「Web服务」类型），才能搜地方、算车程。</p>
       ) : (
         <>

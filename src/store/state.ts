@@ -27,6 +27,8 @@ export interface AppState {
   home?: PlaceRef
   /** 智谱开放平台的 API Key：联网搜索攻略用（只存本机，不同步、不导出） */
   zhipuKey?: string
+  /** 国外地图（Google）的访问口令：自家 Cloudflare 中转认它（只存本机，不同步、不导出） */
+  gmapToken?: string
 }
 
 /** 只支持两套风格（2026-09-28 用户定）：博朗 × 海报（默认，走设备家族页面结构）与地图册 */

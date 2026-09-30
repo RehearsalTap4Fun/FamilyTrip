@@ -1,4 +1,4 @@
-# 同路 · 服务端（server/api-server.mjs）：攻略正文代取 + 云同步。部署：scripts/deploy.sh 会同步到 /opt/trip 并重启
+# 同路 · 服务端（server/api-server.mjs）：攻略正文代取 + 云同步 + 国外地图转发。部署：scripts/deploy.sh 会同步到 /opt/trip 并重启（这个文件有变化也会装上）
 [Unit]
 Description=Tonglu API (guide fetcher + encrypted sync)
 After=network.target
@@ -7,6 +7,8 @@ After=network.target
 User=admin
 Environment=PORT=18795
 Environment=DATA_DIR=/var/lib/trip/sync
+# 国外地图中转地址：GMAP_URL=https://map.你的域名（没有这个文件就不转发，/gmap/* 回 503）
+EnvironmentFile=-/etc/trip/gmap.env
 ExecStart=/usr/bin/node /opt/trip/api-server.mjs
 Restart=always
 RestartSec=3

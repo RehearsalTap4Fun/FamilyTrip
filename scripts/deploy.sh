@@ -16,8 +16,15 @@ ssh "$TRIP_SSH" "mkdir -p '$TRIP_PATH'"
 # assets/ 里的旧哈希文件不删：还开着旧页面的人按需加载 AI/SDK 分包时不会 404
 rsync -az --exclude assets/ --delete dist/ "$TRIP_SSH:$TRIP_PATH/"
 rsync -az dist/assets/ "$TRIP_SSH:$TRIP_PATH/assets/"
-# 服务端（攻略代取 + 云同步）：文件有变化才重启
-if ! ssh "$TRIP_SSH" "cmp -s /opt/trip/api-server.mjs -" < server/api-server.mjs; then
+# systemd 单元有变化就装上（改了环境变量文件之类）
+restart=0
+if ! ssh "$TRIP_SSH" "cmp -s /etc/systemd/system/trip-api.service -" < scripts/trip-api.service; then
+  echo "▶ 更新 systemd 单元"
+  ssh "$TRIP_SSH" "sudo -n tee /etc/systemd/system/trip-api.service >/dev/null && sudo -n systemctl daemon-reload" < scripts/trip-api.service
+  restart=1
+fi
+# 服务端（攻略代取 + 云同步 + 国外地图转发）：文件有变化才重启
+if ! ssh "$TRIP_SSH" "cmp -s /opt/trip/api-server.mjs -" < server/api-server.mjs || [ "$restart" = 1 ]; then
   echo "▶ 更新服务端"
   rsync -az server/api-server.mjs "$TRIP_SSH:/opt/trip/api-server.mjs"
   ssh "$TRIP_SSH" "sudo -n systemctl restart trip-api"

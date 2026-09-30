@@ -1,15 +1,15 @@
 // 「这趟的亮点」卡片（行程页顶部）与站点的「怎么玩」。亮点由 AI 按网上的推荐、好评写（src/llm/highlights.ts），附出处、按行程先后排；写完可撤销、可重写。
+import { mapRegion, hasMaps } from '../geo/maps'
 import { useState } from 'react'
 import { fuzzTime } from '@core/fuzzyTime'
 import type { Stop, Trip } from '@core/types'
-import { regionAt } from '../geo/amap'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
 import { applyHighlights, searchPlayTips, writeHighlights } from '../llm/highlights'
 import { useToast } from './kit/Toast'
 import { useSettings } from './Settings'
 
 export function HighlightsCard({ trip, onTrip }: { trip: Trip; onTrip: (t: Trip) => void }) {
-  const { llm, zhipuKey, amapKey } = useSettings()
+  const { llm, zhipuKey, maps } = useSettings()
   const toast = useToast()
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
@@ -28,7 +28,7 @@ export function HighlightsCard({ trip, onTrip }: { trip: Trip; onTrip: (t: Trip)
       if (zhipuKey) {
         setBusy('正在网上搜玩法')
         // 有高德 Key 就按坐标问在哪个区县，带着地名搜
-        const areaOf = amapKey ? (s: Stop) => (s.poi ? regionAt(s.poi, amapKey) : Promise.resolve(null)) : undefined
+        const areaOf = hasMaps(maps) ? (s: Stop) => (s.poi ? mapRegion(s.poi, maps) : Promise.resolve(null)) : undefined
         try { ({ refs, yuan } = await searchPlayTips(trip, zhipuKey, 8, fetch, areaOf)) } catch { refs = [] }
       }
       setBusy(`${PROVIDER_LABEL[llm.provider]} 正在写亮点`)

@@ -1,5 +1,6 @@
 // 「行程」：每天一张卡，曲线对着当天最严的上限。点开一天：站点可左滑跳过 / 删除、按住把手拖动排序、点一下打开面板。
 // 以后主要是 AI 排好、这里微调，所以没有表单，只有面板。
+import { mapDrive, hasMaps } from '../geo/maps'
 import { useState } from 'react'
 import { deriveConstraints } from '@core/constraints'
 import { inRange, partyOnDay } from '@core/party'
@@ -14,7 +15,7 @@ import { SwipeList } from './kit/SwipeList'
 import { Chip } from './ScopeToday'
 import { traceOf } from './scopeMath'
 import { AddStopSheet, IssueSheet, removeStop, setStop, StopSheet } from './StopSheet'
-import { AmapError, driveBetween } from '../geo/amap'
+import { AmapError } from '../geo/amap'
 import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
 import { PlanButton, TripBar } from './TripSwitcher'
@@ -37,14 +38,16 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSe
   const [issue, setIssue] = useState<Issue | null>(null)
   const [replanning, setReplanning] = useState(false)
   const toast = useToast()
-  const { amapKey } = useSettings()
+  const { maps } = useSettings()
+  // 高德或国外地图有一个就能搜地点、算车程
+  const canMap = hasMaps(maps)
   const [filling, setFilling] = useState<number | null>(null)
   const fill = async (i: number) => {
-    if (!amapKey) { toast('先在「同行」页右上角的设置里填上高德 Key'); return }
+    if (!canMap) { toast('先在「同行」页右上角的设置里填上高德 Key'); return }
     const before = trip
     setFilling(i)
     try {
-      const { trip: t, changes } = await fillDrives(trip, i, (a, b) => driveBetween(a, b, amapKey))
+      const { trip: t, changes } = await fillDrives(trip, i, (a, b) => mapDrive(a, b, maps))
       if (!changes.length) toast('车程和高德一致，不用改')
       else { onTrip(t); toast(`按高德更新了 ${changes.length} 段车程`, () => onTrip(before)) }
     } catch (e) {

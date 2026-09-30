@@ -1,7 +1,8 @@
 // AI 推荐方案：填地区（和要求）→ 大模型按同行者的限制出 2–3 个方案 → 挑一个 → 高德核实 → 勾选加进要去的地方 → 排程。
+import { mapSearch, hasMaps } from '../geo/maps'
 import { useEffect, useRef, useState } from 'react'
 import type { PlanDraft, Trip } from '@core/types'
-import { AmapError, searchPlaces } from '../geo/amap'
+import { AmapError } from '../geo/amap'
 import { namesMatch } from '../geo/groundDay'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
 import { resolveGuide, type ImportedPlace } from '../llm/importGuide'
@@ -40,7 +41,9 @@ type Stage =
   | { kind: 'error'; msg: string }
 
 export function Recommend({ trip, autoRun, onAdd, onCancel, saved, onSave }: Props) {
-  const { amapKey, llm, zhipuKey } = useSettings()
+  const { llm, zhipuKey, maps } = useSettings()
+  // 高德或国外地图有一个就能搜地点、算车程
+  const canMap = hasMaps(maps)
   const [region, setRegion] = useState(saved?.region ?? trip.plan?.region ?? '')
   const [wishes, setWishes] = useState(saved?.wishes ?? '')
   // 上次推荐过：直接回到上次看到的地方（选过方案就回到勾选）
@@ -78,20 +81,20 @@ export function Recommend({ trip, autoRun, onAdd, onCancel, saved, onSave }: Pro
   const choose = async (p: Proposal, list: Proposal[], usd: number, web: Web) => {
     try {
       const { places, missing } = await resolveGuide(proposalToGuide(p, trip.days.length), trip.days.length,
-        async (k, city) => (await searchPlaces(k, amapKey, { city })).map(x => ({ name: x.name, area: x.area, poi: x.poi, type: x.type })),
+        async (k, city) => (await mapSearch(k, maps, { city })).map(x => ({ name: x.name, area: x.area, poi: x.poi, type: x.type })),
         namesMatch, (i, n, name) => setStage({ kind: 'busy', msg: `在高德里核实 ${i}/${n}：${name}` }))
       setStage({ kind: 'pick', p, places, missing, list, usd, web })
       save({ list, usd, web, pick: { index: list.indexOf(p), places, missing } })
     } catch (e) { setStage({ kind: 'error', msg: errMsg(e) }) }
   }
   useEffect(() => {
-    if (autoRun && !saved && !ran.current && region.trim() && llm.apiKey && amapKey) { ran.current = true; run() }
+    if (autoRun && !saved && !ran.current && region.trim() && llm.apiKey && canMap) { ran.current = true; run() }
   }, [autoRun]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!llm.apiKey || !amapKey) {
+  if (!llm.apiKey || !canMap) {
     return (
       <div className="gi">
-        <p className="sheet-note">AI 推荐要用大模型出方案、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !amapKey ? '和' : ''}{!amapKey ? '高德 Key' : ''}。</p>
+        <p className="sheet-note">AI 推荐要用大模型出方案、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !canMap ? '和' : ''}{!canMap ? '高德 Key' : ''}。</p>
         <button type="button" className="kbtn wide" onClick={onCancel}>返回</button>
       </div>
     )

@@ -64,7 +64,7 @@ export function footprint(trips: Trip[], countryAt?: (lng: number, lat: number) 
       for (const s of d.stops) {
         if (s.status !== 'done' || !s.poi) continue
         points.push({ lng: s.poi.lng, lat: s.poi.lat, name: s.name, tripId: t.id })
-        const country = s.poi.adcode ? 'CN' : countryAt?.(s.poi.lng, s.poi.lat)
+        const country = s.poi.adcode ? 'CN' : s.poi.cc ?? countryAt?.(s.poi.lng, s.poi.lat)
         if (country) bump(countries, country, date, seenN)
         if (!s.poi.adcode) continue
         bump(provinces, provinceOf(s.poi.adcode), date, seenP)

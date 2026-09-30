@@ -1,5 +1,9 @@
 // 世界地图的投影和「这个坐标在哪个国家」：和 scripts/buildWorldMap.mjs 同一套（米勒投影、中央经线 150°E、在 30°W 切开）。
 // 判断国家用投影后的路径做点在多边形内；落在海里（小岛被简化掉了）就找最近的国家，离得太远算不上。
+import { inRing, pathRings } from '../geo/pip'
+
+export { pathRings }
+
 export interface WorldMap { width: number; height: number; cut: number; latTop: number; countries: { code: string; name: string; d: string }[]; jd: string }
 
 const miller = (lat: number) => 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * (lat * Math.PI) / 180))
@@ -7,20 +11,6 @@ const miller = (lat: number) => 1.25 * Math.log(Math.tan(Math.PI / 4 + 0.4 * (la
 export function worldProjector(m: Pick<WorldMap, 'width' | 'cut' | 'latTop'>) {
   const S = m.width / 360, YS = m.width / (2 * Math.PI), Y0 = miller(m.latTop)
   return (lng: number, lat: number): [number, number] => [((lng < m.cut ? lng + 360 : lng) - m.cut) * S, (Y0 - miller(Math.max(-85, Math.min(85, lat)))) * YS]
-}
-
-/** 「M1 2L3 4Z…」拆成环 */
-export function pathRings(d: string): [number, number][][] {
-  return d.split('Z').filter(Boolean).map(seg => seg.split(/[ML]/).filter(Boolean).map(xy => xy.trim().split(/\s+/).map(Number) as [number, number]))
-}
-
-function inRing(x: number, y: number, ring: [number, number][]): boolean {
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i], [xj, yj] = ring[j]
-    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
-  }
-  return inside
 }
 
 /** 做一个「坐标 → 国家码」的查询；maxPx：落在海里时离最近国家多近才算（像素，1000 宽的图上 1 像素约 0.36°） */

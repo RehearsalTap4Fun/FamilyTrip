@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react'
 
 import type { PlaceRef } from '@core/types'
 import type { LlmConfig } from '../llm/client'
+import type { MapKeys } from '../geo/maps'
 
 export interface Settings {
   amapKey: string
@@ -11,6 +12,8 @@ export interface Settings {
   zhipuKey: string
   /** 现居地：新行程默认的起点终点 */
   home?: PlaceRef
+  /** 地图：国内高德 Key、国外 Google 中转口令（src/geo/maps.ts 按坐标选） */
+  maps: MapKeys
 }
-export const SettingsCtx = createContext<Settings>({ amapKey: '', llm: { provider: 'anthropic', apiKey: '' }, zhipuKey: '' })
+export const SettingsCtx = createContext<Settings>({ amapKey: '', llm: { provider: 'anthropic', apiKey: '' }, zhipuKey: '', maps: { amap: '' } })
 export const useSettings = () => useContext(SettingsCtx)

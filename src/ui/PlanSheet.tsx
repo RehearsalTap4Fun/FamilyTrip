@@ -1,6 +1,7 @@
 // 排程（流程一）：列出要去的点 → 排程引擎按同行人的限制排成每天 → 看结果（放不下的点、剩下的问题）→ 采用。
 // 列点：搜高德一个个加，或粘贴一串地名一次加好。每个点可标必去、指定哪天、固定时刻、改成吃饭或住处。
 // 排出来的只是候选，采用前不写入；采用后可撤销。地点存进 trip.plan.places，回来能改了再排。
+import { mapSearch, hasMaps } from '../geo/maps'
 import { useEffect, useRef, useState } from 'react'
 import { planTrip, type PlanResult } from '@core/planner'
 import type { Rating } from '@core/ratings'
@@ -9,7 +10,7 @@ import type { DayTweak, PlaceRef, PlanDraft, PlanPlace, Poi, Trip } from '@core/
 import { checkDay } from '@core/validate'
 import { inferBestTime } from '@core/timeOfDay'
 import { cityOf } from '@core/footprint'
-import { AmapError, searchPlaces, type Place } from '../geo/amap'
+import { AmapError, type Place } from '../geo/amap'
 import { namesMatch } from '../geo/groundDay'
 import { makePlanTools } from '../geo/planTools'
 import { uid } from '../store/state'
@@ -73,7 +74,9 @@ export function splitNames(text: string): string[] {
 
 export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSetup }: Props) {
   const draft = trip.plan?.draft
-  const { amapKey, llm, home } = useSettings()
+  const { llm, home, maps } = useSettings()
+  // 高德或国外地图有一个就能搜地点、算车程
+  const canMap = hasMaps(maps)
   // 起点终点：行程里存了就用（null 是明确不设）；没存过（旧行程）默认现居地，旧版只存了出发地文字的先空着、排的时候再定位
   const endsOf = (t: Trip): { from?: PlaceRef; to?: PlaceRef } => ({
     from: t.plan?.from === null ? undefined : t.plan?.from ?? (t.plan?.origin ? undefined : homeRef(home)),
@@ -111,7 +114,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
   const search = async () => {
     if (!q.trim()) return
     setFound({ kind: 'loading' })
-    try { setFound({ kind: 'done', list: await searchPlaces(q.trim(), amapKey, { city }) }) } catch (e) { setFound({ kind: 'error', msg: e instanceof AmapError ? e.message : '搜索失败' }) }
+    try { setFound({ kind: 'done', list: await mapSearch(q.trim(), maps, { city }) }) } catch (e) { setFound({ kind: 'error', msg: e instanceof AmapError ? e.message : '搜索失败' }) }
   }
   const addBulk = async () => {
     const names = splitNames(bulkText)
@@ -121,7 +124,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
     for (const [i, n] of names.entries()) {
       setBulkMsg(`正在找 ${i + 1}/${names.length}：${n}`)
       try {
-        const list = await searchPlaces(n, amapKey, { city: near })
+        const list = await mapSearch(n, maps, { city: near })
         const hit = list.find(p => namesMatch(n, p.name))
         if (hit) { add(hit); near = cityOf(hit.poi.adcode ?? '') || near } else miss.push(n)
       } catch (e) { setBulkMsg(e instanceof AmapError ? e.message : '搜索失败'); return }
@@ -141,8 +144,8 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
       // 旧版的出发地只有文字：先在高德里定位
       let origin: Poi | undefined = ends.from?.poi
       let from = ends.from
-      if (!origin && trip.plan?.from === undefined && trip.plan?.origin && amapKey) {
-        const hit = (await searchPlaces(trip.plan.origin, amapKey))[0]
+      if (!origin && trip.plan?.from === undefined && trip.plan?.origin && canMap) {
+        const hit = (await mapSearch(trip.plan.origin, maps))[0]
         if (hit) { origin = hit.poi; from = { name: trip.plan.origin, poi: hit.poi } }
       }
       const base: Trip = {
@@ -150,7 +153,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
         days: Array.from({ length: nDays }, (_, i) => trip.days[i] ?? { startTime: '09:00', stops: [] }),
         plan: { flow: 'places', styles: [], ...trip.plan, places: usePlaces, tweaks: useTweaks.filter(t => t.day < nDays), from: from ?? null, to: ends.to ?? null, draft: undefined },
       }
-      const tools = makePlanTools(amapKey, ratings, msg => { if (my === run.current) setStage({ kind: 'running', msg }) })
+      const tools = makePlanTools(maps, ratings, msg => { if (my === run.current) setStage({ kind: 'running', msg }) })
       const r = await planTrip(base, usePlaces, tools, { origin, end: ends.to, newId: uid })
       if (my === run.current) {
         setStage({ kind: 'done', r })
@@ -180,7 +183,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
       if (my !== run.current) return
       setStage({ kind: 'running', msg: '在高德里找地方' })
       const find = async (name: string, city?: string) => {
-        const list = await searchPlaces(name, amapKey, { city })
+        const list = await mapSearch(name, maps, { city })
         const hit = list.find(p => namesMatch(name, p.name)) ?? list[0]
         return hit ? { name: hit.name, poi: hit.poi, area: hit.area } : null
       }
@@ -206,7 +209,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
 
       {(stage.kind === 'list' || stage.kind === 'error') && (
         <>
-          {!amapKey && <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key，才能搜地点、算真实车程。</p>}
+          {!canMap && <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key，才能搜地点、算真实车程。</p>}
           <p className="sheet-note">列出想去的地方，会按同行人的限制分到每天，排好开车、吃饭、午睡和住处。{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发</p>
           {/* 排之前先看一眼：这趟怎么去、谁去 */}
           <button type="button" className="plan-who" onClick={onSetup}><span>{partyLine(trip.party)}</span><small>改</small></button>
@@ -226,7 +229,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
               setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note, avoid: _a, caution: _c, parts: _p, ...p }) => withNote(p, note))])
               setImporting(false)
             }} />
-          ) : amapKey && (bulk ? (
+          ) : canMap && (bulk ? (
             <Field label="一次加好几个" hint="用顿号、逗号或换行隔开">
               <textarea className="kinput" rows={3} value={bulkText} onChange={e => setBulkText(e.target.value)} placeholder="比如：大理古城、双廊、喜洲古镇、丽江古城、束河古镇" />
               <div className="foot-row">

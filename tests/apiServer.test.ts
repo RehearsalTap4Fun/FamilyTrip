@@ -50,3 +50,26 @@ describe('服务端：云同步', () => {
     expect(bad.headers.get('access-control-allow-origin')).toBeNull()
   })
 })
+
+describe('服务端：国外地图转发', () => {
+  it('POST /gmap/* 原样转给中转，口令照带；没配地址 503；别的接口 404', async () => {
+    // @ts-expect-error 服务端是纯 .mjs
+    const { createServer } = await import('../server/api-server.mjs')
+    const got: { url: string; token: string; body: string }[] = []
+    const fake = async (url: string, init: RequestInit) => { got.push({ url, token: (init.headers as Record<string, string>)['X-Trip-Token'], body: String(init.body) }); return new Response(JSON.stringify({ minutes: 21, km: 8.4 }), { status: 200 }) }
+    const s1 = createServer({ gmapUrl: 'https://map.example/', fetch: fake }).listen(0, '127.0.0.1')
+    const s2 = createServer({ gmapUrl: '' }).listen(0, '127.0.0.1')
+    await Promise.all([s1, s2].map(s => new Promise(r => s.on('listening', r))))
+    const b1 = `http://127.0.0.1:${(s1.address() as AddressInfo).port}`, b2 = `http://127.0.0.1:${(s2.address() as AddressInfo).port}`
+    const body = JSON.stringify({ from: { lng: 1, lat: 2 }, to: { lng: 3, lat: 4 } })
+    const r = await fetch(`${b1}/gmap/drive`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Trip-Token': 'tok' }, body })
+    expect(await r.json()).toEqual({ minutes: 21, km: 8.4 })
+    expect(got).toEqual([{ url: 'https://map.example/v1/drive', token: 'tok', body }])
+    expect((await fetch(`${b1}/gmap/other`, { method: 'POST', body: '{}' })).status).toBe(404)
+    expect((await fetch(`${b1}/gmap/drive`)).status).toBe(405)
+    const prev = process.env.GMAP_URL; delete process.env.GMAP_URL
+    expect((await fetch(`${b2}/gmap/drive`, { method: 'POST', body })).status).toBe(503)
+    if (prev) process.env.GMAP_URL = prev
+    s1.close(); s2.close()
+  })
+})

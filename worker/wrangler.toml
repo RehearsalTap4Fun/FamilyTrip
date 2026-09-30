@@ -1,0 +1,8 @@
+# 同路 · 国外地图中转（Google 地图）。部署：cd worker && npx wrangler deploy
+# 两个密钥用 wrangler secret 放（不写在这里）：GOOGLE_KEY、ACCESS_TOKEN
+name = "tonglu-gmap"
+main = "src/gmap.js"
+compatibility_date = "2026-09-01"
+# workers.dev 地址在国内被墙，只用自定义域名；绑定域名后把下面两行的注释去掉、换成你的域名
+workers_dev = false
+# routes = [{ pattern = "map.你的域名", custom_domain = true }]

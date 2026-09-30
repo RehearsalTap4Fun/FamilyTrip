@@ -1,4 +1,5 @@
-// 现居地、行程的起点终点：一个定了位的地方，点「搜高德」选；可以设回现居地或清掉。
+// 现居地、行程的起点终点：一个定了位的地方，点「搜地点」选；可以设回现居地或清掉。
+import { hasMaps } from '../geo/maps'
 import { useState } from 'react'
 import type { PlaceRef, Trip } from '@core/types'
 import { Field } from './kit/controls'
@@ -16,7 +17,9 @@ export function PlaceField({ label, hint, value, onChange, empty, keyword }: {
   empty: string
   keyword?: string
 }) {
-  const { amapKey, home } = useSettings()
+  const { home, maps } = useSettings()
+  // 高德或国外地图有一个就能搜地点、算车程
+  const canMap = hasMaps(maps)
   const [open, setOpen] = useState(false)
   const atHome = same(value, home)
   return (
@@ -26,7 +29,7 @@ export function PlaceField({ label, hint, value, onChange, empty, keyword }: {
         <span className="loc-acts">
           {home && !atHome && <button type="button" className="linkish" onClick={() => onChange(homeRef(home))}>用现居地</button>}
           {value && <button type="button" className="linkish" onClick={() => onChange(undefined)}>不设</button>}
-          <button type="button" className="kbtn" disabled={!amapKey} title={amapKey ? undefined : '先在「同行」页右上角的设置里填高德 Key'} onClick={() => setOpen(true)}>搜高德</button>
+          <button type="button" className="kbtn" disabled={!canMap} title={canMap ? undefined : '先在「同行」页右上角的设置里填高德 Key'} onClick={() => setOpen(true)}>搜地点</button>
         </span>
       </div>
       <PlaceSearch open={open} keyword={keyword ?? (value && value.name !== '家' ? value.name : '')} onClose={() => setOpen(false)} onPick={p => { onChange({ name: p.name, poi: p.poi, ...(p.area ? { area: p.area } : {}) }); setOpen(false) }} />

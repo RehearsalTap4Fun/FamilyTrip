@@ -67,6 +67,10 @@ export interface Poi {
   adcode?: string
   /** 高德 POI id，红黑榜按它对齐同一个地方 */
   amapId?: string
+  /** 国外的地方：ISO 两位国家码（Google 给的），足迹归国家用 */
+  cc?: string
+  /** 国外的地方：Google place id */
+  gid?: string
 }
 
 export type StopStatus = 'planned' | 'done' | 'skipped'

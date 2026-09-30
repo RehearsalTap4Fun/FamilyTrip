@@ -1,6 +1,7 @@
 // 设置（「同行」页右上角齿轮）：风格、各家 Key、恢复示例、存档与同步。都是全局的，和哪一趟无关。
 import { useState, type ReactNode } from 'react'
 import { testAmapKey } from '../geo/amap'
+import { testGmap } from '../geo/gmap'
 import { PROVIDER_LABEL, type Provider } from '../llm/client'
 import { THEME_LABEL, type Theme } from '../store/state'
 import { Chips, Field, Segmented } from './kit/controls'
@@ -18,13 +19,16 @@ interface Props {
   onLlm: (p: Provider, keys: { anthropic?: string; deepseek?: string }) => void
   zhipuKey: string
   onZhipuKey: (k: string) => void
+  gmapToken: string
+  onGmapToken: (k: string) => void
   onReset: () => void
   /** 存档与同步 */
   storage: ReactNode
 }
 
-export function SettingsSheet({ open, onClose, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, zhipuKey, onZhipuKey, onReset, storage }: Props) {
+export function SettingsSheet({ open, onClose, theme, onTheme, amapKey, onAmapKey, llmProvider, llmKeys, onLlm, zhipuKey, onZhipuKey, gmapToken, onGmapToken, onReset, storage }: Props) {
   const [amapTest, setAmapTest] = useState<null | 'busy' | 'ok' | string>(null)
+  const [gmapTest, setGmapTest] = useState<null | 'busy' | 'ok' | string>(null)
   const [resetting, setResetting] = useState(false)
   return (
     <>
@@ -42,6 +46,14 @@ export function SettingsSheet({ open, onClose, theme, onTheme, amapKey, onAmapKe
             {amapTest && amapTest !== 'busy' && <p className={'key-test ' + (amapTest === 'ok' ? 'ok' : 'bad')}>{amapTest === 'ok' ? '好用：能搜地方、算车程' : amapTest}</p>}
           </Field>
           <p className="sheet-note">到高德开放平台（lbs.amap.com）控制台创建应用，添加 Key 时服务平台选「Web服务」。个人开发者每天有免费额度。</p>
+          <Field label="国外地图访问口令" hint="去国外时用 Google 地图；只存在这台设备上">
+            <div className="key-row">
+              <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={gmapToken} placeholder="选填，国内不用" onChange={e => { onGmapToken(e.target.value.replace(/\s/g, '')); setGmapTest(null) }} />
+              <button type="button" className="kbtn" disabled={!gmapToken || gmapTest === 'busy'} onClick={async () => { setGmapTest('busy'); const r = await testGmap({ token: gmapToken }); setGmapTest(r.ok ? 'ok' : r.msg) }}>{gmapTest === 'busy' ? '测…' : '测一下'}</button>
+            </div>
+            {gmapTest && gmapTest !== 'busy' && <p className={'key-test ' + (gmapTest === 'ok' ? 'ok' : 'bad')}>{gmapTest === 'ok' ? '好用：国外的地方能搜、能算车程' : gmapTest}</p>}
+          </Field>
+          <p className="sheet-note">高德查不了国外。国外的地点、车程、周边改走 Google 地图：经这个服务器转给你自己的 Cloudflare 中转，Google Key 放在中转上，这里只填中转认的访问口令。</p>
           <Field label="AI 排行程用" hint="推荐方案、读攻略、写亮点都会用到">
             <Segmented label="大模型" value={llmProvider} onChange={p => onLlm(p, llmKeys)} options={(['anthropic', 'deepseek'] as Provider[]).map(p => ({ value: p, label: PROVIDER_LABEL[p] }))} />
           </Field>

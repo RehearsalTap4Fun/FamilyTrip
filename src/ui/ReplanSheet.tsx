@@ -1,5 +1,6 @@
 // 让 AI 重排这一天：写一句要求 → 等模型排（规则层检查、必要时自动再修）→ 看改前改后 → 采用或再来。
 // 采用之前什么都不写入；采用后给撤销。
+import { hasMaps, mapDrive, mapSearch } from '../geo/maps'
 import { useEffect, useRef, useState } from 'react'
 import { partyOnDay } from '@core/party'
 import { aggregate, rankForParty, type Rating } from '@core/ratings'
@@ -7,7 +8,6 @@ import { fmtHM, scheduleDay } from '@core/schedule'
 import type { Trip } from '@core/types'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
 import { replanDay, type ReplanResult } from '../llm/replanDay'
-import { driveBetween, searchPlaces } from '../geo/amap'
 import { makeGrounder } from '../geo/groundDay'
 import { cityOf } from '@core/footprint'
 import { dayImpact } from './impact'
@@ -30,7 +30,9 @@ interface Props {
 type Stage = { kind: 'ask' } | { kind: 'running'; since: number } | { kind: 'done'; r: ReplanResult } | { kind: 'error'; msg: string }
 
 export function ReplanSheet({ open, trip, dayIndex, ratings, onApply, onClose }: Props) {
-  const { llm, amapKey } = useSettings()
+  const { llm, maps } = useSettings()
+  // 高德或国外地图有一个就能搜地点、算车程
+  const canMap = hasMaps(maps)
   const [wishes, setWishes] = useState('')
   const [stage, setStage] = useState<Stage>({ kind: 'ask' })
   const [, tick] = useState(0)
@@ -49,9 +51,9 @@ export function ReplanSheet({ open, trip, dayIndex, ratings, onApply, onClose }:
     try {
       const places = rankForParty(aggregate(ratings), partyOnDay(trip.party, dayIndex))
       // 填了高德 Key 就让每一版先落地：新站定位、按真实路线重算车程
-      const ground = amapKey ? makeGrounder({
-        search: (name, near) => searchPlaces(name, amapKey, { city: near?.adcode ? cityOf(near.adcode) : undefined }),
-        drive: (a, b) => driveBetween(a, b, amapKey),
+      const ground = canMap ? makeGrounder({
+        search: (name, near) => mapSearch(name, maps, { city: near?.adcode ? cityOf(near.adcode) : undefined }),
+        drive: (a, b) => mapDrive(a, b, maps),
       }) : undefined
       const r = await replanDay(llm, { trip, dayIndex, places, wishes }, { ground })
       if (my === run.current) setStage({ kind: 'done', r })
@@ -87,7 +89,7 @@ export function ReplanSheet({ open, trip, dayIndex, ratings, onApply, onClose }:
           <Field label="有什么要求" hint="可以不写">
             <input className="kinput" value={wishes} onChange={e => setWishes(e.target.value)} placeholder="比如：别太赶、下午想去洱海边" onKeyDown={e => { if (e.key === 'Enter') start() }} />
           </Field>
-          <p className="sheet-note">会带上这天所有人的限制和你的黑榜，排完{amapKey ? '先按高德核实车程、' : '先'}用规则检查，有问题自动让它再改。用 {PROVIDER_LABEL[llm.provider]}，{llm.provider === 'deepseek' ? '通常十几秒' : '通常要半分钟到一分钟'}。</p>
+          <p className="sheet-note">会带上这天所有人的限制和你的黑榜，排完{canMap ? '先按高德核实车程、' : '先'}用规则检查，有问题自动让它再改。用 {PROVIDER_LABEL[llm.provider]}，{llm.provider === 'deepseek' ? '通常十几秒' : '通常要半分钟到一分钟'}。</p>
           {stage.kind === 'error' && <p className="issue-msg lv-error" role="alert">{stage.msg}</p>}
         </>
       )}
@@ -106,7 +108,7 @@ export function ReplanSheet({ open, trip, dayIndex, ratings, onApply, onClose }:
             问题 {done.before.length} → <b>{done.after.length}</b>
             {done.attempts > 1 ? ` · 自动修了 ${done.attempts - 1} 次` : ''} · 约 ${done.usage.usd.toFixed(3)}
           </p>
-          <p className="sheet-note">{groundLine(done, !!amapKey)}</p>
+          <p className="sheet-note">{groundLine(done, !!canMap)}</p>
           {done.after.length > 0 && <div className="day-chips">{done.after.map((i, k) => <Chip key={k} issue={i} />)}</div>}
           <ol className="replan-list">
             {newSlots.map(sl => {

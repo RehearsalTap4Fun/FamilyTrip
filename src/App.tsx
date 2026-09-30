@@ -92,7 +92,7 @@ function AppInner() {
     try { got = importBackup(text).state } catch (e) { toast(e instanceof Error ? e.message : '导入失败'); return }
     const before = state
     setState(s => {
-      const keep = { amapKey: s.amapKey, llmKeys: s.llmKeys, zhipuKey: s.zhipuKey }
+      const keep = { amapKey: s.amapKey, llmKeys: s.llmKeys, zhipuKey: s.zhipuKey, gmapToken: s.gmapToken }
       if (!cloud.sync.enabled) return { ...got, ...keep }
       const ids = new Set(got.trips.map(t => t.id))
       const rids = new Set(got.ratings.map(r => r.id))
@@ -126,7 +126,7 @@ function AppInner() {
   }, [theme, device])
 
   return (
-    <SettingsCtx.Provider value={{ amapKey: state.amapKey ?? '', llm: { provider: state.llmProvider ?? 'anthropic', apiKey: state.llmKeys?.[state.llmProvider ?? 'anthropic'] ?? '' }, zhipuKey: state.zhipuKey ?? '', home: state.home }}>
+    <SettingsCtx.Provider value={{ amapKey: state.amapKey ?? '', llm: { provider: state.llmProvider ?? 'anthropic', apiKey: state.llmKeys?.[state.llmProvider ?? 'anthropic'] ?? '' }, zhipuKey: state.zhipuKey ?? '', home: state.home, maps: { amap: state.amapKey ?? '', gmap: state.gmapToken || undefined } }}>
     <div className="app">
       <main className="sheet" key={tab}>
         <div className="sheet-body">
@@ -150,6 +150,7 @@ function AppInner() {
         amapKey={state.amapKey ?? ''} onAmapKey={k => setState(s => ({ ...s, amapKey: k }))}
         llmProvider={state.llmProvider ?? 'anthropic'} llmKeys={state.llmKeys ?? {}} onLlm={(provider, keys) => setState(s => ({ ...s, llmProvider: provider, llmKeys: keys }))}
         zhipuKey={state.zhipuKey ?? ''} onZhipuKey={k => setState(s => ({ ...s, zhipuKey: k || undefined }))}
+        gmapToken={state.gmapToken ?? ''} onGmapToken={k => setState(s => ({ ...s, gmapToken: k || undefined }))}
         onReset={() => setState(restoreSamples)}
         storage={<StorageSection sync={cloud.sync} syncing={cloud.syncing} onEnable={cloud.enable} onDisable={cloud.disable} onSyncNow={cloud.syncNow} onExport={doExport} onImport={doImport} />} />
       <JoinSheet open={joining != null} initialCode={joining ?? ''} onClose={() => setJoining(null)}

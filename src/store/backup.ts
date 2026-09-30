@@ -4,7 +4,7 @@ import { migrate, type AppState } from './state'
 export interface Backup { app: 'tonglu'; exportedAt: string; state: AppState }
 
 export function exportBackup(s: AppState, now = new Date()): string {
-  const { amapKey: _a, llmKeys: _l, zhipuKey: _z, ...rest } = s
+  const { amapKey: _a, llmKeys: _l, zhipuKey: _z, gmapToken: _g, ...rest } = s
   return JSON.stringify({ app: 'tonglu', exportedAt: now.toISOString(), state: rest } satisfies Backup, null, 2)
 }
 

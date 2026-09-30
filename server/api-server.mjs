@@ -5,6 +5,8 @@
 //        GET    /sync/:id                         → { version, blob, updatedAt }（不存在时 version 0）
 //        PUT    /sync/:id  { blob, baseVersion }  → 200 { version, updatedAt }；版本不一致 409 并返回当前记录
 //        DELETE /sync/:id                         → 删除
+//   3. 国外地图（Google）转发：POST /gmap/search|nearby|drive|route|region → 环境变量 GMAP_URL 指向的 Cloudflare Worker（worker/）。
+//        服务器不碰 Google Key；访问口令由 app 带在 X-Trip-Token 里，原样转给 Worker 校验。没配 GMAP_URL 回 503。
 //   GET /health → { ok, time }
 // 部署：/opt/trip/api-server.mjs，systemd trip-api（scripts/trip-api.service），DATA_DIR=/var/lib/trip/sync。
 import fs from 'node:fs'
@@ -19,6 +21,7 @@ const ORIGINS = new Set(['https://47.109.97.108', 'http://47.109.97.108', 'http:
 /** 只认这些攻略平台（含子域名）。短链接跳转的每一跳都要在这里面 */
 export const HOSTS = ['xiaohongshu.com', 'xhslink.com', 'xhslink.cn', 'mafengwo.cn', 'ctrip.com', 'qyer.com', 'douyin.com', 'iesdouyin.com', 'mp.weixin.qq.com', 'zhihu.com', 'dianping.com']
 const MAX_BYTES = 3 * 1024 * 1024
+const GMAP_OPS = new Set(['search', 'nearby', 'drive', 'route', 'region'])
 const TIMEOUT_MS = 12000
 const MAX_TEXT = 20000
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
@@ -172,12 +175,13 @@ const EMPTY = { version: 0, blob: null, updatedAt: 0 }
 function send(res, status, body, origin) {
   if (res.headersSent) return
   const h = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }
-  if (origin && ORIGINS.has(origin)) { h['Access-Control-Allow-Origin'] = origin; h['Access-Control-Allow-Methods'] = 'GET, PUT, DELETE, OPTIONS'; h['Access-Control-Allow-Headers'] = 'Content-Type'; h.Vary = 'Origin' }
+  if (origin && ORIGINS.has(origin)) { h['Access-Control-Allow-Origin'] = origin; h['Access-Control-Allow-Methods'] = 'GET, PUT, POST, DELETE, OPTIONS'; h['Access-Control-Allow-Headers'] = 'Content-Type, X-Trip-Token'; h.Vary = 'Origin' }
   res.writeHead(status, h)
   res.end(JSON.stringify(body))
 }
 
-export function createServer() {
+/** opts：测试里换掉转发地址和 fetch */
+export function createServer(opts = {}) {
   fs.mkdirSync(DATA, { recursive: true })
   return http.createServer(async (req, res) => {
     const origin = req.headers.origin
@@ -194,6 +198,24 @@ export function createServer() {
         return send(res, 200, { url: page.url, host: new URL(page.url).hostname, ...extractText(page.html, page.url) }, origin)
       } catch (e) {
         return send(res, e.status ?? 500, { error: e.message ?? '取正文失败' }, origin)
+      }
+    }
+
+    const g = /^\/gmap\/([a-z]+)$/.exec(u.pathname)
+    if (g) {
+      if (!GMAP_OPS.has(g[1])) return send(res, 404, { error: 'not found' }, origin)
+      if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' }, origin)
+      if (limited(ip, 'gmap', 120)) return send(res, 429, { error: '查得太频繁了，等一分钟再试' }, origin)
+      const base = (opts.gmapUrl ?? process.env.GMAP_URL ?? '').replace(/\/$/, '')
+      if (!base) return send(res, 503, { error: '国外地图中转还没配好' }, origin)
+      let body = ''
+      for await (const c of req) { body += c; if (body.length > 4096) return send(res, 413, { error: 'too large' }, origin) }
+      try {
+        const r = await (opts.fetch ?? fetch)(`${base}/v1/${g[1]}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Trip-Token': String(req.headers['x-trip-token'] ?? '') }, body, signal: AbortSignal.timeout(TIMEOUT_MS) })
+        const j = await r.json().catch(() => ({ error: `中转返回 HTTP ${r.status}` }))
+        return send(res, r.status, j, origin)
+      } catch (e) {
+        return send(res, 502, { error: '连不上国外地图中转：' + (e?.name === 'TimeoutError' ? '超时' : e?.message ?? e) }, origin)
       }
     }
 

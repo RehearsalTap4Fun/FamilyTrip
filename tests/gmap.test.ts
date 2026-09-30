@@ -46,7 +46,17 @@ describe('国外地图中转（Worker）', () => {
     const r = await (await handle(req('nearby', { at: { lng: 139.7966, lat: 35.7148 }, kind: 'food', radius: 2500 }), env, { fetch: f })).json()
     expect(r.places[0]).toMatchObject({ name: '一兰拉面', rating: 4.3 })
     expect(r.places[0].distanceM).toBeGreaterThan(0)
-    expect(JSON.parse(String(calls[0].init.body)).includedTypes).toEqual(NEARBY_TYPES.food)
+    const sent = JSON.parse(String(calls[0].init.body))
+    expect(sent.includedTypes).toEqual(NEARBY_TYPES.food)
+    expect(sent.excludedPrimaryTypes).toContain('shopping_mall') // 商场、酒店不算饭店
+  })
+
+  it('服务区：先找高速休息区，一个都没有再找加油站', async () => {
+    const calls: string[] = []
+    const f = async (_u: string, init: RequestInit) => { const b = JSON.parse(String(init.body)); calls.push(b.includedTypes.join()); return new Response(JSON.stringify({ places: b.includedTypes[0] === 'rest_stop' ? [] : [place('ENEOS', 138.95, 35.3)] })) }
+    const r = await (await handle(req('nearby', { at: { lng: 138.95, lat: 35.3 }, kind: 'serviceArea', radius: 20000 }), env, { fetch: f })).json()
+    expect(calls).toEqual(['rest_stop', 'gas_station'])
+    expect(r.places[0].name).toBe('ENEOS')
   })
 
   it('车程、路线（折线解码、按距离摊时间）、所在城市', async () => {
@@ -103,7 +113,8 @@ describe('国内高德、国外 Google', () => {
   it('搜地名：两边一起搜，Google 的只留国外的', async () => {
     const { f } = fakeBoth()
     const list = await mapSearch('浅草寺', { amap: 'ak', gmap: 'tok', apiBase: 'https://s/api', fetchImpl: f })
-    expect(list.map(p => p.name)).toEqual(['浅草寺(佛山)', '浅草寺'])
+    // 名字完全对上的排最前
+    expect(list.map(p => p.name)).toEqual(['浅草寺', '浅草寺(佛山)'])
   })
 
   it('车程：两头在国内问高德，有一头在国外问 Google；国外又没配就不算', async () => {

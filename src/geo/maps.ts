@@ -26,7 +26,11 @@ export async function mapSearch(q: string, k: MapKeys, opts: { city?: string; ne
   if (!ok.length) throw (got[0] as PromiseRejectedResult).reason
   const out: Place[] = []
   for (const p of ok.flatMap(x => x.value)) if (!out.some(o => o.name === p.name && distanceKm(o.poi, p.poi) < 0.3)) out.push(p)
-  return out
+  // 名字对得上的排前面：搜「浅草寺」时高德给的佛山「浅草堂」别压在东京浅草寺上面（同档里保持原来的先后）
+  const norm = (x: string) => x.replace(/[\s·()（）]/g, '').toLowerCase()
+  const qq = norm(q)
+  const rank = (p: Place) => { const n = norm(p.name); return n === qq ? 0 : n.startsWith(qq) ? 1 : n.includes(qq) ? 2 : 3 }
+  return out.map((p, i) => ({ p, i, r: rank(p) })).sort((a, b) => a.r - b.r || a.i - b.i).map(x => x.p)
 }
 
 /** 两头都在国内用高德；有一头在国外用 Google（没配就算不了，返回 null，排程按直线估） */

@@ -24,7 +24,13 @@ export const NEARBY_TYPES = {
   sight: ['tourist_attraction', 'museum', 'park', 'amusement_park', 'zoo', 'aquarium'],
   food: ['restaurant'],
   lodging: ['lodging'],
-  serviceArea: ['rest_stop', 'gas_station'],
+  // 先找高速休息区；一个都没有再退回加油站（实测只给加油站时全是 ENEOS 这类）
+  serviceArea: ['rest_stop'],
+}
+/** 主类型不是这些的才要：「餐厅」里会混进带餐厅的商场、酒店（实测浅草周边第一个是东京晴空街道） */
+const EXCLUDED_PRIMARY = {
+  food: ['shopping_mall', 'department_store', 'lodging', 'hotel', 'tourist_attraction', 'market', 'supermarket', 'grocery_store'],
+  sight: ['shopping_mall', 'department_store', 'lodging', 'hotel', 'restaurant'],
 }
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } })
@@ -125,8 +131,13 @@ export async function run(op, b, env, f = fetch) {
     case 'nearby': {
       if (!isPoint(b.at) || !NEARBY_TYPES[b.kind]) throw Object.assign(new Error('缺 at 或 kind 不对'), { status: 400 })
       const radius = Math.max(100, Math.min(50000, Number(b.radius) || 3000))
-      const body = { includedTypes: NEARBY_TYPES[b.kind], maxResultCount: 20, rankPreference: b.kind === 'serviceArea' ? 'DISTANCE' : 'POPULARITY', languageCode: 'zh-CN', locationRestriction: { circle: { center: { latitude: b.at.lat, longitude: b.at.lng }, radius } } }
-      const j = await google(`${PLACES}:searchNearby`, post(NEARBY_FIELDS, key, body), env, f)
+      const ask = types => google(`${PLACES}:searchNearby`, post(NEARBY_FIELDS, key, {
+        includedTypes: types, ...(EXCLUDED_PRIMARY[b.kind] ? { excludedPrimaryTypes: EXCLUDED_PRIMARY[b.kind] } : {}),
+        maxResultCount: 20, rankPreference: b.kind === 'serviceArea' ? 'DISTANCE' : 'POPULARITY', languageCode: 'zh-CN',
+        locationRestriction: { circle: { center: { latitude: b.at.lat, longitude: b.at.lng }, radius } },
+      }), env, f)
+      let j = await ask(NEARBY_TYPES[b.kind])
+      if (b.kind === 'serviceArea' && !(j.places ?? []).length) j = await ask(['gas_station'])
       return { places: (j.places ?? []).map(p => toPlace(p, b.at)).filter(p => Number.isFinite(p.poi.lng)) }
     }
     case 'drive':
@@ -155,6 +166,7 @@ export async function run(op, b, env, f = fetch) {
   }
 }
 
+const CACHE_VER = 'v2'
 const TTL = { search: 7 * 86400, nearby: 7 * 86400, region: 30 * 86400, drive: 86400, route: 86400 }
 
 /** cache：Cloudflare 的 caches.default；测试里传一个 Map 包装或不传 */
@@ -173,7 +185,8 @@ export async function handle(req, env, opts = {}) {
   try { b = JSON.parse(text) } catch { return json({ error: 'bad json' }, 400) }
   const op = m[1]
   // 缓存按「接口 + 请求体」：同一个地方、同一段路，一周内只问 Google 一次
-  const cacheKey = new Request(`https://cache.tonglu/${op}?${encodeURIComponent(stableKey(b))}`)
+  // 版本号：改了查询规则（字段、类型过滤）就加一，旧缓存自然作废
+  const cacheKey = new Request(`https://cache.tonglu/${CACHE_VER}/${op}?${encodeURIComponent(stableKey(b))}`)
   const cache = opts.cache
   if (cache) { const hit = await cache.match(cacheKey); if (hit) return hit }
   try {

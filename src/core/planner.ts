@@ -904,7 +904,8 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
           const prev = nodes.find(x => x.stop.id === slots[i - 1].stop.id)
           if (!prev || prev.stop.kind !== 'sight' || fixedDur.has(prev.stop.id)) continue
           const b = baseDur.get(prev.stop.id) ?? prev.stop.durationMin
-          let room = Math.min(wait, b * STRETCH_X - prev.stop.durationMin, STRETCH_MAX - prev.stop.durationMin, activeCap - activeNow())
+          // 下午自动补的（神田明神这种）最多拉到两小时：本来就是凑空档的，不值得逛三个半小时
+          let room = Math.min(wait, b * STRETCH_X - prev.stop.durationMin, STRETCH_MAX - prev.stop.durationMin, activeCap - activeNow(), prev.stop.suggested ? Math.max(b, 120) - prev.stop.durationMin : Infinity)
           // 要午睡、这天又没专门插午睡（中午的空档就是睡觉的时候）：拉长不许伸进午睡时段
           if (c.nap && !nodes.some(x => x.stop.tags?.includes('napOk'))) {
             const endAt = slots[i - 1].end
@@ -975,14 +976,25 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       if (!clash.length) break
       for (const x of clash) { const n = nodes.find(y => y.stop.id === x.stop.id); if (n) n.stop = { ...n.stop, start: undefined } }
     }
-    // 一天排完还是太晚（超过回住处的时刻加宽限）：先去掉下午补的，再去掉「想去」里最费时的；必去的、自己定了时刻的不动
+    // 一天排完还是太晚（超过回住处的时刻加宽限）：先去掉下午补的；再在「想去」里逐个试去掉哪个最能提早结束（离得最远、最绕路的那个），
+    // 不按「最费时的先砍」——东京第 3 天明治神宫、台场、东京塔各在一头，按时长砍把三个全砍光了，其实去掉台场就够。必去的、自己定了时刻的不动
     for (let k = 0; k < 4 && !road[d]; k++) {
       saOf.clear()
       const sl = await timeline(nodes)
       const endAt = sl[sl.length - 1]?.end ?? 0
       if (endAt <= c.endBy.value + LATE_GRACE_MIN) break
       const pool = nodes.filter(x => x.stop.kind === 'sight' && !x.stop.start && (x.stop.suggested && !stopCand.has(x.stop.id) || (stopCand.has(x.stop.id) && !stopCand.get(x.stop.id)!.must)))
-      const drop = pool.find(x => !stopCand.has(x.stop.id)) ?? pool.sort((a, b) => b.stop.durationMin - a.stop.durationMin)[0]
+      let drop = pool.find(x => !stopCand.has(x.stop.id))
+      if (!drop && pool.length) {
+        let best = Infinity
+        for (const x of pool) {
+          saOf.clear()
+          const tl = await timeline(nodes.filter(y => y !== x))
+          // 提早得一样多时，先去掉玩得短的（少丢点游玩时间）
+          const score = (tl[tl.length - 1]?.end ?? 0) + x.stop.durationMin / 1000
+          if (score < best) { best = score; drop = x }
+        }
+      }
       if (!drop) break
       nodes.splice(nodes.indexOf(drop), 1)
       const cand0 = stopCand.get(drop.stop.id)

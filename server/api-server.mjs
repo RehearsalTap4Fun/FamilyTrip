@@ -9,10 +9,16 @@
 //        服务器不碰 Google Key；访问口令由 app 带在 X-Trip-Token 里，原样转给 Worker 校验。没配 GMAP_URL 回 503。
 //   GET /health → { ok, time }
 // 部署：/opt/trip/api-server.mjs，systemd trip-api（scripts/trip-api.service），DATA_DIR=/var/lib/trip/sync。
+import dns from 'node:dns'
 import fs from 'node:fs'
 import http from 'node:http'
+import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+// 这台服务器没有能用的 IPv6（2026-09-30 实测 curl -6 连不上）：先 IPv4、不做双栈抢连，不然偶尔先试 IPv6 超时报 fetch failed
+dns.setDefaultResultOrder('ipv4first')
+net.setDefaultAutoSelectFamily(false)
 
 const PORT = Number(process.env.PORT || 18795)
 const DATA = process.env.DATA_DIR || '/var/lib/trip/sync'
@@ -210,8 +216,10 @@ export function createServer(opts = {}) {
       if (!base) return send(res, 503, { error: '国外地图中转还没配好' }, origin)
       let body = ''
       for await (const c of req) { body += c; if (body.length > 4096) return send(res, 413, { error: 'too large' }, origin) }
+      const go = () => (opts.fetch ?? fetch)(`${base}/v1/${g[1]}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Trip-Token': String(req.headers['x-trip-token'] ?? '') }, body, signal: AbortSignal.timeout(TIMEOUT_MS) })
       try {
-        const r = await (opts.fetch ?? fetch)(`${base}/v1/${g[1]}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Trip-Token': String(req.headers['x-trip-token'] ?? '') }, body, signal: AbortSignal.timeout(TIMEOUT_MS) })
+        // 连接层出错（不是 Worker 回了错误）就再试一次
+        const r = await go().catch(e => (e?.name === 'TimeoutError' ? Promise.reject(e) : go()))
         const j = await r.json().catch(() => ({ error: `中转返回 HTTP ${r.status}` }))
         return send(res, r.status, j, origin)
       } catch (e) {

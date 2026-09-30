@@ -3,6 +3,6 @@
 name = "tonglu-gmap"
 main = "src/gmap.js"
 compatibility_date = "2026-09-01"
-# workers.dev 地址在国内被墙，只用自定义域名；绑定域名后把下面两行的注释去掉、换成你的域名
+# workers.dev 地址在国内被墙，只用自定义域名 map.rehearsal.work（部署时 Cloudflare 自动建 DNS 记录和证书）
 workers_dev = false
-# routes = [{ pattern = "map.你的域名", custom_domain = true }]
+routes = [{ pattern = "map.rehearsal.work", custom_domain = true }]

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { planTrip, type Candidate, type NearbyPlace, type PlanTools } from '@core/planner'
 import { estDriveMin, distanceKm } from '@core/geo'
 import { carryParty, skeletonTrip } from '@core/trips'
-import { checkDay, napMissed } from '@core/validate'
+import { checkDay, LATE_GRACE_MIN, napMissed } from '@core/validate'
 import { scheduleDay, parseHM, fmtHM } from '@core/schedule'
 import { deriveConstraints } from '@core/constraints'
 import { partyOnDay } from '@core/party'
@@ -422,7 +422,8 @@ describe('转场那天的晚饭', () => {
     expect(distanceKm(dinner.stop.poi!, HOTEL_LJ)).toBeLessThan(3)
     expect(dinner.stop.why).toContain('到了再吃')
     expect(dinner.start).toBeGreaterThanOrEqual(parseHM('17:00'))
-    expect(hotel.start).toBeLessThanOrEqual(parseHM('20:00'))
+    // 带幼儿：中午在古城切开吃饭、睡一会儿，到得晚一点，在回住处的宽限内
+    expect(hotel.start).toBeLessThanOrEqual(parseHM('20:00') + LATE_GRACE_MIN)
   })
 
   it('当天就在附近住：晚饭照旧在最后一站附近，不因为这个选项跑去住处吃', async () => {

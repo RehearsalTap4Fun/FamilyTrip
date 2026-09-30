@@ -702,10 +702,12 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       if (which === 'lunch' && endHere && slots[slots.length - 1].start <= 12 * 60 + 30) { tail.stop = { ...tail.stop, why: '行程终点 · 到家吃午饭' }; return }
       // 大景区（玩三个小时以上、跨过中午）：在中间切开，午饭在景区附近吃，不拖到逛完下午两三点
       if (which === 'lunch') {
-        const big = slots.find(sl => sl.stop.kind === 'sight' && sl.stop.durationMin >= 180 && sl.start <= 11 * 60 + 45 && sl.end >= 13 * 60)
+        // 要午睡的：逛到午睡开始以后就切（卧龙逛到 12:47，吃完饭已经过了午睡点）；在午睡前半小时吃上饭，11:15 前不切；到了至少先逛 45 分钟
+        const cutAt = c.nap ? Math.max(11 * 60 + 15, Math.min(12 * 60, c.nap.from - 30)) : 12 * 60
+        const big = slots.find(sl => sl.stop.kind === 'sight' && sl.stop.durationMin >= (c.nap ? 150 : 180) && sl.start <= cutAt - 45 && sl.end >= (c.nap ? c.nap.from + 15 : 13 * 60))
         const bi = big ? nodes.findIndex(x => x.stop.id === big.stop.id) : -1
         if (big && bi >= 0) {
-          const first = Math.max(60, Math.round((12 * 60 - big.start) / 5) * 5)
+          const first = Math.max(45, Math.round((cutAt - big.start) / 5) * 5)
           const a = nodes[bi]
           const b: Node = { poi: a.poi, stop: { ...a.stop, id: opts.newId('s'), name: `${a.stop.name}（吃完接着逛）`, durationMin: a.stop.durationMin - first, driveMin: undefined, why: undefined, start: undefined } }
           a.stop = { ...a.stop, durationMin: first }

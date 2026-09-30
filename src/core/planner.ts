@@ -388,6 +388,17 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       const drive = await driveMin(a, b)
       let t: Leg | null = null
       if (tools.transit) { try { t = await tools.transit(a, b) } catch { t = null } }
+      // 方案里夹着走很久的一段（洞爷湖到洞爷站「步行 131 分钟」）：那段改打车（按城里时速约 25 公里、加上等车），总时长跟着改
+      if (t?.steps?.some(x => x.by === 'walk' && x.min > 30) && t.steps.some(x => x.by !== 'walk')) {
+        let saved = 0
+        const steps = t.steps.map(x => {
+          if (x.by !== 'walk' || x.min <= 30) return x
+          const car = Math.max(8, Math.round(x.min / 6) + 5)
+          saved += x.min - car
+          return { by: 'other' as const, min: car, tag: '打车', line: '打车' }
+        })
+        t = { ...t, steps, min: t.min - saved, summary: ['打车', t.summary].join(' → ') }
+      }
       // 公交太绕、或者地图只给了走很久的路（没车的时候它给「步行 273 分钟」）：近的打车，远的（开一个小时以上）包车或租车
       const byCar = (why: string): Leg => drive > 60
         ? { by: 'taxi', min: drive + 10, summary: `包车或租车（${why}）`, steps: [{ by: 'other', min: drive + 10 }] }
@@ -396,7 +407,8 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
         // 地图说全程走路：半小时内才信，再远就是没车可坐（洞爷湖温泉街到酒店 9 公里给了步行 273 分钟，把一天拖到 23 点）
         if (t.steps?.length && t.steps.every(x => x.by === 'walk')) return t.min <= 30 ? { ...t, by: 'walk' } : byCar('没有公交')
         // 走过去不比坐车慢，或者二十分钟内走得到：就走（故宫到景山，高德给了三趟公交 45 分钟）
-        if (walk <= Math.max(20, t.min + 5)) return { by: 'walk', min: walk, summary: `步行 ${walk}′`, steps: [{ by: 'walk', min: walk }] }
+        // 最多走半小时：再远就算坐车更慢也不让一家人走一个多小时
+        if (walk <= 20 || (walk <= 30 && walk <= t.min + 5)) return { by: 'walk', min: walk, summary: `步行 ${walk}′`, steps: [{ by: 'walk', min: walk }] }
         if (t.min <= drive * 2.5 + 20) return t
         return byCar(`坐公交要 ${t.min >= 120 ? `${Math.round(t.min / 6) / 10} 小时` : `${t.min} 分钟`}`)
       }

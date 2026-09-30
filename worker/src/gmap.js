@@ -138,8 +138,25 @@ function navitimeBy(move, line) {
   if (move === 'walk') return 'walk'
   if (/bus/.test(move)) return 'bus'
   if (/ferry|ship/.test(move)) return 'ferry'
-  if (/train|shinkansen|rail/.test(move)) return /メトロ|地下鉄|都営|Metro|Subway/i.test(line) ? 'subway' : 'rail'
+  if (/train|shinkansen|rail|express/.test(move)) return /メトロ|地下鉄|都営|Metro|Subway/i.test(line) ? 'subway' : 'rail'
   return 'other'
+}
+
+/**
+ * 日本的车种胶囊：新干线 / JR 特急 / JR / 地铁 / 私铁 / 高速巴士 / 公交 / 轮渡 / 缆车 / 飞机。
+ * 按 NAVITIME 的移动种类（move）、线名、运营公司、车次种类（特急、快速…）认；「北斗」这种特急线名里没有 JR，要看公司
+ */
+export function japanTag(move, line, company = '', kind = '') {
+  const all = `${line} ${company}`
+  if (move === 'domestic_flight' || /flight/.test(move)) return '飞机'
+  if (/ferry|ship/.test(move) || /フェリー|汽船|船/.test(line)) return '轮渡'
+  if (/ロープウェイ|ロープウエイ|ケーブル|ゴンドラ|リフト/.test(line)) return '缆车'
+  if (/bus/.test(move)) return /highway|express/.test(move) || /高速/.test(line) ? '高速巴士' : '公交'
+  if (move === 'superexpress_train' || /新幹線/.test(line)) return '新干线'
+  if (/メトロ|地下鉄|都営|市営.*線|Metro|Subway/i.test(line) && !/ＪＲ|JR/.test(line)) return '地铁'
+  if (/ＪＲ|JR|旅客鉄道/.test(all)) return /limited_express|特急/.test(`${move} ${kind}`) ? 'JR 特急' : 'JR'
+  if (/train|rail|express/.test(move)) return /limited_express|特急/.test(`${move} ${kind}`) ? '私铁特急' : '私铁'
+  return ''
 }
 
 /** NAVITIME 的路线 → 同路的一段路：站点和移动交替出现，移动前后的站就是上下车的站；票价取 IC 卡价（没有就取普通票价），单位日元 */
@@ -153,7 +170,9 @@ export function navitimeLeg(j) {
     const by = navitimeBy(String(sec.move ?? ''), String(sec.line_name ?? sec.transport?.name ?? ''))
     const min = Math.max(1, Math.round(Number(sec.time ?? 0)))
     if (by === 'walk') { const last = steps[steps.length - 1]; if (last?.by === 'walk') last.min += min; else steps.push({ by, min }); return }
-    steps.push({ by, min, line: sec.line_name ?? sec.transport?.name ?? '', from: secs[i - 1]?.name ?? '', to: secs[i + 1]?.name ?? '' })
+    const line = sec.line_name ?? sec.transport?.name ?? ''
+    const tag = japanTag(String(sec.move ?? ''), line, sec.transport?.company?.name ?? '', sec.transport?.type ?? '')
+    steps.push({ by, min, line, from: secs[i - 1]?.name ?? '', to: secs[i + 1]?.name ?? '', ...(tag ? { tag } : {}) })
   })
   const kept = steps.filter(x => !(x.by === 'walk' && x.min < 2))
   const rides = kept.filter(x => x.by !== 'walk')
@@ -169,6 +188,9 @@ const TRANSIT_FIELDS = ['routes.duration', 'routes.legs.steps.travelMode', 'rout
 
 const VEHICLE = { SUBWAY: 'subway', METRO_RAIL: 'subway', MONORAIL: 'subway', BUS: 'bus', INTERCITY_BUS: 'bus', TROLLEYBUS: 'bus', SHARE_TAXI: 'bus', TRAM: 'tram', LIGHT_RAIL: 'tram', FERRY: 'ferry', RAIL: 'rail', HEAVY_RAIL: 'rail', COMMUTER_TRAIN: 'rail', HIGH_SPEED_TRAIN: 'rail', LONG_DISTANCE_TRAIN: 'rail', CABLE_CAR: 'other', FUNICULAR: 'other', GONDOLA_LIFT: 'other' }
 
+/** Google 的车种里要单独标出来的（其余按大类：地铁、公交、火车…） */
+const GTAG = { HIGH_SPEED_TRAIN: '高铁', LONG_DISTANCE_TRAIN: '长途火车', COMMUTER_TRAIN: '通勤火车', INTERCITY_BUS: '长途巴士', CABLE_CAR: '缆车', GONDOLA_LIFT: '缆车', FUNICULAR: '缆车', MONORAIL: '单轨' }
+
 /** Google 的公共交通路线 → 同路的一段路：连着的几步走路并成一步，每坐一条线一步（线名、上下车站、几站） */
 export function transitLeg(r) {
   if (!r) return null
@@ -177,7 +199,8 @@ export function transitLeg(r) {
     const min = seconds(st.staticDuration) / 60
     if (st.travelMode === 'TRANSIT' && st.transitDetails) {
       const td = st.transitDetails
-      steps.push({ by: VEHICLE[td.transitLine?.vehicle?.type] ?? 'other', min: Math.max(1, Math.round(min)), line: td.transitLine?.nameShort || td.transitLine?.name || '', from: td.stopDetails?.departureStop?.name ?? '', to: td.stopDetails?.arrivalStop?.name ?? '', stops: td.stopCount ?? undefined })
+      const vt = td.transitLine?.vehicle?.type
+      steps.push({ by: VEHICLE[vt] ?? 'other', min: Math.max(1, Math.round(min)), line: td.transitLine?.nameShort || td.transitLine?.name || '', from: td.stopDetails?.departureStop?.name ?? '', to: td.stopDetails?.arrivalStop?.name ?? '', stops: td.stopCount ?? undefined, ...(GTAG[vt] ? { tag: GTAG[vt] } : {}) })
     } else {
       const last = steps[steps.length - 1]
       if (last && last.by === 'walk') last.min += min
@@ -260,7 +283,7 @@ export async function run(op, b, env, f = fetch) {
   }
 }
 
-const CACHE_VER = 'v3'
+const CACHE_VER = 'v4'
 // 公共交通 7 天：日本的 NAVITIME 免费档每月只有 500 次（硬上限），同一趟反复重排要靠缓存兜住；超了它回 429，app 那头改按估算
 const TTL = { search: 7 * 86400, nearby: 7 * 86400, region: 30 * 86400, drive: 86400, route: 86400, transit: 7 * 86400 }
 

@@ -50,6 +50,20 @@ describe('公共交通怎么坐', () => {
   const base = (): Trip => ({ id: 't', title: 't', startDate: '2026-10-01', party: { members: [{ id: 'a', name: 'A', role: 'adult', driver: true }, { id: 'b', name: 'B', role: 'adult' }], pets: [], mode: 'transit' }, days: [{ stops: [] }] } as unknown as Trip)
   const cand = (name: string, poi: { lng: number; lat: number }): Candidate => ({ id: name, name, kind: 'sight', poi, durationMin: 60 })
 
+  it('排程：方案里夹着走两个多小时的一段（洞爷湖到洞爷站），那段改打车，总时长跟着少', async () => {
+    const tools: PlanTools = {
+      drive: async () => 150,
+      transit: async () => ({ by: 'transit', min: 240, summary: '北斗', steps: [{ by: 'walk', min: 131 }, { by: 'rail', min: 105, line: '北斗', tag: 'JR 特急' }, { by: 'walk', min: 4 }] }),
+      nearby: async () => [],
+    }
+    let n = 0
+    const r = await planTrip(base(), [cand('札幌', P(117.6, 39.94))], tools, { origin: hotel, newId: p => p + (++n) })
+    const leg = r.trip.days[0].stops.find(s => s.name === '札幌')!.leg!
+    expect(leg.steps!.map(x => x.tag ?? x.by)).toEqual(['打车', 'JR 特急', 'walk'])
+    expect(leg.min).toBe(240 - 131 + 27)
+    expect(leg.summary).toBe('打车 → 北斗')
+  })
+
   it('排程：一公里内走过去，远的按地图的换乘方案；公交比打车慢太多就写打车；没方案按估算并标「估」', async () => {
     const asked: string[] = []
     const tools: PlanTools = {
@@ -73,6 +87,7 @@ describe('公共交通怎么坐', () => {
     expect(legs.get('走比坐快')?.by).toBe('walk')
     // 地图只给了走四个半小时：当成没车可坐，打车
     expect(legs.get('只能走')).toMatchObject({ by: 'taxi' })
+
     expect(legs.get('地铁')).toMatchObject({ by: 'transit', summary: '地铁2号线' })
     expect(legs.get('绕')?.by).toBe('taxi')
     expect(legs.get('没方案')).toMatchObject({ by: 'transit', estimated: true })
@@ -82,7 +97,7 @@ describe('公共交通怎么坐', () => {
 })
 
 // @ts-expect-error Worker 是纯 .js
-import { defaultStart, handle, inJapan, navitimeLeg } from '../worker/src/gmap.js'
+import { defaultStart, handle, inJapan, japanTag, navitimeLeg } from '../worker/src/gmap.js'
 
 describe('日本的公交地铁：NAVITIME', () => {
   const sample = { items: [{ summary: { move: { time: 24, fare: { unit_0: 180, unit_48: 178 } } }, sections: [
@@ -104,12 +119,26 @@ describe('日本的公交地铁：NAVITIME', () => {
     expect(leg).toMatchObject({ by: 'transit', min: 24, summary: '東京メトロ銀座線 → JR山手線内回り', fare: { amount: 178, currency: 'JPY' } })
     expect(leg.steps).toEqual([
       { by: 'walk', min: 4 },
-      { by: 'subway', min: 5, line: '東京メトロ銀座線', from: '浅草', to: '上野' },
-      { by: 'rail', min: 10, line: 'JR山手線内回り', from: '上野', to: '浜松町' },
+      { by: 'subway', min: 5, line: '東京メトロ銀座線', from: '浅草', to: '上野', tag: '地铁' },
+      { by: 'rail', min: 10, line: 'JR山手線内回り', from: '上野', to: '浜松町', tag: 'JR' },
       { by: 'walk', min: 5 },
     ])
     expect(legText(leg)).toBe('東京メトロ銀座線 → JR山手線内回り · 24 分 · 178 日元')
     expect(navitimeLeg({ items: [] })).toBeNull()
+  })
+
+  it('日本的车种胶囊：新干线、JR 特急（线名里没 JR 看公司）、JR、地铁、私铁、高速巴士、公交、轮渡、缆车', () => {
+    expect(japanTag('superexpress_train', '東北新幹線はやぶさ', 'JR東日本')).toBe('新干线')
+    expect(japanTag('local_train', '北斗', 'JR北海道', '特急')).toBe('JR 特急')
+    expect(japanTag('local_train', 'ＪＲ山手線内回り')).toBe('JR')
+    expect(japanTag('local_train', '札幌市営南北線', '札幌市交通局')).toBe('地铁')
+    expect(japanTag('local_train', '東京メトロ銀座線', '東京地下鉄')).toBe('地铁')
+    expect(japanTag('rapid_train', '京急本線', '京浜急行電鉄')).toBe('私铁')
+    expect(japanTag('limited_express', 'スカイライナー', '京成電鉄')).toBe('私铁特急')
+    expect(japanTag('highway_bus', '高速おたる号')).toBe('高速巴士')
+    expect(japanTag('bus', '都営バス')).toBe('公交')
+    expect(japanTag('ferry', '東京湾フェリー')).toBe('轮渡')
+    expect(japanTag('local_train', '函館山ロープウェイ')).toBe('缆车')
   })
 
   it('NAVITIME 出发时刻必填：没给按日本时间明天上午 10 点', () => {

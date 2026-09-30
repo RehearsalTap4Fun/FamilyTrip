@@ -540,3 +540,15 @@
 .leg-steps li.by-walk::before { background: transparent; border: 1.5px solid var(--seg-dim, #928D83); width: 5px; height: 5px; }
 .leg-mini { display: block; font: 500 12px/1.4 var(--sans); color: var(--ink2); margin-top: 1px; }
 .leg-steps .leg-link { align-self: flex-start; margin-top: 2px; font: 600 13px var(--sans); color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+/* 车种胶囊：新干线、JR、地铁、私铁、公交…（src/ui/Leg.tsx） */
+.leg-inline { display: inline; }
+.leg-ride { white-space: nowrap; }
+.leg-arrow { margin: 0 4px; color: var(--ink2); }
+.leg-chip { --chip: #6f6a60; display: inline-block; margin-right: 4px; padding: 1px 6px; border-radius: var(--k-pill, 999px); font: 700 11px/1.5 var(--sans); vertical-align: 1px; color: var(--chip); background: color-mix(in srgb, var(--chip) 14%, transparent); border: 1px solid color-mix(in srgb, var(--chip) 35%, transparent); }
+.leg-chip[data-g='hsr'] { --chip: #1f5fa8; }
+.leg-chip[data-g='ltd'] { --chip: #c2571a; }
+.leg-chip[data-g='jr'] { --chip: #2f7d3a; }
+.leg-chip[data-g='metro'] { --chip: #34508f; }
+.leg-chip[data-g='rail'] { --chip: #7a4b9a; }
+.leg-chip[data-g='bus'] { --chip: #1f7f86; }
+.leg-chip[data-g='ferry'] { --chip: #2b6f9e; }

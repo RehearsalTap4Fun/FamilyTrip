@@ -220,7 +220,8 @@ export interface Trip {
   highlights?: TripHighlight[]
 }
 
-export interface TripHighlight { text: string; stopId?: string }
+/** 整趟亮点：一条对应行程里的一个地方，出处是网上推荐、好评这个地方的帖子 */
+export interface TripHighlight { text: string; stopId?: string; refs?: { title: string; url: string; site: string }[] }
 
 export interface TripShare {
   code: string

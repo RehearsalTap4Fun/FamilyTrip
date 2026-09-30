@@ -5,7 +5,7 @@ import type { Trip } from '@core/types'
 import { cleanText, cut } from './client'
 import { STYLES } from '@core/trips'
 
-export interface WebRef { title: string; url: string; site: string; content: string; date?: string }
+export interface WebRef { title: string; url: string; site: string; content: string; date?: string; /** 搜的是哪个地方（亮点按它对出处） */ about?: string }
 
 export class SearchError extends Error {}
 

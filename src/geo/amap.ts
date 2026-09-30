@@ -161,6 +161,15 @@ export async function drivePath(from: Poi, to: Poi, key: string, fetchImpl: type
 }
 
 /** 测一下 Key：搜一次「天安门」，能返回结果就算好用 */
+/** 坐标在哪个城市、区县（逆地理编码）：搜网上攻略时带上，免得「南桥」搜到上海奉贤的南桥 */
+export async function regionAt(p: Poi, key: string, fetchImpl: typeof fetch = fetch): Promise<{ city: string; district: string } | null> {
+  const j = await call('v3/geocode/regeo', { location: `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`, extensions: 'base' }, key, fetchImpl)
+  const c = j.regeocode?.addressComponent
+  if (!c) return null
+  const city = str(c.city) || str(c.province)
+  return { city, district: str(c.district) }
+}
+
 export async function testAmapKey(key: string, fetchImpl: typeof fetch = fetch): Promise<{ ok: true } | { ok: false; msg: string }> {
   if (!key) return { ok: false, msg: '还没填' }
   if (!/^[0-9a-f]{32}$/i.test(key)) return { ok: false, msg: `格式不对：「Web服务」Key 是 32 位的字母数字，这里填的有 ${key.length} 位${/\s/.test(key) ? '，还带了空格' : ''}` }

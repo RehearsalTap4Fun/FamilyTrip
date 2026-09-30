@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { describe, expect, it } from 'vitest'
 import { applyHighlights, buildHighlightsPrompt, HighlightsSchema, searchArea, searchPlayTips, type Highlights } from '../src/llm/highlights'
 import { parseLooseJson } from '../src/llm/client'
@@ -84,11 +85,18 @@ describe('这趟的亮点', () => {
     expect(out.highlights).toEqual([])
   })
 
+  it('某一站缺了必填字段只丢那一站，别的照收；schema 能转成 JSON Schema 发给模型', () => {
+    const got = parseLooseJson(JSON.stringify({ trip: [{ text: 'a', stop: 'x', refs: [1] }, { stop: 'y' }], stops: [{ name: 'a', how: 'b' }, { name: 'c' }, { name: 'd', how: 'e' }] }), HighlightsSchema)
+    expect(got.stops.map(x => x?.name ?? null)).toEqual(['a', null, 'd'])
+    expect(got.trip.map(x => x?.text ?? null)).toEqual(['a', null])
+    expect(() => z.toJSONSchema(HighlightsSchema, { target: 'draft-7' })).not.toThrow()
+  })
+
   it('次要字段漏写不让整次失败', () => {
     const got = parseLooseJson(JSON.stringify({ trip: [{ text: 'x' }], stops: [{ name: 'a', how: 'b' }] }), HighlightsSchema)
-    expect(got.trip[0].stop).toBeNull()
-    expect(got.trip[0].refs).toEqual([])
-    expect(got.stops[0]).toMatchObject({ when: null, tip: null, family: null })
+    expect(got.trip[0]!.stop).toBeNull()
+    expect(got.trip[0]!.refs).toEqual([])
+    expect(got.stops[0]!).toMatchObject({ when: null, tip: null, family: null })
   })
 
   it('重新排程后站点换了：玩法按名字接过来，亮点指向新站点', () => {

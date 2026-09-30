@@ -18,14 +18,14 @@ export const HighlightsSchema = z.object({
     text: z.string().describe('一句亮点，30 字以内，具体到做什么，例如「傍晚在双廊玉几岛看洱海日落」；时间只说清晨、上午、正午、下午、傍晚、夜晚'),
     stop: nul(z.string()).describe('这句说的是行程里哪个地方（名字照抄行程）'),
     refs: z.array(z.number().int()).catch([]).describe('网上哪几篇推荐、好评了这件事（填参考攻略的编号，如 [2, 5]）'),
-  })).catch([]).describe('网上攻略里推荐、好评的，并且这趟真的排到了的事；没有就给 []，不凑数'),
+  }).nullable().catch(null)).catch([]).describe('网上攻略里推荐、好评的，并且这趟真的排到了的事；没有就给 []，不凑数'),
   stops: z.array(z.object({
     name: z.string().describe('地方的名字，照抄清单'),
     how: z.string().describe('这里最受推崇的玩法，一句能照着做的话，40 字以内；不要写「风景优美」这种空话'),
     when: nul(z.string()).describe('最佳时段，只用清晨、上午、正午、下午、傍晚、夜晚这类说法，例如「傍晚看日落」「上午早些人少」，不写几点几分；没有讲究填 null'),
     tip: nul(z.string()).describe('避坑、预约、穿着，30 字以内；没有填 null'),
     family: nul(z.string()).describe('对这群同行者的提醒（老人、小孩、宠物），30 字以内；没有填 null'),
-  })).catch([]),
+  }).nullable().catch(null)).catch([]).describe('每个地方一条'),
 })
 export type Highlights = z.infer<typeof HighlightsSchema>
 
@@ -119,7 +119,9 @@ export function applyHighlights(trip: Trip, h: Highlights, refs: WebRef[] = []):
     return all.find(s => s.name === name) ?? all.find(s => norm(s.name) === n) ?? all.find(s => norm(s.name).includes(n) || n.includes(norm(s.name)))
   }
   const per = new Map<string, StopHighlight>()
+  // 缺字段的那一条解析成 null：只丢它，不连累别的
   for (const x of h.stops) {
+    if (!x) continue
     const s = find(x.name)
     if (!s || !x.how.trim()) continue
     // 具体钟点一律换成模糊时段（模型偶尔还是会写「17:30 以后」）
@@ -129,6 +131,7 @@ export function applyHighlights(trip: Trip, h: Highlights, refs: WebRef[] = []):
   const used = new Set<string>()
   const highlights: TripHighlight[] = []
   for (const x of h.trip) {
+    if (!x) continue
     const s = x.stop ? find(x.stop) : undefined
     // 出处得说到这个地方：搜的就是它，或者正文里提到了它
     const says = (r: WebRef) => !!s && (r.about === s.name.replace(/（吃完接着逛）$/, '') || (r.title + r.content).includes(s.name.replace(/（吃完接着逛）$/, '').slice(0, 6)))

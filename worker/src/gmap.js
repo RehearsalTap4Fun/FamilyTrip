@@ -261,7 +261,8 @@ export async function run(op, b, env, f = fetch) {
 }
 
 const CACHE_VER = 'v3'
-const TTL = { search: 7 * 86400, nearby: 7 * 86400, region: 30 * 86400, drive: 86400, route: 86400, transit: 86400 }
+// 公共交通 7 天：日本的 NAVITIME 免费档每月只有 500 次（硬上限），同一趟反复重排要靠缓存兜住；超了它回 429，app 那头改按估算
+const TTL = { search: 7 * 86400, nearby: 7 * 86400, region: 30 * 86400, drive: 86400, route: 86400, transit: 7 * 86400 }
 
 /** cache：Cloudflare 的 caches.default；测试里传一个 Map 包装或不传 */
 export async function handle(req, env, opts = {}) {

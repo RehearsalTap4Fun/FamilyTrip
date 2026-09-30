@@ -77,7 +77,7 @@ describe('公共交通怎么坐', () => {
 })
 
 // @ts-expect-error Worker 是纯 .js
-import { handle, inJapan, navitimeLeg } from '../worker/src/gmap.js'
+import { defaultStart, handle, inJapan, navitimeLeg } from '../worker/src/gmap.js'
 
 describe('日本的公交地铁：NAVITIME', () => {
   const sample = { items: [{ summary: { move: { time: 24, fare: { unit_0: 180, unit_48: 178 } } }, sections: [
@@ -105,6 +105,13 @@ describe('日本的公交地铁：NAVITIME', () => {
     ])
     expect(legText(leg)).toBe('東京メトロ銀座線 → JR山手線内回り · 24 分 · 178 日元')
     expect(navitimeLeg({ items: [] })).toBeNull()
+  })
+
+  it('NAVITIME 出发时刻必填：没给按日本时间明天上午 10 点', () => {
+    // 2026-09-30 20:00 北京时间 = 21:00 日本时间 → 明天是 10-01
+    expect(defaultStart(Date.UTC(2026, 8, 30, 12, 0))).toBe('2026-10-01T10:00:00')
+    // 日本时间已经过了半夜（北京时间 23:30 = 日本 00:30 的 10-01）→ 明天是 10-02
+    expect(defaultStart(Date.UTC(2026, 8, 30, 15, 30))).toBe('2026-10-02T10:00:00')
   })
 
   it('在不在日本：东京、那霸、札幌算；首尔、釜山、台北、库页岛不算；给了国家码按国家码', () => {

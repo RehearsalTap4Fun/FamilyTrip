@@ -116,12 +116,20 @@ export function inJapan(p, cc) {
   return true
 }
 
+/** 日本时间明天 10:00，格式 YYYY-MM-DDTHH:MM:SS */
+export function defaultStart(now = Date.now()) {
+  const jst = new Date(now + 9 * 3600e3 + 86400e3)
+  return `${jst.toISOString().slice(0, 10)}T10:00:00`
+}
+
 async function navitime(b, env, f) {
   const q = new URLSearchParams({ start: `${b.from.lat},${b.from.lng}`, goal: `${b.to.lat},${b.to.lng}`, limit: '1' })
+  // 出发时刻必填（不给回 parameter error）：给了就用，没给按日本时间明天上午 10 点（一般的白天班次）
   if (typeof b.at === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d)?$/.test(b.at)) q.set('start_time', b.at.length === 16 ? b.at + ':00' : b.at)
+  else q.set('start_time', defaultStart())
   const r = await f(`${NAVITIME}?${q}`, { method: 'GET', headers: { 'x-rapidapi-key': env.RAPIDAPI_KEY, 'x-rapidapi-host': 'navitime-route-totalnavi.p.rapidapi.com' } })
   const j = await r.json().catch(() => ({}))
-  if (!r.ok) throw Object.assign(new Error('NAVITIME：' + (j.message ?? `HTTP ${r.status}`)), { status: r.status === 429 ? 429 : 502 })
+  if (!r.ok) throw Object.assign(new Error('NAVITIME：' + (j.message ?? `HTTP ${r.status}`) + (j.errors || j.error ? ' ' + JSON.stringify(j.errors ?? j.error).slice(0, 200) : '')), { status: r.status === 429 ? 429 : 502 })
   return j
 }
 

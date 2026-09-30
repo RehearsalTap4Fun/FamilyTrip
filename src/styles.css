@@ -343,3 +343,5 @@ input, select { font-size: 16px; min-height: 36px; }
 .legend-why { margin-top: 6px; }
 .legend-hint { font: 700 12.5px var(--sans); color: var(--ink); }
 .legend-hint small { font-weight: 400; color: var(--ink2); margin-left: 4px; }
+/* 当天标题只占一行：dayTitle 已经尽量短，万一还长就省略号 */
+.day-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%; }

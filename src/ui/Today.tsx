@@ -140,7 +140,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
       )}
       <header className="head">
         <div>
-          <h1 className="title">{dayTitle(day)}</h1>
+          <h1 className="title day-title">{dayTitle(day)}</h1>
           <p className="sub">第 {dayIndex + 1} 天 · {fmtDay(trip.startDate, dayIndex)} · {partyLine(trip, dayIndex)}</p>
         </div>
         <nav className="index" aria-label="接图表：按天切换">

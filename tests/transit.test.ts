@@ -166,3 +166,19 @@ describe('日本的公交地铁：NAVITIME', () => {
     expect(hits).toEqual(['navitime', 'google', 'google'])
   })
 })
+
+import { dayTitle, shortName } from '../src/ui/format'
+describe('当天标题要短', () => {
+  const st = (name: string, kind: Trip['days'][number]['stops'][number]['kind'], extra = {}) => ({ id: name, name, kind, durationMin: kind === 'transit' ? 480 : 60, status: 'planned' as const, ...extra })
+  it('有景点写第一个景点（去掉括号、太长截断）；没有景点的按这天是出发、回家、赶路还是休整', () => {
+    expect(dayTitle({ stops: [st('飞机 → Yoichiya Uni Shop（估）', 'transit'), st('Yoichiya Uni Shop', 'food'), st('小樽運河', 'sight'), st("STAY`s OTARU", 'lodging')] })).toBe('小樽運河')
+    expect(dayTitle({ stops: [st('补的景点', 'sight', { suggested: true }), st('洞爷湖（吃完接着逛）', 'sight')] })).toBe('洞爷湖')
+    expect(dayTitle({ stops: [st('飞机 → 家（估）', 'transit'), st('回到家', 'lodging', { home: true })] })).toBe('回家')
+    expect(dayTitle({ stops: [st('飞机 → 札幌（估）', 'transit'), st('晚饭', 'food'), st('酒店', 'lodging')] })).toBe('出发')
+    expect(dayTitle({ stops: [st('开车 → 酒店', 'drive', { durationMin: 300 }), st('酒店', 'lodging')] })).toBe('赶路')
+    expect(dayTitle({ stops: [st('早饭', 'food'), st('酒店', 'lodging')] })).toBe('休整')
+    expect(shortName('Kura Sushi Global Flagship Store Asakusa')).toBe('Kura Sushi Global…')
+    expect(shortName('卧龙中华大熊猫苑神树坪基地')).toBe('卧龙中华大熊猫苑神…')
+    expect(shortName('东京国立博物馆')).toBe('东京国立博物馆')
+  })
+})

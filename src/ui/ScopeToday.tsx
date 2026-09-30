@@ -157,7 +157,7 @@ export function ScopeToday({ trip, now, demo, onTrip, onRating, onUnrate }: Prop
       </div>
       <p className="poster-caption"><b>{imperative}</b><span>{dayTitle(day)}<br />第 {dayIndex + 1} 天{live ? ` · ${fmtHM(nowMin)}` : ''}{live && demo ? ' 演示' : ''}</span></p>
       <header className="bez-top">
-        <h1>{dayTitle(day)}</h1>
+        <h1 className="day-title">{dayTitle(day)}</h1>
         <span className={'run' + (live ? '' : ' hold')}>{live ? fmtHM(nowMin) : `D${dayIndex + 1} 计划`}{live && demo && <small>演示</small>}</span>
       </header>
 

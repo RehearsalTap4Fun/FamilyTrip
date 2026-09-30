@@ -42,9 +42,33 @@ export function dayCities(day: Day): string[] {
   return out.filter((c, i) => out.indexOf(c) === i)
 }
 
+/** 地名缩短：去掉括号里的补充（「天空音乐盒(上海五原路店)」「洞爷湖（吃完接着逛）」），按显示宽度（字母、数字算半个字）超过 max 个字宽就截断加省略号 */
+export function shortName(name: string, max = 10): string {
+  const n = name.replace(/[（(][^（）()]*[)）]/g, '').replace(/[-·—\s]+$/, '').trim() || name.trim()
+  const w = (ch: string) => (/[\x00-\x7f]/.test(ch) ? 0.55 : 1)
+  let used = 0, out = ''
+  for (const ch of n) {
+    if (used + w(ch) > max - 0.5) return out.trimEnd() + '…'
+    used += w(ch); out += ch
+  }
+  return out
+}
+
+/**
+ * 一天的标题（要短，一行放得下）：经过一两个认得的城市就写城市（「大理—丽江」）；
+ * 否则写当天第一个景点；没有景点的：有回家的写「回家」，有长途（飞机、高铁、开很久）的写「出发」，只开车的写「赶路」，都没有就「休整」
+ */
 export function dayTitle(day: Day): string {
   const c = dayCities(day)
-  return c.length ? c.join('—') : day.stops[0]?.name ?? '空白的一天'
+  if (c.length && c.length <= 2) return c.join('—')
+  const live = day.stops.filter(s => s.status !== 'skipped')
+  const sight = live.find(s => s.kind === 'sight' && !s.suggested) ?? live.find(s => s.kind === 'sight')
+  if (sight) return shortName(sight.name)
+  if (live.some(s => s.home)) return '回家'
+  const onRoad = live.reduce((a, s) => a + driveOf(s), 0) + live.filter(s => s.kind === 'transit').reduce((a, s) => a + s.durationMin, 0)
+  if (live.some(s => s.kind === 'transit' && s.durationMin >= 120)) return '出发'
+  if (onRoad >= 180) return '赶路'
+  return live.length ? '休整' : '空白的一天'
 }
 
 export function driveHours(day: Day): number {

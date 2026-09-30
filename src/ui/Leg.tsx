@@ -7,7 +7,7 @@ const BY: Record<LegStep['by'], string> = { walk: '步行', subway: '地铁', bu
 /** 一句话：「地铁2号线 → 公交 K18 · 25 分」「步行 8 分」「打车 15 分」 */
 export function legText(leg: Leg): string {
   if (leg.by === 'walk') return `步行 ${leg.min} 分`
-  if (leg.by === 'taxi') return `打车约 ${leg.min} 分${leg.summary.includes('公交要') ? '（公交太绕）' : ''}`
+  if (leg.by === 'taxi') return `${leg.summary.startsWith('包车') ? '包车或租车' : '打车'}约 ${leg.min} 分${/（(.+)）/.exec(leg.summary) ? `（${/（(.+)）/.exec(leg.summary)![1]}）` : ''}`
   return `${leg.summary} · ${leg.min} 分${leg.fare ? ` · ${fareText(leg.fare)}` : ''}`
 }
 

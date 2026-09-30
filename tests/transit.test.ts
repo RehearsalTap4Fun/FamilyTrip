@@ -41,13 +41,14 @@ describe('公共交通怎么坐', () => {
   it('一句话怎么说', () => {
     expect(legText({ by: 'walk', min: 8, summary: '步行 8′' })).toBe('步行 8 分')
     expect(legText({ by: 'transit', min: 25, summary: '银座线' })).toBe('银座线 · 25 分')
-    expect(legText({ by: 'taxi', min: 15, summary: '打车（坐公交要 70 分钟）' })).toBe('打车约 15 分（公交太绕）')
+    expect(legText({ by: 'taxi', min: 15, summary: '打车（坐公交要 70 分钟）' })).toBe('打车约 15 分（坐公交要 70 分钟）')
+    expect(legText({ by: 'taxi', min: 110, summary: '包车或租车（坐公交要 9.3 小时）' })).toBe('包车或租车约 110 分（坐公交要 9.3 小时）')
   })
 
   const P = (lng: number, lat: number) => ({ lng, lat })
   const hotel = P(116.397, 39.94)
   const base = (): Trip => ({ id: 't', title: 't', startDate: '2026-10-01', party: { members: [{ id: 'a', name: 'A', role: 'adult', driver: true }, { id: 'b', name: 'B', role: 'adult' }], pets: [], mode: 'transit' }, days: [{ stops: [] }] } as unknown as Trip)
-  const cand = (name: string, poi: { lng: number; lat: number }): Candidate => ({ id: name, name, kind: 'sight', poi, durationMin: 90 })
+  const cand = (name: string, poi: { lng: number; lat: number }): Candidate => ({ id: name, name, kind: 'sight', poi, durationMin: 60 })
 
   it('排程：一公里内走过去，远的按地图的换乘方案；公交比打车慢太多就写打车；没方案按估算并标「估」', async () => {
     const asked: string[] = []
@@ -57,17 +58,21 @@ describe('公共交通怎么坐', () => {
         asked.push(`${b.lng}`)
         if (b.lng === 116.45) return { by: 'transit', min: 30, summary: '地铁2号线', steps: [{ by: 'walk', min: 5 }, { by: 'subway', min: 20, line: '地铁2号线' }, { by: 'walk', min: 5 }] }
         if (b.lng === 116.3) return { by: 'transit', min: 90, summary: '公交 1 路', steps: [{ by: 'bus', min: 90 }] }
+        // 没车的时候地图给「步行 273 分钟」
+        if (b.lng === 116.5) return { by: 'transit', min: 273, summary: '步行 273′', steps: [{ by: 'walk', min: 273 }] }
         if (b.lng === 116.412) return { by: 'transit', min: 40, summary: '三趟公交', steps: [{ by: 'bus', min: 40 }] }
         return null
       },
       nearby: async () => [],
     }
     let n = 0
-    const r = await planTrip(base(), [cand('近', P(116.401, 39.943)), cand('地铁', P(116.45, 39.94)), cand('绕', P(116.3, 39.94)), cand('没方案', P(116.36, 39.99)), cand('走比坐快', P(116.412, 39.945))], tools, { origin: hotel, newId: p => p + (++n) })
+    const r = await planTrip(base(), [cand('近', P(116.401, 39.943)), cand('地铁', P(116.45, 39.94)), cand('绕', P(116.3, 39.94)), cand('没方案', P(116.36, 39.99)), cand('走比坐快', P(116.412, 39.945)), cand('只能走', P(116.5, 39.94))], tools, { origin: hotel, newId: p => p + (++n) })
     const legs = new Map(scheduleDay(r.trip.days[0]).filter(s => s.stop.leg).map(s => [s.stop.name, s.stop.leg!]))
     expect(legs.get('近')?.by).toBe('walk')
     // 1.6 公里、公交要 40 分钟：走过去（约 31 分钟）不比坐车慢
     expect(legs.get('走比坐快')?.by).toBe('walk')
+    // 地图只给了走四个半小时：当成没车可坐，打车
+    expect(legs.get('只能走')).toMatchObject({ by: 'taxi' })
     expect(legs.get('地铁')).toMatchObject({ by: 'transit', summary: '地铁2号线' })
     expect(legs.get('绕')?.by).toBe('taxi')
     expect(legs.get('没方案')).toMatchObject({ by: 'transit', estimated: true })

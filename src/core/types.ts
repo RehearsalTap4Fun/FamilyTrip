@@ -63,7 +63,7 @@ export type StopKind = 'sight' | 'food' | 'lodging' | 'drive' | 'transit' | 'res
 /** 一段路里的一步：走路，或坐一条线从哪站到哪站 */
 export interface LegStep { by: 'walk' | 'subway' | 'bus' | 'rail' | 'tram' | 'ferry' | 'other'; min: number; line?: string; from?: string; to?: string; stops?: number }
 /** 两站之间怎么走（公共交通的行程用）：walk 步行、transit 公交地铁、taxi 打车（公交不便或太绕） */
-export interface Leg { by: 'walk' | 'transit' | 'taxi'; min: number; summary: string; steps?: LegStep[]; estimated?: boolean; /** 从哪出发（「打开地图查换乘」用） */ from?: { lng: number; lat: number } }
+export interface Leg { by: 'walk' | 'transit' | 'taxi'; min: number; summary: string; steps?: LegStep[]; estimated?: boolean; /** 从哪出发（「打开地图查换乘」用） */ from?: { lng: number; lat: number }; /** 票价（日本 NAVITIME 给，IC 卡价） */ fare?: { amount: number; currency: string } }
 
 export interface Poi {
   lng: number

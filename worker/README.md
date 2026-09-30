@@ -57,6 +57,20 @@ app ──► 自家服务器 /trip/api/gmap/*（server/api-server.mjs 转发）
 「同行」页右上角 → 设置 →「国外地图访问口令」：填第三步的口令，点「测一下」。
 口令和高德 Key 一样只存在这台设备上，不同步、不导出。每台要用国外地图的设备都填一次。
 
+## 六、日本的公交地铁（NAVITIME，选配）
+
+Google 的接口没有日本的公交地铁数据（Google 自家的地图 App 里能查，开放给开发者的没有；东京实测一条方案都没有），日本改问 NAVITIME：
+
+1. 注册 RapidAPI（rapidapi.com），搜「NAVITIME Route(totalnavi)」，订阅免费档（Basic）；订阅时看清超出免费额度后怎么收费。
+2. 在**自己的终端**（不要在 Claude Code 里用 `!`，那里是非交互、会传空值）：
+   ```sh
+   cd /Users/tap4fun/Demo/trip/worker
+   npx wrangler secret put RAPIDAPI_KEY    # 粘贴 RapidAPI 的 Key（X-RapidAPI-Key）
+   ```
+3. `curl https://map.rehearsal.work/health` 里 `navitime` 变成 `true` 就好了，不用重新部署。
+
+没配时日本照旧按估算，标「估」，点「打开地图查换乘」去 Google 地图里查。站名是日文（多数是汉字），票价是 IC 卡价（日元）。
+
 ## 接口
 
 都是 `POST` + JSON，返回和 app 里高德那套同样形状的数据：
@@ -67,6 +81,7 @@ app ──► 自家服务器 /trip/api/gmap/*（server/api-server.mjs 转发）
 | `/v1/nearby` | `{ at, kind: sight\|food\|lodging\|serviceArea, radius }` | `{ places }`（带评分） |
 | `/v1/drive` | `{ from, to }` | `{ minutes, km }` |
 | `/v1/route` | `{ from, to }` | `{ minutes, points: [{ lng, lat, t }] }` |
+| `/v1/transit` | `{ from, to, cc?, at? }` | `{ by, min, summary, steps, fare? }`（日本问 NAVITIME，别处问 Google） |
 | `/v1/region` | `{ at }` | `{ country, cc, city, district }` |
 
 测试：`tests/gmap.test.ts`，用假的 Google 返回，不花钱。

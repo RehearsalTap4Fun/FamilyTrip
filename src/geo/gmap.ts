@@ -32,7 +32,8 @@ export const gSearch = async (q: string, o: GmapOpts, near?: Poi): Promise<Place
 export const gNearby = async (at: Poi, kind: NearbyKind, radius: number, o: GmapOpts): Promise<Place[]> => (await call<{ places: Place[] }>('nearby', { at: pt(at), kind, radius }, o)).places
 export const gDrive = (from: Poi, to: Poi, o: GmapOpts): Promise<Drive | null> => call<Drive | null>('drive', { from: pt(from), to: pt(to) }, o)
 export const gRoute = (from: Poi, to: Poi, o: GmapOpts): Promise<RoutePath | null> => call<RoutePath | null>('route', { from: pt(from), to: pt(to) }, o)
-export const gTransit = (from: Poi, to: Poi, o: GmapOpts): Promise<Leg | null> => call<Leg | null>('transit', { from: pt(from), to: pt(to) }, o)
+/** 公共交通：日本走 NAVITIME、别处走 Google（Worker 里分）；知道国家码就带上，省得按坐标猜 */
+export const gTransit = (from: Poi, to: Poi, o: GmapOpts): Promise<Leg | null> => call<Leg | null>('transit', { from: pt(from), to: pt(to), ...(to.cc ?? from.cc ? { cc: to.cc ?? from.cc } : {}) }, o)
 export const gRegion = (at: Poi, o: GmapOpts): Promise<Region | null> => call<Region | null>('region', { at: pt(at) }, o)
 
 /** 设置里「测一下」：随便查一个地方（东京塔），通了就行 */

@@ -8,8 +8,11 @@ const BY: Record<LegStep['by'], string> = { walk: '步行', subway: '地铁', bu
 export function legText(leg: Leg): string {
   if (leg.by === 'walk') return `步行 ${leg.min} 分`
   if (leg.by === 'taxi') return `打车约 ${leg.min} 分${leg.summary.includes('公交要') ? '（公交太绕）' : ''}`
-  return `${leg.summary} · ${leg.min} 分`
+  return `${leg.summary} · ${leg.min} 分${leg.fare ? ` · ${fareText(leg.fare)}` : ''}`
 }
+
+const CUR: Record<string, string> = { JPY: '日元', CNY: '元', KRW: '韩元', USD: '美元', EUR: '欧元' }
+export const fareText = (f: { amount: number; currency: string }) => `${Math.round(f.amount)} ${CUR[f.currency] ?? f.currency}`
 
 /** 一步：「地铁 银座线：上野 → 浅草（3 站）6′」 */
 export function stepText(s: LegStep): string {

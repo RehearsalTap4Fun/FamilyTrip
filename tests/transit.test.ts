@@ -75,3 +75,53 @@ describe('公共交通怎么坐', () => {
     expect(asked.length).toBe(new Set(asked).size)
   })
 })
+
+// @ts-expect-error Worker 是纯 .js
+import { handle, inJapan, navitimeLeg } from '../worker/src/gmap.js'
+
+describe('日本的公交地铁：NAVITIME', () => {
+  const sample = { items: [{ summary: { move: { time: 24, fare: { unit_0: 180, unit_48: 178 } } }, sections: [
+    { type: 'point', name: 'start' },
+    { type: 'move', move: 'walk', time: 4 },
+    { type: 'point', name: '浅草' },
+    { type: 'move', move: 'local_train', line_name: '東京メトロ銀座線', time: 5 },
+    { type: 'point', name: '上野' },
+    { type: 'move', move: 'walk', time: 1 },
+    { type: 'point', name: '上野' },
+    { type: 'move', move: 'local_train', line_name: 'JR山手線内回り', time: 10 },
+    { type: 'point', name: '浜松町' },
+    { type: 'move', move: 'walk', time: 3 }, { type: 'move', move: 'walk', time: 2 },
+    { type: 'point', name: 'goal' },
+  ] }] }
+
+  it('站点和移动交替：认出地铁、JR、上下车站、IC 卡票价；连着的走路并成一步', () => {
+    const leg = navitimeLeg(sample)
+    expect(leg).toMatchObject({ by: 'transit', min: 24, summary: '東京メトロ銀座線 → JR山手線内回り', fare: { amount: 178, currency: 'JPY' } })
+    expect(leg.steps).toEqual([
+      { by: 'walk', min: 4 },
+      { by: 'subway', min: 5, line: '東京メトロ銀座線', from: '浅草', to: '上野' },
+      { by: 'rail', min: 10, line: 'JR山手線内回り', from: '上野', to: '浜松町' },
+      { by: 'walk', min: 5 },
+    ])
+    expect(legText(leg)).toBe('東京メトロ銀座線 → JR山手線内回り · 24 分 · 178 日元')
+    expect(navitimeLeg({ items: [] })).toBeNull()
+  })
+
+  it('在不在日本：东京、那霸、札幌算；首尔、釜山、台北、库页岛不算；给了国家码按国家码', () => {
+    for (const [lng, lat] of [[139.7, 35.7], [127.68, 26.21], [141.35, 43.06], [130.4, 33.59]]) expect(inJapan({ lng, lat })).toBe(true)
+    for (const [lng, lat] of [[126.98, 37.57], [129.07, 35.18], [121.56, 25.03], [142.7, 46.95]]) expect(inJapan({ lng, lat })).toBe(false)
+    expect(inJapan({ lng: 139.7, lat: 35.7 }, 'KR')).toBe(false)
+  })
+
+  it('Worker：日本两头都在、配了 RAPIDAPI_KEY 就问 NAVITIME；没配、或不在日本就问 Google', async () => {
+    const hits: string[] = []
+    const f = async (url: string) => { hits.push(url.includes('navitime') ? 'navitime' : 'google'); return new Response(JSON.stringify(url.includes('navitime') ? sample : { routes: [] })) }
+    const req = (body: unknown) => new Request('https://map.x/v1/transit', { method: 'POST', headers: { 'X-Trip-Token': 't' }, body: JSON.stringify(body) })
+    const tokyo = { from: { lng: 139.7966, lat: 35.7148 }, to: { lng: 139.7454, lat: 35.6586 } }
+    const r = await (await handle(req(tokyo), { GOOGLE_KEY: 'g', ACCESS_TOKEN: 't', RAPIDAPI_KEY: 'r' }, { fetch: f })).json()
+    expect(r.summary).toBe('東京メトロ銀座線 → JR山手線内回り')
+    await handle(req(tokyo), { GOOGLE_KEY: 'g', ACCESS_TOKEN: 't' }, { fetch: f })
+    await handle(req({ from: { lng: 2.29, lat: 48.86 }, to: { lng: 2.34, lat: 48.86 } }), { GOOGLE_KEY: 'g', ACCESS_TOKEN: 't', RAPIDAPI_KEY: 'r' }, { fetch: f })
+    expect(hits).toEqual(['navitime', 'google', 'google'])
+  })
+})

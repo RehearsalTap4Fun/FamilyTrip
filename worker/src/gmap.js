@@ -1,5 +1,5 @@
 // 同路 · 国外地图中转（Cloudflare Worker）：app → 自家服务器 /trip/api/gmap/* → 这里 → Google 地图。
-// Google Key 只放在这里（wrangler secret GOOGLE_KEY），app 和自家服务器都不经手；
+// Google Key 只放在这里（wrangler secret GOOGLE_KEY），app 和自家服务器都不经手；日本的公交地铁问 NAVITIME（wrangler secret RAPIDAPI_KEY，选配）；
 // 请求要带访问口令（X-Trip-Token，与 wrangler secret ACCESS_TOKEN 一致），不然谁拿到地址都能花你的额度。
 //
 // 接口（都是 POST JSON，返回和 app 里高德那套同样形状的数据）：
@@ -106,6 +106,55 @@ export function timedPoints(pts, minutes) {
 
 const seconds = d => Number(String(d ?? '').replace(/s$/, ''))
 
+const NAVITIME = 'https://navitime-route-totalnavi.p.rapidapi.com/route_transit'
+
+/** 在不在日本：给了国家码就按它；否则按范围（去掉朝鲜半岛、库页岛那一块） */
+export function inJapan(p, cc) {
+  if (cc) return cc === 'JP'
+  if (p.lat < 24 || p.lat > 45.6 || p.lng < 122.9 || p.lng > 146) return false
+  if (p.lng < 129.6 && p.lat > 33.9) return false
+  return true
+}
+
+async function navitime(b, env, f) {
+  const q = new URLSearchParams({ start: `${b.from.lat},${b.from.lng}`, goal: `${b.to.lat},${b.to.lng}`, limit: '1' })
+  if (typeof b.at === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d)?$/.test(b.at)) q.set('start_time', b.at.length === 16 ? b.at + ':00' : b.at)
+  const r = await f(`${NAVITIME}?${q}`, { method: 'GET', headers: { 'x-rapidapi-key': env.RAPIDAPI_KEY, 'x-rapidapi-host': 'navitime-route-totalnavi.p.rapidapi.com' } })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) throw Object.assign(new Error('NAVITIME：' + (j.message ?? `HTTP ${r.status}`)), { status: r.status === 429 ? 429 : 502 })
+  return j
+}
+
+/** NAVITIME 的线路种类 → 同路的；地铁在它那里也叫 local_train，按线名认（東京メトロ、都営、地下鉄） */
+function navitimeBy(move, line) {
+  if (move === 'walk') return 'walk'
+  if (/bus/.test(move)) return 'bus'
+  if (/ferry|ship/.test(move)) return 'ferry'
+  if (/train|shinkansen|rail/.test(move)) return /メトロ|地下鉄|都営|Metro|Subway/i.test(line) ? 'subway' : 'rail'
+  return 'other'
+}
+
+/** NAVITIME 的路线 → 同路的一段路：站点和移动交替出现，移动前后的站就是上下车的站；票价取 IC 卡价（没有就取普通票价），单位日元 */
+export function navitimeLeg(j) {
+  const it = j?.items?.[0]
+  if (!it) return null
+  const secs = it.sections ?? []
+  const steps = []
+  secs.forEach((sec, i) => {
+    if (sec.type !== 'move') return
+    const by = navitimeBy(String(sec.move ?? ''), String(sec.line_name ?? sec.transport?.name ?? ''))
+    const min = Math.max(1, Math.round(Number(sec.time ?? 0)))
+    if (by === 'walk') { const last = steps[steps.length - 1]; if (last?.by === 'walk') last.min += min; else steps.push({ by, min }); return }
+    steps.push({ by, min, line: sec.line_name ?? sec.transport?.name ?? '', from: secs[i - 1]?.name ?? '', to: secs[i + 1]?.name ?? '' })
+  })
+  const kept = steps.filter(x => !(x.by === 'walk' && x.min < 2))
+  const rides = kept.filter(x => x.by !== 'walk')
+  const mv = it.summary?.move ?? {}
+  const minutes = Math.round(Number(mv.time ?? kept.reduce((a, x) => a + x.min, 0)))
+  const yen = Number(mv.fare?.unit_48 ?? mv.fare?.unit_0)
+  return { by: 'transit', min: minutes, steps: kept, summary: rides.length ? rides.map(x => x.line).filter(Boolean).join(' → ') : `步行 ${minutes}′`, ...(Number.isFinite(yen) && yen > 0 ? { fare: { amount: yen, currency: 'JPY' } } : {}) }
+}
+
 const TRANSIT_FIELDS = ['routes.duration', 'routes.legs.steps.travelMode', 'routes.legs.steps.staticDuration',
   'routes.legs.steps.transitDetails.transitLine.nameShort', 'routes.legs.steps.transitDetails.transitLine.name', 'routes.legs.steps.transitDetails.transitLine.vehicle.type',
   'routes.legs.steps.transitDetails.stopDetails.departureStop.name', 'routes.legs.steps.transitDetails.stopDetails.arrivalStop.name', 'routes.legs.steps.transitDetails.stopCount'].join(',')
@@ -183,6 +232,8 @@ export async function run(op, b, env, f = fetch) {
     }
     case 'transit': {
       if (!isPoint(b.from) || !isPoint(b.to)) throw Object.assign(new Error('缺 from / to'), { status: 400 })
+      // 日本：Google 的接口没有日本的公交地铁数据，问 NAVITIME（RapidAPI，密钥 RAPIDAPI_KEY）；没配就还问 Google（多半没有方案）
+      if (env.RAPIDAPI_KEY && inJapan(b.from, b.cc) && inJapan(b.to, b.cc)) return navitimeLeg(await navitime(b, env, f))
       const body = { origin: { location: { latLng: { latitude: b.from.lat, longitude: b.from.lng } } }, destination: { location: { latLng: { latitude: b.to.lat, longitude: b.to.lng } } }, travelMode: 'TRANSIT', languageCode: 'zh-CN', ...(typeof b.at === 'string' ? { departureTime: b.at } : {}) }
       const j = await google(ROUTES, post(TRANSIT_FIELDS, key, body), env, f)
       return transitLeg(j.routes?.[0])
@@ -201,7 +252,7 @@ export async function run(op, b, env, f = fetch) {
   }
 }
 
-const CACHE_VER = 'v2'
+const CACHE_VER = 'v3'
 const TTL = { search: 7 * 86400, nearby: 7 * 86400, region: 30 * 86400, drive: 86400, route: 86400, transit: 86400 }
 
 /** cache：Cloudflare 的 caches.default；测试里传一个 Map 包装或不传 */
@@ -209,7 +260,7 @@ export async function handle(req, env, opts = {}) {
   const f = opts.fetch ?? fetch
   const url = new URL(req.url)
   const m = /^\/v1\/(search|nearby|drive|route|transit|region)$/.exec(url.pathname)
-  if (url.pathname === '/health') return json({ ok: true, key: !!env.GOOGLE_KEY, token: !!env.ACCESS_TOKEN })
+  if (url.pathname === '/health') return json({ ok: true, key: !!env.GOOGLE_KEY, token: !!env.ACCESS_TOKEN, navitime: !!env.RAPIDAPI_KEY })
   if (!m) return json({ error: 'not found' }, 404)
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
   if (!env.GOOGLE_KEY || !env.ACCESS_TOKEN) return json({ error: '中转还没配好 Key 或口令' }, 503)

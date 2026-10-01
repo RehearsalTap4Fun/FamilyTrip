@@ -182,3 +182,26 @@ describe('当天标题要短', () => {
     expect(shortName('东京国立博物馆')).toBe('东京国立博物馆')
   })
 })
+
+import { parsePlaces, photosById } from '../src/geo/amap'
+describe('站点头图', () => {
+  it('高德的照片取第一张、换成 https；按 id 补查一次最多 10 个', async () => {
+    const got = parsePlaces({ pois: [{ name: '大理古城', location: '100.16,25.69', id: 'B1', photos: [{ url: 'http://store.is.autonavi.com/showpic/abc' }, { url: 'http://x/2' }] }, { name: '没图', location: '100.1,25.6', id: 'B2' }] })
+    expect(got[0].photo).toBe('https://store.is.autonavi.com/showpic/abc')
+    expect(got[1].photo).toBeUndefined()
+    const calls: string[] = []
+    const f = (async (u: string) => { const id = new URL(u).searchParams.get('id')!; calls.push(id); return new Response(JSON.stringify({ status: '1', pois: id.split('|').filter(x => x !== 'B3').map(x => ({ id: x, photos: [{ url: `http://p/${x}` }] })) })) }) as unknown as typeof fetch
+    const ids = Array.from({ length: 12 }, (_, i) => `B${i + 1}`)
+    const m = await photosById(ids, 'k', f)
+    expect(calls.map(c => c.split('|').length)).toEqual([10, 2])
+    expect(m.get('B1')).toBe('https://p/B1')
+    expect(m.has('B3')).toBe(false)
+  })
+
+  it('排程：候选地点带的头图跟着排进行程的站点', async () => {
+    let n = 0
+    const trip = { id: 't', title: 't', startDate: '2026-10-01', party: { members: [{ id: 'a', name: 'A', role: 'adult', driver: true }], pets: [], mode: 'selfDrive' }, days: [{ stops: [] }] } as unknown as Trip
+    const r = await planTrip(trip, [{ id: 'g', name: '大理古城', kind: 'sight', poi: { lng: 100.16, lat: 25.69 }, durationMin: 60, photo: 'https://p/1' }], { nearby: async () => [] }, { newId: p => p + (++n) })
+    expect(r.trip.days[0].stops.find(s => s.name === '大理古城')?.photo).toBe('https://p/1')
+  })
+})

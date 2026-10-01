@@ -65,7 +65,7 @@ export async function extractGuide(cfg: LlmConfig, trip: Trip, text: string, cal
 /** 核实后的一个地点：排程引擎的输入，外加原文说法、「不适合」和「要留意」，给人勾选时看 */
 export interface ImportedPlace extends PlanPlace { note: string; avoid?: string; caution?: string; /** 合并成一站时，园区里包含的小景点（按原文顺序） */ parts?: string[] }
 
-export interface SearchHit { name: string; area: string; poi: PlanPlace['poi']; type?: string }
+export interface SearchHit { name: string; area: string; poi: PlanPlace['poi']; type?: string; photo?: string }
 
 /** 一趟的地方离「这趟在哪一带」超过这么远就不认（多半搜到了外地同名的） */
 const REGION_KM = 500
@@ -118,7 +118,7 @@ export async function resolveGuide(guide: Guide, tripDays: number, searchRaw: (k
     const minutes = list.reduce((a, p) => a + Math.min(90, Math.max(10, p.durationMin ?? 30)), 0)
     const day = list.map(p => p.day).find(d => d != null)
     places.push({
-      id: 'ga-' + key, name: hit.name, kind: 'sight', poi: hit.poi, area: hit.area,
+      id: 'ga-' + key, name: hit.name, kind: 'sight', poi: hit.poi, area: hit.area, ...(hit.photo ? { photo: hit.photo } : {}),
       ...(keepDays && day != null && day >= 1 ? { prefDay: Math.min(tripDays, day) - 1 } : {}),
       durationMin: Math.min(300, Math.max(60, Math.round(minutes / 10) * 10)),
       why: '园内按这个顺序：' + list.map(p => p.name.replace(area, '').replace(/^[-·\s]+/, '') || p.name).join(' → '),
@@ -146,7 +146,7 @@ export async function resolveGuide(guide: Guide, tripDays: number, searchRaw: (k
     seen.add(key)
     places.push({
       id: 'g' + (i + 1) + '-' + key,
-      name: foreign ? p.name : hit.name, kind: p.kind, poi: hit.poi, area: foreign ? [hit.area, hit.name].filter(Boolean).join(' · ') : hit.area,
+      name: foreign ? p.name : hit.name, kind: p.kind, poi: hit.poi, area: foreign ? [hit.area, hit.name].filter(Boolean).join(' · ') : hit.area, ...(hit.photo ? { photo: hit.photo } : {}),
       ...(keepDays && p.day != null && p.day >= 1 ? { prefDay: Math.min(tripDays, p.day) - 1 } : {}),
       ...(p.durationMin && p.durationMin > 0 ? { durationMin: Math.min(480, p.durationMin) } : {}),
       note: p.note, ...(p.avoid ? { avoid: p.avoid } : {}), ...(p.caution ? { caution: p.caution } : {}),

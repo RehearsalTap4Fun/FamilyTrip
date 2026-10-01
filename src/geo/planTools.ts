@@ -42,7 +42,7 @@ export function makePlanTools(keys: MapKeys | string, ratings: Rating[], onProgr
           }
           if (!list.length) list = await searchAround(at, amapKey, { types: AMAP_TYPES.sight, radius: RADIUS.sight, pageSize: 25 })
         } else list = await searchAround(at, amapKey, { types: AMAP_TYPES[what], keywords: what === 'serviceArea' ? '服务区' : '', radius: RADIUS[what] })
-        return list.map(p => ({ name: p.name, poi: p.poi, rating: p.rating, distanceM: p.distanceM }))
+        return list.map(p => ({ name: p.name, poi: p.poi, rating: p.rating, distanceM: p.distanceM, ...(p.photo ? { photo: p.photo } : {}) }))
       },
     } : {}),
   }

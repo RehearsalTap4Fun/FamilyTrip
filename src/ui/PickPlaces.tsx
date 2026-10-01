@@ -43,9 +43,10 @@ export function PickPlaces({ head, places, missing, dayLabel, tips, backLabel, o
       </ol>
       {missing.length > 0 && <p className="sheet-note">高德里没找到：{missing.join('、')}。需要的话回去手动搜。</p>}
       {tips}
-      <div className="foot-row">
+      {/* 按钮贴在面板底部：列表长的时候不用滑到底才看得到；加入就直接开始排 */}
+      <div className="foot-row gi-foot">
         <button type="button" className="kbtn" onClick={onBack}>{backLabel}</button>
-        <button type="button" className="kbtn primary" disabled={!picked.size} onClick={() => onAdd(places.filter(p => picked.has(p.id)))}>加入 {picked.size} 个地方</button>
+        <button type="button" className="kbtn primary" disabled={!picked.size} onClick={() => onAdd(places.filter(p => picked.has(p.id)))}>加入 {picked.size} 个地方，开始排</button>
       </div>
     </div>
   )

@@ -81,7 +81,7 @@ export function Recommend({ trip, autoRun, onAdd, onCancel, saved, onSave }: Pro
   const choose = async (p: Proposal, list: Proposal[], usd: number, web: Web) => {
     try {
       const { places, missing } = await resolveGuide(proposalToGuide(p, trip.days.length), trip.days.length,
-        async (k, city) => (await mapSearch(k, maps, { city })).map(x => ({ name: x.name, area: x.area, poi: x.poi, type: x.type })),
+        async (k, city) => (await mapSearch(k, maps, { city })).map(x => ({ name: x.name, area: x.area, poi: x.poi, type: x.type, photo: x.photo })),
         namesMatch, (i, n, name) => setStage({ kind: 'busy', msg: `在高德里核实 ${i}/${n}：${name}` }))
       setStage({ kind: 'pick', p, places, missing, list, usd, web })
       save({ list, usd, web, pick: { index: list.indexOf(p), places, missing } })

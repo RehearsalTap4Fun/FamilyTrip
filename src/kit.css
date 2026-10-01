@@ -542,7 +542,10 @@
 .leg-steps .leg-link { align-self: flex-start; margin-top: 2px; font: 600 13px var(--sans); color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 /* 车种胶囊：新干线、JR、地铁、私铁、公交…（src/ui/Leg.tsx） */
 .leg-inline { display: inline; }
-.leg-ride { white-space: nowrap; }
+/* 换乘多、线名长（ＪＲ京浜東北線・根岸線快速）也不撑破宽度：段与段之间、长线名里都能折行，只有胶囊本身不拆 */
+.leg-inline, .leg-steps li, .leg-sum { overflow-wrap: anywhere; word-break: normal; }
+.leg-ride { white-space: normal; }
+.leg-chip { white-space: nowrap; }
 .leg-arrow { margin: 0 4px; color: var(--ink2); }
 .leg-chip { --chip: #6f6a60; display: inline-block; margin-right: 4px; padding: 1px 6px; border-radius: var(--k-pill, 999px); font: 700 11px/1.5 var(--sans); vertical-align: 1px; color: var(--chip); background: color-mix(in srgb, var(--chip) 14%, transparent); border: 1px solid color-mix(in srgb, var(--chip) 35%, transparent); }
 .leg-chip[data-g='hsr'] { --chip: #1f5fa8; }
@@ -552,3 +555,16 @@
 .leg-chip[data-g='rail'] { --chip: #7a4b9a; }
 .leg-chip[data-g='bus'] { --chip: #1f7f86; }
 .leg-chip[data-g='ferry'] { --chip: #2b6f9e; }
+/* 站点头图（src/ui/StopPhoto.tsx）：高德照片 500×332 左右，按 3:2 裁 */
+.stop-photo { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: var(--k-panel); border-radius: calc(var(--k-radius) + 2px); }
+.stop-photo.hero { margin: 0 0 12px; max-height: 220px; }
+.stop-photo.card { margin: 0 0 10px; max-height: 170px; }
+.stop-thumb { float: right; width: 40px; height: 40px; margin: 0 0 4px 10px; object-fit: cover; border-radius: var(--k-radius); background: var(--k-panel); }
+/* 地图册行程页的行：放在上移下移按钮前面，不浮动 */
+.stop-thumb.row { float: none; width: 36px; height: 36px; margin: 0; align-self: center; }
+.stop-photo.span { grid-column: 1 / -1; }
+/* 「今天」页（地图册）名字行是 flex：头图排到最右 */
+.n > .stop-thumb { float: none; order: 9; margin: -6px 0 -6px auto; }
+/* 挑地方的列表：按钮贴在底部 */
+.gi-foot { position: sticky; bottom: -28px; z-index: 2; margin-top: 8px; padding: 10px 0 calc(38px + env(safe-area-inset-bottom, 0px)); margin-bottom: -28px; background: var(--paper); box-shadow: 0 -8px 12px -10px rgba(0,0,0,.25); display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+.gi-foot .kbtn { white-space: nowrap; }

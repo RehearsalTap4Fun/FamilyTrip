@@ -57,7 +57,7 @@ export function GuideImport({ trip, onAdd, onCancel, saved, onSave }: Props) {
       setStage({ kind: 'busy', msg: `${PROVIDER_LABEL[llm.provider]} 正在读攻略` })
       const { guide, usage } = await extractGuide(llm, trip, body)
       const { places, missing } = await resolveGuide(guide, trip.days.length,
-        async (k, city) => (await mapSearch(k, maps, { city })).map(p => ({ name: p.name, area: p.area, poi: p.poi, type: p.type })),
+        async (k, city) => (await mapSearch(k, maps, { city })).map(p => ({ name: p.name, area: p.area, poi: p.poi, type: p.type, photo: p.photo })),
         namesMatch, (i, n, name) => setStage({ kind: 'busy', msg: `在高德里核实 ${i}/${n}：${name}` }))
       const done: Done = { kind: 'done', guide, places, missing, source, usd: usage.usd }
       setStage(done)

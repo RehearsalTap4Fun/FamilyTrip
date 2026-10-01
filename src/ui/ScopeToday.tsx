@@ -1,5 +1,6 @@
 // 示波器版「今天」：一条累计游玩曲线扫过每个同行者的触发线。
 // 户外手持机的反射式液晶屏：字少、数字大，「谁定的」用通道色点表示，问题只给短标签。
+import { StopPhoto } from './StopPhoto'
 import { daysUntil } from '@core/trips'
 import { HowLine } from './Highlights'
 import { LegLine } from './Leg'
@@ -214,6 +215,7 @@ export function ScopeToday({ trip, now, demo, onTrip, onRating, onUnrate }: Prop
 
       {next && nextSlot ? (
         <section className="stop-card">
+          {next.kind === 'sight' && <StopPhoto s={next} className="stop-photo card" />}
           <div className="n">{next.name}<span className="t mono">{fmtHM(nextSlot.start + delay)}</span></div>
           <LegLine s={next} />
           <HowLine s={next} />

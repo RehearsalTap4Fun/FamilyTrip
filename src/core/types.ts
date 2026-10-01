@@ -92,6 +92,8 @@ export interface Stop {
   driveMin?: number
   /** 公共交通的行程：从上一站怎么到这里（步行 / 坐哪条线 / 打车），时长就是 driveMin */
   leg?: Leg
+  /** 头图（高德的照片，https） */
+  photo?: string
   altitudeM?: number
   tags?: Tag[]
   poi?: Poi
@@ -145,6 +147,8 @@ export interface PlanPlace {
   poi: Poi
   /** 省 市 区，列表里给人认地方用 */
   area?: string
+  /** 头图（高德的照片） */
+  photo?: string
   /** 必去：排不下时最后才砍，而且会建议加天 */
   must?: boolean
   /** 指定第几天（从 0 起）；住处是指「这一晚」 */

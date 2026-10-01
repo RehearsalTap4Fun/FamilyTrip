@@ -14,7 +14,7 @@ import { checkDay, LATE_GRACE_MIN, LODGING_PLACEHOLDER, type Issue } from './val
 /** 排程的输入就是行程计划里的地点 */
 export type Candidate = PlanPlace
 
-export interface NearbyPlace { name: string; poi: Poi; rating?: number; distanceM?: number }
+export interface NearbyPlace { name: string; poi: Poi; rating?: number; distanceM?: number; photo?: string }
 
 export type NearbyKind = 'food' | 'lodging' | 'serviceArea' | 'sight'
 
@@ -638,6 +638,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
     id, kind: c.kind, name: c.name, durationMin: durOf(c, pace), status: 'planned', poi: c.poi,
     priority: c.must ? 1 : 2, ...(c.start ? { start: c.start } : {}), ...(c.suggested ? { suggested: true } : {}), ...(c.why ? { why: c.why } : {}), ...(c.tags ? { tags: c.tags } : {}),
     ...(c.walkKm != null ? { walkKm: c.walkKm } : {}), ...(c.altitudeM != null ? { altitudeM: c.altitudeM } : {}),
+    ...(c.photo ? { photo: c.photo } : {}),
   })
 
   const outDays: Trip['days'] = []
@@ -760,7 +761,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       const leg = rd.leg === 'out' ? '去程' : '返程'
       const p = await pick('lodging', rd.at)
       tail = p
-        ? { poi: p.poi, stop: { id: opts.newId('s'), kind: 'lodging', name: p.name, durationMin: 0, status: 'planned', poi: p.poi, suggested: true, why: `${leg}路上住一晚（今天开约 ${Math.round(rd.min / 6) / 10} 小时）${p.rating ? ` · 评分 ${p.rating}` : ''}；订之前确认电梯、能不能带宠物` } }
+        ? { poi: p.poi, stop: { id: opts.newId('s'), kind: 'lodging', name: p.name, durationMin: 0, status: 'planned', poi: p.poi, ...(p.photo ? { photo: p.photo } : {}), suggested: true, why: `${leg}路上住一晚（今天开约 ${Math.round(rd.min / 6) / 10} 小时）${p.rating ? ` · 评分 ${p.rating}` : ''}；订之前确认电梯、能不能带宠物` } }
         : { poi: rd.at, stop: { id: opts.newId('s'), kind: 'lodging', name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned', poi: rd.at, why: `${leg}路上住一晚：开到这附近找住处` } }
     } else {
       // 今天没景点（一整天在路上）：住处找在明天第一站附近
@@ -772,7 +773,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
       } else {
         const p = lastPoi ? await pick('lodging', lastPoi) : undefined
         tail = p
-          ? { poi: p.poi, stop: { id: opts.newId('s'), kind: 'lodging', name: p.name, durationMin: 0, status: 'planned', poi: p.poi, suggested: true, why: `离最后一站近${p.rating ? ` · 评分 ${p.rating}` : ''}；订之前确认电梯、能不能带宠物` } }
+          ? { poi: p.poi, stop: { id: opts.newId('s'), kind: 'lodging', name: p.name, durationMin: 0, status: 'planned', poi: p.poi, ...(p.photo ? { photo: p.photo } : {}), suggested: true, why: `离最后一站近${p.rating ? ` · 评分 ${p.rating}` : ''}；订之前确认电梯、能不能带宠物` } }
           : { stop: { id: opts.newId('s'), kind: 'lodging', name: LODGING_PLACEHOLDER, durationMin: 0, status: 'planned' } }
       }
     }
@@ -870,7 +871,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
         progress(`第 ${d + 1} 天在${anchor.name}附近找${label}`)
         const p = await pick('food', anchor.poi)
         food = p
-          ? { poi: p.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: p.name, durationMin: pace.mealMin, status: 'planned', poi: p.poi, priority: 3, suggested: true, why: `按你的要求在${anchor.name}附近吃${p.rating ? ` · 评分 ${p.rating}` : ''}` } }
+          ? { poi: p.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: p.name, durationMin: pace.mealMin, status: 'planned', poi: p.poi, ...(p.photo ? { photo: p.photo } : {}), priority: 3, suggested: true, why: `按你的要求在${anchor.name}附近吃${p.rating ? ` · 评分 ${p.rating}` : ''}` } }
           : { poi: anchor.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: `${label}（${anchor.name}附近）`, durationMin: pace.mealMin, status: 'planned', poi: anchor.poi, priority: 3, why: `按你的要求在${anchor.name}附近吃，到时就近找` } }
       } else if (mine.length) {
         const f = near ? [...mine].sort((a, b) => distanceKm(a.poi, near) - distanceKm(b.poi, near))[0] : mine[0]
@@ -884,7 +885,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
         progress(`第 ${d + 1} 天找${label}`)
         const p = near ? await pick('food', near) : undefined
         food = p
-          ? { poi: p.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: p.name, durationMin: pace.mealMin, status: 'planned', poi: p.poi, priority: 3, suggested: true, why: o.atTail ? `${label}：到了再吃，离${tail.stop.name}近${p.rating ? ` · 评分 ${p.rating}` : ''}` : `${label}：离${((goFirst || o.nearNext) ? nodes[o.gap] : nodes[o.gap - 1])?.stop.name ?? '住处'}近${p.rating ? ` · 评分 ${p.rating}` : ''}` } }
+          ? { poi: p.poi, meal: which, stop: { id: opts.newId('s'), kind: 'food', name: p.name, durationMin: pace.mealMin, status: 'planned', poi: p.poi, ...(p.photo ? { photo: p.photo } : {}), priority: 3, suggested: true, why: o.atTail ? `${label}：到了再吃，离${tail.stop.name}近${p.rating ? ` · 评分 ${p.rating}` : ''}` : `${label}：离${((goFirst || o.nearNext) ? nodes[o.gap] : nodes[o.gap - 1])?.stop.name ?? '住处'}近${p.rating ? ` · 评分 ${p.rating}` : ''}` } }
           : { meal: which, stop: { id: opts.newId('s'), kind: 'food', name: `${label}（附近找）`, durationMin: pace.mealMin, status: 'planned', priority: 3, why: '没找到合适的，到时就近' } }
       }
       // 这顿定在空档里晚一点的时刻（后面接着固定时刻的站）：真等到那时再吃，不然会挨着上一顿排下来
@@ -1036,7 +1037,7 @@ export async function planTrip(trip: Trip, candidates: Candidate[], tools: PlanT
           if (dur < 45) continue
           const at = freeFrom + legIn
           nodes.splice(next, 0, { poi: p.poi, stop: {
-            id: opts.newId('s'), kind: 'sight', name: p.name, durationMin: dur, status: 'planned', poi: p.poi, priority: 3, suggested: true,
+            id: opts.newId('s'), kind: 'sight', name: p.name, durationMin: dur, status: 'planned', poi: p.poi, ...(p.photo ? { photo: p.photo } : {}), priority: 3, suggested: true,
             // 等午睡结束再去
             ...(at > slots[i - 1].end + legIn + 5 ? { start: fmtHM(Math.ceil(at / 5) * 5) } : {}),
             why: `下午空着，就近加一个${p.rating ? ` · 评分 ${p.rating}` : ''}；不想去可以删`,

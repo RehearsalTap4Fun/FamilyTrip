@@ -1,4 +1,5 @@
 // 「今天」：一天一页地图。高速从上走到下，站点是地图符号，警告是引线注记，底部是图例。
+import { StopPhoto } from './StopPhoto'
 import { LegInline } from './Leg'
 import { Fragment, useMemo, useState } from 'react'
 import { HowLine } from './Highlights'
@@ -229,6 +230,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
                 <div className="body">
                   {regionEl}
                   <div className={'n k-' + stop.kind + (stop.priority === 1 ? ' must' : '')}>
+                    {stop.kind === 'sight' && <StopPhoto s={stop} className="stop-thumb" alt="" />}
                     {stop.name}
                     {stop.priority && PRIORITY[stop.priority] && <span className="prio">{PRIORITY[stop.priority]}</span>}
                   </div>

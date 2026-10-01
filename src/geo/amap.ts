@@ -16,6 +16,8 @@ export interface Place {
   rating?: number
   /** 离搜索中心的米数（周边搜索才有） */
   distanceM?: number
+  /** 头图（高德收录的第一张照片，已换成 https） */
+  photo?: string
 }
 
 export class AmapError extends Error {
@@ -75,6 +77,12 @@ async function call(path: string, params: Record<string, string>, key: string, f
 /** 高德的空字段是 []，统一成字符串 */
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
 
+/** 高德的照片地址有的是 http：一律换成 https（页面是 https，http 的图会被拦） */
+export const photoOf = (p: any): string | undefined => {
+  const u = str(p?.photos?.[0]?.url)
+  return u ? u.replace(/^http:\/\//, 'https://') : undefined
+}
+
 export function parsePlaces(j: any): Place[] {
   return (j.pois ?? []).map((p: any) => {
     const [lng, lat] = str(p.location).split(',').map(Number)
@@ -85,6 +93,7 @@ export function parsePlaces(j: any): Place[] {
       name: str(p.name), address: str(p.address), area, type: str(p.type), poi: { lng, lat, adcode: str(p.adcode) || undefined, amapId: str(p.id) || undefined },
       ...(Number.isFinite(rating) && str(p.business?.rating) ? { rating } : {}),
       ...(Number.isFinite(distanceM) && str(p.distance) ? { distanceM } : {}),
+      ...(photoOf(p) ? { photo: photoOf(p) } : {}),
     }
   }).filter((p: Place) => Number.isFinite(p.poi.lng) && Number.isFinite(p.poi.lat))
 }
@@ -94,7 +103,7 @@ export function parsePlaces(j: any): Place[] {
  * 没有 adcode 就归不了省市、进不了足迹；v3 的 extensions=all 有，但一条要返回几十个字段。
  */
 export async function searchPlaces(keywords: string, key: string, opts: { city?: string; fetchImpl?: typeof fetch } = {}): Promise<Place[]> {
-  const j = await call('v5/place/text', { keywords, region: opts.city ?? '', city_limit: 'false', page_size: '10', page_num: '1' }, key, opts.fetchImpl ?? fetch)
+  const j = await call('v5/place/text', { keywords, region: opts.city ?? '', city_limit: 'false', page_size: '10', page_num: '1', show_fields: 'photos' }, key, opts.fetchImpl ?? fetch)
   return parsePlaces(j)
 }
 
@@ -108,7 +117,7 @@ export const AMAP_TYPES = { food: '050100|050200|050300', lodging: '100000', ser
  * 下午补景点用：周边搜索按距离排，大景区旁边最近的几十个全是园区里的小点，这里排在前面的是洱海公园、苍山这种
  */
 export async function searchCitySights(adcode: string, key: string, fetchImpl: typeof fetch = fetch): Promise<Place[]> {
-  const j = await call('v5/place/text', { types: AMAP_TYPES.sight, region: adcode.slice(0, 4) + '00', city_limit: 'true', page_size: '25', page_num: '1', show_fields: 'business' }, key, fetchImpl)
+  const j = await call('v5/place/text', { types: AMAP_TYPES.sight, region: adcode.slice(0, 4) + '00', city_limit: 'true', page_size: '25', page_num: '1', show_fields: 'business,photos' }, key, fetchImpl)
   return parsePlaces(j)
 }
 
@@ -116,7 +125,7 @@ export async function searchCitySights(adcode: string, key: string, fetchImpl: t
 export async function searchAround(center: Poi, key: string, opts: { types?: string; keywords?: string; radius?: number; pageSize?: number; page?: number; fetchImpl?: typeof fetch } = {}): Promise<Place[]> {
   const j = await call('v5/place/around', {
     location: `${center.lng},${center.lat}`, types: opts.types ?? '', keywords: opts.keywords ?? '',
-    radius: String(Math.min(50000, opts.radius ?? 3000)), sortrule: 'distance', page_size: String(opts.pageSize ?? 10), page_num: String(opts.page ?? 1), show_fields: 'business',
+    radius: String(Math.min(50000, opts.radius ?? 3000)), sortrule: 'distance', page_size: String(opts.pageSize ?? 10), page_num: String(opts.page ?? 1), show_fields: 'business,photos',
   }, key, opts.fetchImpl ?? fetch)
   return parsePlaces(j)
 }
@@ -210,6 +219,24 @@ export async function regionAt(p: Poi, key: string, fetchImpl: typeof fetch = fe
   if (!c) return null
   const city = str(c.city) || str(c.province)
   return { city, district: str(c.district) }
+}
+
+/** 按高德 POI id 查头图（v5/place/detail，一次最多 10 个）：已经排好的站补照片用。查不到的不在结果里 */
+export async function photosById(ids: string[], key: string, fetchImpl: typeof fetch = fetch): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  for (let i = 0; i < ids.length; i += 10) {
+    const j = await call('v5/place/detail', { id: ids.slice(i, i + 10).join('|'), show_fields: 'photos' }, key, fetchImpl)
+    for (const p of j.pois ?? []) { const u = photoOf(p); if (u && str(p.id)) out.set(str(p.id), u) }
+  }
+  return out
+}
+
+/** 没有 POI id 的站（以前排的、手填的）：按名字在它坐标附近搜一次，名字对得上、离得不到 2 公里才认 */
+export async function photoByName(name: string, at: Poi, key: string, fetchImpl: typeof fetch = fetch): Promise<string | undefined> {
+  const j = await call('v5/place/around', { keywords: name.replace(/（.*?）|\(.*?\)/g, '').slice(0, 20), location: `${at.lng},${at.lat}`, radius: '2000', sortrule: 'distance', page_size: '5', page_num: '1', show_fields: 'photos' }, key, fetchImpl)
+  const core = name.replace(/（.*?）|\(.*?\)/g, '').replace(/\s/g, '')
+  const hit = (j.pois ?? []).find((p: any) => { const n = str(p.name).replace(/\s/g, ''); return n.includes(core.slice(0, 4)) || core.includes(n.slice(0, 4)) })
+  return hit ? photoOf(hit) : undefined
 }
 
 export async function testAmapKey(key: string, fetchImpl: typeof fetch = fetch): Promise<{ ok: true } | { ok: false; msg: string }> {

@@ -1,5 +1,6 @@
 // 「行程」：每天一张卡，曲线对着当天最严的上限。点开一天：站点可左滑跳过 / 删除、按住把手拖动排序、点一下打开面板。
 // 以后主要是 AI 排好、这里微调，所以没有表单，只有面板。
+import { StopPhoto } from './StopPhoto'
 import { LegInline } from './Leg'
 import { mapDrive, hasMaps } from '../geo/maps'
 import { useState } from 'react'
@@ -154,6 +155,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSe
                           <div className={'prow k-' + st.kind + (st.status === 'skipped' ? ' skipped' : '')}>
                             <span className="t mono pin">{sl ? fmtHM(sl.start) : ''}</span>
                             <span className="n pin">
+                              {st.kind === 'sight' && <StopPhoto s={st} className="stop-thumb" alt="" />}
                               {st.kind === 'drive' ? <>{code && <span className="code mono">{code}</span>}{stripCode(st.name)}</> : st.name}
                               {st.leg && <span className="leg-mini"><LegInline leg={st.leg} /></span>}
                               {mine.map((x, k) => <span key={k} role="button" tabIndex={0} className="chip-tap" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setIssue(x) }} onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setIssue(x) } }}><Chip issue={x} /></span>)}

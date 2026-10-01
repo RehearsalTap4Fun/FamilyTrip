@@ -110,7 +110,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
   // 搜索优先在已经加过的点所在城市附近
   const city = places.length ? cityOf(places[places.length - 1].poi.adcode ?? '') || undefined : undefined
   const add = (p: Place) => setPlaces(ps => (ps.some(x => x.poi.amapId && x.poi.amapId === p.poi.amapId) ? ps
-    : [...ps, { id: uid('p'), name: p.name, kind: kindOf(p), poi: p.poi, area: p.area }]))
+    : [...ps, { id: uid('p'), name: p.name, kind: kindOf(p), poi: p.poi, area: p.area, ...(p.photo ? { photo: p.photo } : {}) }]))
   const search = async () => {
     if (!q.trim()) return
     setFound({ kind: 'loading' })
@@ -219,15 +219,19 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
           </details>
           {recommending ? (
             <Recommend trip={trip} autoRun={regionFirst} saved={draft?.recs} onSave={recs => onDraft({ recs })} onCancel={() => setRecommending(false)} onAdd={list => {
-              // AI 推荐的吃饭、住处还没人确认：带上「推荐」标记
-              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note, avoid: _a, caution: _c, parts: _p, ...p }) => withNote(p.kind === 'sight' ? p : { ...p, suggested: true }, note))])
+              // AI 推荐的吃饭、住处还没人确认：带上「推荐」标记。加进来就直接开始排（测试用户点了「加入」之后没意识到还要点「开始排」）
+              const merged = [...places, ...list.filter(x => !places.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note, avoid: _a, caution: _c, parts: _p, ...p }) => withNote(p.kind === 'sight' ? p : { ...p, suggested: true }, note))]
+              setPlaces(merged)
               setRecommending(false)
+              start(days, { places: merged, tweaks })
             }} />
           ) : importing ? (
             <GuideImport trip={trip} saved={draft?.guide} onSave={guide => onDraft({ guide })} onCancel={() => setImporting(false)} onAdd={list => {
-              // 攻略里的点并进来：同一个高德地点不重复；原文说法、顾虑只在勾选时看，不存
-              setPlaces(ps => [...ps, ...list.filter(x => !ps.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note, avoid: _a, caution: _c, parts: _p, ...p }) => withNote(p, note))])
+              // 攻略里的点并进来：同一个高德地点不重复；原文说法、顾虑只在勾选时看，不存。加进来就直接开始排
+              const merged = [...places, ...list.filter(x => !places.some(p => p.poi.amapId && p.poi.amapId === x.poi.amapId)).map(({ note, avoid: _a, caution: _c, parts: _p, ...p }) => withNote(p, note))]
+              setPlaces(merged)
               setImporting(false)
+              start(days, { places: merged, tweaks })
             }} />
           ) : canMap && (bulk ? (
             <Field label="一次加好几个" hint="用顿号、逗号或换行隔开">

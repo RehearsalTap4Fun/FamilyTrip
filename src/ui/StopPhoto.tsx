@@ -74,10 +74,38 @@ export function usePhoto(s?: Stop): string | undefined {
   return known || undefined
 }
 
-/** 图片：不带来源页（高德的图床按来源页限制）、懒加载；加载失败就不显示 */
-export function StopPhoto({ s, className = 'stop-photo', alt }: { s?: Stop; className?: string; alt?: string }) {
+function Img({ url, alt, onBad }: { url: string; alt: string; onBad: () => void }) {
+  // 不带来源页（高德的图床按来源页限制）、懒加载
+  return <img src={url} alt={alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={onBad} />
+}
+
+/** 哪些站在列表里占一格小图：景点、吃饭、住处（服务区、午睡、开车不占） */
+export const hasMedia = (s: Stop) => (s.kind === 'sight' || s.kind === 'food' || (s.kind === 'lodging' && !s.home)) && !s.tags?.includes('restroom')
+
+/**
+ * 列表行里的小方图：固定占一格（没有图也留着），上下行的时长、把手才对得齐。
+ * 只给景点、吃饭、住处；开车、服务区、午睡这类不占格（调用方不放）
+ */
+export function StopThumb({ s }: { s: Stop }) {
+  const url = usePhoto(s)
+  const [bad, setBad] = useState(false)
+  return <span className={'media-slot' + (url && !bad ? ' has' : '')} aria-hidden="true">{url && !bad && <Img url={url} alt="" onBad={() => setBad(true)} />}</span>
+}
+
+/**
+ * 大图图版：下一站卡片（card，3:1）与站点面板（sheet，16:9）顶部。两套风格各画各的：
+ * 博朗是嵌在面板上的圆角小窗（同海报窗口的 1px 淡墨内描边）；地图册是细墨框加纸边的插图，下面一行仿宋图注。
+ * 没有图就什么都不画，不留空框
+ */
+export function PhotoPlate({ s, variant }: { s?: Stop; variant: 'card' | 'sheet' }) {
   const url = usePhoto(s)
   const [bad, setBad] = useState(false)
   if (!url || bad) return null
-  return <img className={className} src={url} alt={alt ?? s?.name ?? ''} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setBad(true)} />
+  return (
+    // 类名加前缀：「sheet」是主面板的类名（position: fixed），直接拿来当变体会把图版钉在屏幕上
+    <figure className={'photo-plate pp-' + variant}>
+      <span className="pp-img"><Img url={url} alt={s?.name ?? ''} onBad={() => setBad(true)} /></span>
+      <figcaption>照片　高德地图</figcaption>
+    </figure>
+  )
 }

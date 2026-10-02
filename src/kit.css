@@ -114,7 +114,8 @@
 .swipe-list { list-style: none; display: flex; flex-direction: column; }
 .srow { position: relative; overflow: hidden; border-bottom: 1px solid var(--grat, var(--k-line)); transition: transform 160ms ease-out; background: var(--paper); }
 .swipe-list.sorting .srow.dragging { transition: none; box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .35); border-radius: 10px; }
-.srow-actions { position: absolute; top: 0; right: 0; bottom: 0; display: flex; }
+/* 左右各缩 1px：不然行面平移时的亚像素缝里会露出底下红色的「删除」，看着像分隔线上的红斑 */
+.srow-actions { position: absolute; top: 1px; right: 0; bottom: 1px; display: flex; }
 .sact { flex: 1; font: 700 14px var(--sans); color: #fff; background: var(--seg-dim, var(--ink2)); }
 .sact.danger { background: var(--red, var(--hwy)); }
 .srow-face { position: relative; display: flex; align-items: center; min-height: 52px; background: var(--paper); touch-action: pan-y; will-change: transform; cursor: pointer; }
@@ -555,16 +556,54 @@
 .leg-chip[data-g='rail'] { --chip: #7a4b9a; }
 .leg-chip[data-g='bus'] { --chip: #1f7f86; }
 .leg-chip[data-g='ferry'] { --chip: #2b6f9e; }
-/* 站点头图（src/ui/StopPhoto.tsx）：高德照片 500×332 左右，按 3:2 裁 */
-.stop-photo { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: var(--k-panel); border-radius: calc(var(--k-radius) + 2px); }
-.stop-photo.hero { margin: 0 0 12px; max-height: 220px; }
-.stop-photo.card { margin: 0 0 10px; max-height: 170px; }
-.stop-thumb { float: right; width: 40px; height: 40px; margin: 0 0 4px 10px; object-fit: cover; border-radius: var(--k-radius); background: var(--k-panel); }
-/* 地图册行程页的行：放在上移下移按钮前面，不浮动 */
-.stop-thumb.row { float: none; width: 36px; height: 36px; margin: 0; align-self: center; }
-.stop-photo.span { grid-column: 1 / -1; }
-/* 「今天」页（地图册）名字行是 flex：头图排到最右 */
-.n > .stop-thumb { float: none; order: 9; margin: -6px 0 -6px auto; }
 /* 挑地方的列表：按钮贴在底部 */
 .gi-foot { position: sticky; bottom: -28px; z-index: 2; margin-top: 8px; padding: 10px 0 calc(38px + env(safe-area-inset-bottom, 0px)); margin-bottom: -28px; background: var(--paper); box-shadow: 0 -8px 12px -10px rgba(0,0,0,.25); display: grid; grid-template-columns: auto 1fr; gap: 8px; }
 .gi-foot .kbtn { white-space: nowrap; }
+
+/* —— 站点头图（src/ui/StopPhoto.tsx）——
+   列表：每行右侧固定一格 44px 小方图，没有图也留着，上下行对齐；大图只在下一站卡片（3:1）和站点面板（16:9）。
+   博朗：圆角小窗，1px 淡墨内描边（同海报窗口）；地图册：细墨框 + 纸边，仿宋图注。 */
+.media-slot { flex: none; position: relative; display: block; width: 44px; height: 44px; border-radius: 12px; overflow: hidden; }
+.media-slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.media-slot.has { background: var(--k-panel); }
+.media-slot.has::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(42, 39, 36, .1); pointer-events: none; }
+
+.photo-plate { margin: 0 0 12px; }
+.photo-plate .pp-img { position: relative; display: block; width: 100%; overflow: hidden; aspect-ratio: 2 / 1; border-radius: 16px; background: var(--k-panel); }
+.photo-plate.pp-card .pp-img { aspect-ratio: 3 / 1; }
+.photo-plate img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.photo-plate .pp-img::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(42, 39, 36, .08); pointer-events: none; }
+.photo-plate figcaption { margin-top: 5px; text-align: right; font: 500 12px/1.3 var(--sans); letter-spacing: .02em; color: #928D83; }
+
+/* 博朗的下一站卡片：图版贴满卡片顶边，图注压在图右下角 */
+.stop-card { overflow: hidden; }
+.stop-card > .photo-plate.pp-card { position: relative; margin: -10px -12px 10px; }
+.stop-card > .photo-plate.pp-card .pp-img { border-radius: 0; }
+.stop-card > .photo-plate.pp-card .pp-img::after { box-shadow: inset 0 -1px 0 rgba(42, 39, 36, .08); }
+.stop-card > .photo-plate.pp-card figcaption { position: absolute; right: 10px; bottom: 6px; margin: 0; font-size: 12px; color: rgba(255, 255, 255, .92); text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+
+/* 地图册：插图的画法——细墨框、纸边、方角，图注仿宋靠左 */
+:root[data-theme="atlas"] .media-slot { border-radius: 0; }
+:root[data-theme="atlas"] .media-slot.has { padding: 2px; background: var(--paper); box-shadow: inset 0 0 0 .75px var(--ink); }
+:root[data-theme="atlas"] .media-slot.has::after { display: none; }
+:root[data-theme="atlas"] .photo-plate .pp-img { border-radius: 0; padding: 3px; background: var(--paper); box-shadow: inset 0 0 0 .75px var(--ink); }
+:root[data-theme="atlas"] .photo-plate .pp-img::after { display: none; }
+:root[data-theme="atlas"] .photo-plate figcaption { text-align: left; font: 400 12px/1.3 var(--fang); letter-spacing: .12em; color: var(--ink); }
+
+/* 博朗行程页的站点行：时刻 | 名字（一行）+ 怎么去 / 标签（可折行） | 小图 | 时长 */
+.prow.with-media { grid-template-columns: 48px minmax(0, 1fr) 44px 34px; min-height: 58px; }
+.prow { text-align: left; }
+.prow .n { display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+.prow .nm { display: block; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.prow .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-weight: 500; }
+.prow .sub .leg-mini { display: inline; margin: 0; }
+.prow .dur { text-align: right; }
+
+/* 地图册「今天」的站点行：右侧一格小图，跟名字顶对齐 */
+.row.with-media { grid-template-columns: 38px 28px minmax(0, 1fr) 44px; }
+.row.with-media > .media-slot { align-self: start; margin-top: 6px; }
+
+/* 地图册行程页的编辑行：图标 | 时刻 | 名字 | 小图格（开车也留空格） | 上移下移删除 */
+.stop-hd .media-slot { width: 36px; height: 36px; }
+/* 地图册行程页的编辑表单是两列：图版跨满两列 */
+.stop-form > .photo-plate { grid-column: 1 / -1; }

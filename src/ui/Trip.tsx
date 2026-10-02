@@ -1,5 +1,5 @@
 // 「行程」：整趟旅程的总图。每天一格，列出检查出来的问题和当天同行的人；点开一天就地编辑。
-import { StopPhoto } from './StopPhoto'
+import { hasMedia, PhotoPlate, StopThumb } from './StopPhoto'
 import { useState } from 'react'
 import type { Rating } from '@core/ratings'
 import { ReplanSheet } from './ReplanSheet'
@@ -74,7 +74,7 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, onSetup, tripC
               <button type="button" className="day-hd" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
                 <span className="no num">{i + 1}<small>{fmtShort(trip.startDate, i)}</small></span>
                 <span className="c">
-                  <span className="rt">{dayTitle(d)}<span>{dh > 0 ? `驾车 ${dh.toFixed(1)} h` : `${d.stops.length} 站`}</span></span>
+                  <span className="rt">{dayTitle(d)}<span>{dh > 0 ? `${trip.party.mode === 'selfDrive' ? '驾车' : '路上'} ${dh.toFixed(1)} h` : `${d.stops.length} 站`}</span></span>
                   {segName.length > 0 && (
                     <span className="segbar" aria-label={`按景点分段：${segName.map(s => s.name).join('、')}`}>
                       <span className="bar">{segMin.map((m, k) => m > 0 && <i key={k} style={{ flexGrow: m, background: segTint(k) }} />)}</span>
@@ -178,7 +178,7 @@ export function DayEditor({ trip, dayIndex, onTrip, onRemoved, onReplan }: Props
                 <RouteBadge kind={badgeKind(s)} done={s.status === 'done'} size={24} />
                 <span className="num t">{slot ? fmtHM(slot.start) : ''}</span>
                 <button type="button" className="nm" onClick={() => setEdit(open ? null : s.id)} aria-expanded={open}>{s.name}<small>{KIND_LABEL[s.kind]} · {s.durationMin} 分</small></button>
-                {s.kind === 'sight' && !open && <StopPhoto s={s} className="stop-thumb row" alt="" />}
+                {hasMedia(s) && !open ? <StopThumb s={s} /> : <span className="media-slot" aria-hidden="true" />}
                 <span className="ops">
                   <button type="button" onClick={() => move(idx, -1)} disabled={idx === 0} aria-label="上移"><IconUp /></button>
                   <button type="button" onClick={() => move(idx, 1)} disabled={idx === day.stops.length - 1} aria-label="下移"><IconDown /></button>
@@ -187,7 +187,7 @@ export function DayEditor({ trip, dayIndex, onTrip, onRemoved, onReplan }: Props
               </div>
               {open && (
                 <div className="stop-form">
-                  {(s.kind === 'sight' || s.kind === 'food' || s.kind === 'lodging') && <StopPhoto s={s} className="stop-photo hero span" />}
+                  {hasMedia(s) && <PhotoPlate s={s} variant="sheet" />}
                   <label className="field">名称<input value={s.name} onChange={e => patch(s.id, { name: e.target.value })} /></label>
                   <label className="field">类型<select value={s.kind} onChange={e => patch(s.id, { kind: e.target.value as StopKind })}>{(Object.keys(KIND_LABEL) as StopKind[]).map(k => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</select></label>
                   <label className="field">{s.kind === 'drive' ? '开车（分）' : '停留（分）'}<input inputMode="numeric" value={s.durationMin} onChange={e => patch(s.id, { durationMin: num(e.target.value) ?? 0 })} /></label>

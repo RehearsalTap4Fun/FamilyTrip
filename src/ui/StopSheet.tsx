@@ -1,6 +1,6 @@
 // 站点面板：「今天」和「行程」共用。第一层只有最常改的——停留多久、开过来多久、优先级、这里有什么；
 // 名称类型、步行海拔、定时开始收在「更多」。底部实时写出当天检查结果的变化。
-import { StopPhoto } from './StopPhoto'
+import { hasMedia, PhotoPlate } from './StopPhoto'
 import { LegSteps } from './Leg'
 import { ArrivalInput } from './Arrival'
 import { plannedStart } from '@core/progress'
@@ -109,7 +109,7 @@ export function StopSheet({ trip, dayIndex, id, onTrip, onClose, onRemove, open 
           <button type="button" className="kbtn danger" onClick={() => onRemove(id)}>删除</button>
         </div>
       </>}>
-      {(s.kind === 'sight' || s.kind === 'food' || s.kind === 'lodging') && <StopPhoto s={s} className="stop-photo hero" />}
+      {hasMedia(s) && <PhotoPlate s={s} variant="sheet" />}
       {s.kind !== 'drive' && <LocationRow s={s} city={dayCities(trip.days[dayIndex])[0]} onPick={p => patch({ name: p.name, poi: p.poi, photo: p.photo })} />}
       {s.status === 'done' && (
         <Field label="几点到的" hint={`打卡时按计划 ${plannedStart(trip, dayIndex, id) ?? ''} 记的，不对就改`}>

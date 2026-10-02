@@ -1,5 +1,5 @@
 // 「今天」：一天一页地图。高速从上走到下，站点是地图符号，警告是引线注记，底部是图例。
-import { StopPhoto } from './StopPhoto'
+import { hasMedia, PhotoPlate, StopThumb } from './StopPhoto'
 import { LegInline } from './Leg'
 import { Fragment, useMemo, useState } from 'react'
 import { HowLine } from './Highlights'
@@ -221,16 +221,18 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
 
           const tipTags = tipFor(stop.id)
           const liveHere = live && i === nextIdx
+          // 正要去的景点放大图版；其余能放图的站右侧一格小图
+          const bigPhoto = liveHere && stop.status !== 'done' && stop.kind === 'sight'
+          const thumb = hasMedia(stop) && !bigPhoto
           return (
             <Fragment key={stop.id}>
               {nowRow}
-              <li className={cls} style={style}>
+              <li className={cls + (thumb ? ' with-media' : '')} style={style}>
                 <span className={'t num' + (delay && stop.status !== 'done' ? ' est' : '')} title={delay ? `计划 ${slot ? fmtHM(slot.start) : ''}` : undefined}>{shown(slot, stop)}</span>
                 <Road traveled={traveled} first={i === 0} last={i === day.stops.length - 1} badge={<RouteBadge kind={badgeKind(stop)} done={stop.status === 'done'} />} />
                 <div className="body">
                   {regionEl}
                   <div className={'n k-' + stop.kind + (stop.priority === 1 ? ' must' : '')}>
-                    {stop.kind === 'sight' && <StopPhoto s={stop} className="stop-thumb" alt="" />}
                     {stop.name}
                     {stop.priority && PRIORITY[stop.priority] && <span className="prio">{PRIORITY[stop.priority]}</span>}
                   </div>
@@ -248,6 +250,8 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
                   <HowLine s={stop} />
                   {napLabel && <div className="nap-label">{napLabel}</div>}
                   {notes.map((n, k) => <Note key={k} {...n} callout />)}
+                  {/* 正要去的这一站：图版放大，接着就是「到了」 */}
+                  {bigPhoto && <PhotoPlate s={stop} variant="card" />}
                   {liveHere && stop.status !== 'done' && (
                     <div className="acts">
                       <button type="button" className="primary" onClick={() => act(stop, 'done')}>到了 · 打卡</button>
@@ -255,6 +259,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
                     </div>
                   )}
                 </div>
+                {thumb && <StopThumb s={stop} />}
               </li>
             </Fragment>
           )

@@ -15,7 +15,7 @@ import { resizeDays } from '@core/trips'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
 import { RouteBoard } from './RouteBoard'
-import { dayTitle, driveHours, fmtShort, MODE_LABEL, segTint, sightSegments } from './format'
+import { dayTitle, driveHours, fmtShort, keepTopVisible, MODE_LABEL, segTint, sightSegments } from './format'
 import { StackTable } from './StackTable'
 import { badgeKind, IconDown, IconUp, IconX, LevelMark, PetGlyph, RouteBadge } from './symbols'
 
@@ -71,7 +71,7 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, onSetup, tripC
           const segName = d.stops.filter(s => s.kind === 'sight')
           return (
             <li key={i} className={'day' + (open === i ? ' open' : '')}>
-              <button type="button" className="day-hd" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
+              <button type="button" className="day-hd" onClick={e => { setOpen(open === i ? null : i); if (open !== i) keepTopVisible(e.currentTarget.closest('li')) }} aria-expanded={open === i}>
                 <span className="no num">{i + 1}<small>{fmtShort(trip.startDate, i)}</small></span>
                 <span className="c">
                   <span className="rt">{dayTitle(d)}<span>{dh > 0 ? `${trip.party.mode === 'selfDrive' ? '驾车' : '路上'} ${dh.toFixed(1)} h` : `${d.stops.length} 站`}</span></span>

@@ -10,7 +10,7 @@ import { fmtHM, parseHM, scheduleDay } from '@core/schedule'
 import type { Trip } from '@core/types'
 import { checkDay, checkTrip, type Issue } from '@core/validate'
 import { uid } from '../store/state'
-import { dayTitle, driveHours, fmtShort, MODE_LABEL, routeCode, stripCode } from './format'
+import { dayTitle, driveHours, fmtShort, keepTopVisible, MODE_LABEL, routeCode, stripCode } from './format'
 import { Stepper } from './kit/controls'
 import { useToast } from './kit/Toast'
 import { SwipeList } from './kit/SwipeList'
@@ -119,7 +119,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSe
           const slotOf = new Map(slots.map(s => [s.stop.id, s]))
           return (
             <li key={i} className={'sw' + (isOpen ? ' open' : '')}>
-              <button type="button" className="sw-hd" onClick={() => setOpen(isOpen ? null : i)} aria-expanded={isOpen}>
+              <button type="button" className="sw-hd" onClick={e => { setOpen(isOpen ? null : i); if (!isOpen) keepTopVisible(e.currentTarget.closest('li')) }} aria-expanded={isOpen}>
                 <span className="d mono">{i + 1}<small>{fmtShort(trip.startDate, i)}</small></span>
                 <span className="b">
                   <span className="rt">{dayTitle(d)}<span>{driveHours(d) > 0 ? `${trip.party.mode === 'selfDrive' ? '驾车' : '路上'} ${driveHours(d).toFixed(1)}h` : ''}</span></span>

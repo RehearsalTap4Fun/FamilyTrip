@@ -115,3 +115,11 @@ export function sightSegments(stops: { kind: string }[]): number[] {
 /** 第几段的底色：黄绿粉紫轮流，相邻两段不同色 */
 export const segTint = (i: number) => TINTS[i % TINTS.length]
 
+
+/** 展开一项后，若它的顶部被挤出视窗（上面刚收起/展开的项改变了高度），就滚回让它顶部可见 */
+export function keepTopVisible(el: Element | null) {
+  if (!el) return
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }))
+}

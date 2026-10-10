@@ -177,7 +177,7 @@ export function DayEditor({ trip, dayIndex, onTrip, onRemoved, onReplan }: Props
               <div className="stop-hd">
                 <RouteBadge kind={badgeKind(s)} done={s.status === 'done'} size={24} />
                 <span className="num t">{slot ? fmtHM(slot.start) : ''}</span>
-                <button type="button" className="nm" onClick={() => setEdit(open ? null : s.id)} aria-expanded={open}>{s.name}<small>{KIND_LABEL[s.kind]} · {s.durationMin} 分</small></button>
+                <button type="button" className="nm" onClick={e => { setEdit(open ? null : s.id); if (!open) keepTopVisible(e.currentTarget.closest('li')) }} aria-expanded={open}>{s.name}<small>{KIND_LABEL[s.kind]} · {s.durationMin} 分</small></button>
                 {hasMedia(s) && !open ? <StopThumb s={s} /> : <span className="media-slot" aria-hidden="true" />}
                 <span className="ops">
                   <button type="button" onClick={() => move(idx, -1)} disabled={idx === 0} aria-label="上移"><IconUp /></button>

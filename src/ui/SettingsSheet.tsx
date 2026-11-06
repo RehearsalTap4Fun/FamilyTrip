@@ -4,6 +4,7 @@ import { testAmapKey } from '../geo/amap'
 import { testGmap } from '../geo/gmap'
 import { PROVIDER_LABEL, type Provider } from '../llm/client'
 import { THEME_LABEL, type Theme } from '../store/state'
+import { KeyLink } from './KeyHelp'
 import { Chips, Field, Segmented } from './kit/controls'
 import { Sheet } from './kit/Sheet'
 
@@ -45,7 +46,7 @@ export function SettingsSheet({ open, onClose, theme, onTheme, amapKey, onAmapKe
             </div>
             {amapTest && amapTest !== 'busy' && <p className={'key-test ' + (amapTest === 'ok' ? 'ok' : 'bad')}>{amapTest === 'ok' ? '好用：能搜地方、算车程' : amapTest}</p>}
           </Field>
-          <p className="sheet-note">到高德开放平台（lbs.amap.com）控制台创建应用，添加 Key 时服务平台选「Web服务」。个人开发者每天有免费额度。</p>
+          <p className="sheet-note">到<KeyLink site="amap" full />的控制台创建应用，添加 Key 时服务平台选「Web服务」。个人开发者每天有免费额度。</p>
           <Field label="国外地图访问口令" hint="去国外时用 Google 地图；只存在这台设备上">
             <div className="key-row">
               <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={gmapToken} placeholder="选填，国内不用" onChange={e => { onGmapToken(e.target.value.replace(/\s/g, '')); setGmapTest(null) }} />
@@ -53,7 +54,7 @@ export function SettingsSheet({ open, onClose, theme, onTheme, amapKey, onAmapKe
             </div>
             {gmapTest && gmapTest !== 'busy' && <p className={'key-test ' + (gmapTest === 'ok' ? 'ok' : 'bad')}>{gmapTest === 'ok' ? '好用：国外的地方能搜、能算车程' : gmapTest}</p>}
           </Field>
-          <p className="sheet-note">高德查不了国外。国外的地点、车程、周边改走 Google 地图：经这个服务器转给你自己的 Cloudflare 中转，Google Key 放在中转上，这里只填中转认的访问口令。</p>
+          <p className="sheet-note">高德查不了国外。国外的地点、车程、周边改走 Google 地图：经这个服务器转给你自己的 Cloudflare 中转，Google Key 放在中转上，这里只填中转认的访问口令。口令是搭中转时自己生成的，不用去哪申请。</p>
           <Field label="AI 排行程用" hint="推荐方案、读攻略、写亮点都会用到">
             <Segmented label="大模型" value={llmProvider} onChange={p => onLlm(p, llmKeys)} options={(['anthropic', 'deepseek'] as Provider[]).map(p => ({ value: p, label: PROVIDER_LABEL[p] }))} />
           </Field>
@@ -61,10 +62,11 @@ export function SettingsSheet({ open, onClose, theme, onTheme, amapKey, onAmapKe
             <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={llmKeys[llmProvider] ?? ''} placeholder={llmProvider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
               onChange={e => onLlm(llmProvider, { ...llmKeys, [llmProvider]: e.target.value.trim() })} />
           </Field>
+          <p className="sheet-note">到 <KeyLink site={llmProvider} full />的「API keys」里创建，以 {llmProvider === 'anthropic' ? 'sk-ant-' : 'sk-'} 开头，只在创建时显示一次，当场复制。{llmProvider === 'deepseek' ? '要先充值' : '账户里要有余额'}才能用，按用量计费。</p>
           <Field label="智谱 API Key" hint="联网搜索攻略用；只存在这台设备上">
             <input className="kinput" type="password" autoComplete="off" spellCheck={false} value={zhipuKey} placeholder="选填" onChange={e => onZhipuKey(e.target.value.trim())} />
           </Field>
-          <p className="sheet-note">到智谱开放平台（bigmodel.cn）控制台的「API Keys」里创建，要复制完整（中间有个点）。填了以后，AI 推荐方案会先到网上搜一轮攻略，方案附原帖链接；每次搜索约 ¥0.2。不填就凭 AI 自己的知识推荐。</p>
+          <p className="sheet-note">到<KeyLink site="zhipu" full />的「API Keys」里创建，要复制完整（中间有个点）。填了以后，AI 推荐方案会先到网上搜一轮攻略，方案附原帖链接；每次搜索约 ¥0.2。不填就凭 AI 自己的知识推荐。</p>
           <button type="button" className="kbtn danger wide" onClick={() => setResetting(true)}>恢复示例行程</button>
         </div>
         {storage}

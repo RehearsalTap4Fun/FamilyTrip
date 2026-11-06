@@ -8,6 +8,7 @@ import { LlmError, PROVIDER_LABEL } from '../llm/client'
 import { resolveGuide, type ImportedPlace } from '../llm/importGuide'
 import { proposalToGuide, recommend, type Proposal } from '../llm/recommend'
 import { searchGuides, type WebRef } from '../llm/webSearch'
+import { WhereToGet } from './KeyHelp'
 import { Field } from './kit/controls'
 import { PickPlaces } from './PickPlaces'
 import { useSettings } from './Settings'
@@ -94,7 +95,7 @@ export function Recommend({ trip, autoRun, onAdd, onCancel, saved, onSave }: Pro
   if (!llm.apiKey || !canMap) {
     return (
       <div className="gi">
-        <p className="sheet-note">AI 推荐要用大模型出方案、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !canMap ? '和' : ''}{!canMap ? '高德 Key' : ''}。</p>
+        <p className="sheet-note">AI 推荐要用大模型出方案、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !canMap ? '和' : ''}{!canMap ? '高德 Key' : ''}。<WhereToGet sites={[!llm.apiKey && llm.provider, !canMap && 'amap']} /></p>
         <button type="button" className="kbtn wide" onClick={onCancel}>返回</button>
       </div>
     )

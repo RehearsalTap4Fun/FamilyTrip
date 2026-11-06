@@ -12,6 +12,7 @@ import { makeGrounder } from '../geo/groundDay'
 import { cityOf } from '@core/footprint'
 import { dayImpact } from './impact'
 import { DayImpactView } from './ImpactView'
+import { WhereToGet } from './KeyHelp'
 import { Field } from './kit/controls'
 import { Sheet } from './kit/Sheet'
 import { Chip } from './ScopeToday'
@@ -82,7 +83,7 @@ export function ReplanSheet({ open, trip, dayIndex, ratings, onApply, onClose }:
           </div>
         </>
       ) : undefined}>
-      {noKey && <p className="sheet-note">先在「同行」页右上角的设置里选好大模型、填上 API Key。</p>}
+      {noKey && <p className="sheet-note">先在「同行」页右上角的设置里选好大模型、填上 API Key。<WhereToGet sites={[llm.provider]} /></p>}
 
       {(stage.kind === 'ask' || stage.kind === 'error') && !noKey && (
         <>

@@ -8,6 +8,7 @@ import { namesMatch } from '../geo/groundDay'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
 import { fetchGuide, FetchGuideError, findUrl } from '../llm/fetchGuide'
 import { extractGuide, resolveGuide, type Guide, type ImportedPlace } from '../llm/importGuide'
+import { WhereToGet } from './KeyHelp'
 import { Field } from './kit/controls'
 import { useSettings } from './Settings'
 import { PickPlaces } from './PickPlaces'
@@ -71,7 +72,7 @@ export function GuideImport({ trip, onAdd, onCancel, saved, onSave }: Props) {
   if (!llm.apiKey || !canMap) {
     return (
       <div className="gi">
-        <p className="sheet-note">导入攻略要用大模型读正文、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !canMap ? '和' : ''}{!canMap ? '高德 Key' : ''}。</p>
+        <p className="sheet-note">导入攻略要用大模型读正文、用高德核实地点：先在「同行」页右上角的设置里填上{!llm.apiKey ? `${PROVIDER_LABEL[llm.provider]} 的 API Key` : ''}{!llm.apiKey && !canMap ? '和' : ''}{!canMap ? '高德 Key' : ''}。<WhereToGet sites={[!llm.apiKey && llm.provider, !canMap && 'amap']} /></p>
         <button type="button" className="kbtn wide" onClick={onCancel}>返回</button>
       </div>
     )

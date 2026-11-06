@@ -17,6 +17,7 @@ import { uid } from '../store/state'
 import { endsLine, homeRef, TripEnds } from './Endpoints'
 import { partyLine } from './TripSetup'
 import { fmtShort } from './format'
+import { WhereToGet } from './KeyHelp'
 import { Field, Segmented, Toggle } from './kit/controls'
 import { Sheet } from './kit/Sheet'
 import { Chip } from './ScopeToday'
@@ -209,7 +210,7 @@ export function PlanSheet({ open, trip, ratings, onApply, onClose, onDraft, onSe
 
       {(stage.kind === 'list' || stage.kind === 'error') && (
         <>
-          {!canMap && <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key，才能搜地点、算真实车程。</p>}
+          {!canMap && <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key，才能搜地点、算真实车程。<WhereToGet sites={['amap']} /></p>}
           <p className="sheet-note">列出想去的地方，会按同行人的限制分到每天，排好开车、吃饭、午睡和住处。{trip.days.length} 天 · {fmtShort(trip.startDate, 0)} 出发</p>
           {/* 排之前先看一眼：这趟怎么去、谁去 */}
           <button type="button" className="plan-who" onClick={onSetup}><span>{partyLine(trip.party)}</span><small>改</small></button>

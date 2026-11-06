@@ -5,6 +5,7 @@ import { fuzzTime } from '@core/fuzzyTime'
 import type { Stop, Trip } from '@core/types'
 import { LlmError, PROVIDER_LABEL } from '../llm/client'
 import { applyHighlights, searchPlayTips, writeHighlights } from '../llm/highlights'
+import { WhereToGet } from './KeyHelp'
 import { useToast } from './kit/Toast'
 import { useSettings } from './Settings'
 
@@ -48,10 +49,11 @@ export function HighlightsCard({ trip, onTrip }: { trip: Trip; onTrip: (t: Trip)
     return (
       <div className="hl-card empty">
         <b>这趟的亮点</b>
-        <p>{zhipuKey ? '按网上对这趟排到的地方的推荐和好评挑亮点、附出处；每个地方怎么玩、什么时候去、要避开的坑，按你们这群人写。' : '每个地方怎么玩、什么时候去、要避开的坑，按你们这群人写。亮点要按网上的推荐来挑：在设置里填智谱 Key 才会写。'}</p>
+        <p>{zhipuKey ? '按网上对这趟排到的地方的推荐和好评挑亮点、附出处；每个地方怎么玩、什么时候去、要避开的坑，按你们这群人写。' : <>每个地方怎么玩、什么时候去、要避开的坑，按你们这群人写。亮点要按网上的推荐来挑：在设置里填智谱 Key 才会写。</>}</p>
         {busy ? <p className="hl-busy" aria-live="polite">{busy}…</p> : (
           <button type="button" className="kbtn wide" disabled={!llm.apiKey} onClick={write}>{llm.apiKey ? '让 AI 写这趟的亮点' : '先在设置里填大模型的 Key（「同行」页右上角）'}</button>
         )}
+        {(!llm.apiKey || !zhipuKey) && !busy && <p><WhereToGet sites={[!zhipuKey && 'zhipu', !llm.apiKey && llm.provider]} /></p>}
         {err && <p className="issue-msg lv-error" role="alert">{err}</p>}
       </div>
     )

@@ -2,6 +2,7 @@
 import { hasMaps, mapSearch } from '../geo/maps'
 import { useEffect, useRef, useState } from 'react'
 import { AmapError, type Place } from '../geo/amap'
+import { WhereToGet } from './KeyHelp'
 import { Sheet } from './kit/Sheet'
 import { useSettings } from './Settings'
 
@@ -38,7 +39,7 @@ export function PlaceSearch({ open, keyword, city, onPick, onClose }: Props) {
   return (
     <Sheet open={open} onClose={onClose} title="在高德里找" done="取消" doneTone="plain">
       {!canMap ? (
-        <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key（「Web服务」类型），才能搜地方、算车程。</p>
+        <p className="sheet-note">先在「同行」页右上角的设置里填上高德 Key（「Web服务」类型），才能搜地方、算车程。<WhereToGet sites={['amap']} /></p>
       ) : (
         <>
           <form className="search-row" onSubmit={e => { e.preventDefault(); run(q) }}>

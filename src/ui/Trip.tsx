@@ -14,6 +14,7 @@ import { PlanButton, TripBar } from './TripSwitcher'
 import { resizeDays } from '@core/trips'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
+import { PackCard } from './Pack'
 import { RouteBoard } from './RouteBoard'
 import { dayTitle, driveHours, fmtShort, keepTopVisible, MODE_LABEL, segTint, sightSegments } from './format'
 import { StackTable } from './StackTable'
@@ -54,6 +55,7 @@ export function TripPage({ trip, onTrip, onSwitch, onNew, onPlan, onSetup, tripC
       </header>
       <TripSetupCard trip={trip} onOpen={onSetup} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
+      <PackCard trip={trip} onTrip={onTrip} />
       <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); setPin({ day: d, id }) }} />
 
       <div className="spread">

@@ -3,6 +3,7 @@ import { hasMedia, PhotoPlate, StopThumb } from './StopPhoto'
 import { LegInline } from './Leg'
 import { Fragment, useMemo, useState } from 'react'
 import { HowLine } from './Highlights'
+import { PackToday } from './Pack'
 import { deriveConstraints } from '@core/constraints'
 import { whoFor } from '@core/explain'
 import { cityOf } from '@core/footprint'
@@ -152,6 +153,7 @@ export function Today({ trip, now, demo, onTrip, onRating }: Props) {
           ))}
         </nav>
       </header>
+      <PackToday key={dayIndex} trip={trip} dayIndex={dayIndex} live={live} onTrip={onTrip} />
 
       {!live && (
         <p className="banner">

@@ -4,7 +4,7 @@
 // 为什么不整份 Trip 按时间戳覆盖：A 在打卡、B 在加一站、C 在加一只狗，整份覆盖必丢两个人的改动。
 // 所以拆成扁平的记录表，每条记录各自「后写赢」，删除留墓碑。互不相干的改动永远都能合上。
 import type { Rating } from '@core/ratings'
-import type { Member, Party, Pet, Stop, Trip, TripHighlight, TripPlan } from '@core/types'
+import type { Member, PackState, Party, Pet, Stop, Trip, TripHighlight, TripPlan } from '@core/types'
 
 export interface Rec<T> {
   /** null 是墓碑 */
@@ -26,6 +26,8 @@ export interface TripMeta {
   /** 新建时的计划（玩法、地区、排程用的地点）：整块后写赢，很少两个人同时改 */
   plan?: TripPlan
   highlights?: TripHighlight[]
+  /** 必带的勾选和自己加的：整块后写赢 */
+  pack?: PackState
 }
 
 export type PlacedStop = Stop & { day: number; order: number }
@@ -92,6 +94,7 @@ export function tripToDoc(trip: Trip, ratings: Rating[], t: number, by: string, 
     dayStarts: trip.days.map(d => d.startTime),
     ...(trip.plan ? { plan: trip.plan } : {}),
     ...(trip.highlights?.length ? { highlights: trip.highlights } : {}),
+    ...(trip.pack ? { pack: trip.pack } : {}),
   } satisfies TripMeta)
   for (const m of trip.party.members) put('member:' + m.id, m)
   for (const p of trip.party.pets) put('pet:' + p.id, p)
@@ -148,6 +151,7 @@ export function docToTrip(doc: TripDoc): { trip: Trip; ratings: Rating[] } {
       days,
       ...(meta.plan ? { plan: meta.plan } : {}),
       ...(meta.highlights?.length ? { highlights: meta.highlights } : {}),
+      ...(meta.pack ? { pack: meta.pack } : {}),
     },
     ratings: live<Rating>(doc, 'rating:'),
   }

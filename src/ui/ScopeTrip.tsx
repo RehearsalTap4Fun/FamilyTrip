@@ -24,6 +24,7 @@ import { PlanButton, TripBar } from './TripSwitcher'
 import { resizeDays } from '@core/trips'
 import { TripSetupCard } from './TripSetup'
 import { HighlightsCard } from './Highlights'
+import { PackCard } from './Pack'
 import { RouteBoard } from './RouteBoard'
 import { fillDrives } from '../geo/fillDrives'
 import { useSettings } from './Settings'
@@ -98,6 +99,7 @@ export function ScopeTrip({ trip, onTrip, ratings, onSwitch, onNew, onPlan, onSe
       </header>
       <TripSetupCard trip={trip} onOpen={onSetup} />
       <HighlightsCard trip={trip} onTrip={onTrip} />
+      <PackCard trip={trip} onTrip={onTrip} />
       <RouteBoard trip={trip} onPick={(d, id) => { setOpen(d); openStop(id) }} />
       <ol className="sweeps">
         {trip.days.map((d, i) => {

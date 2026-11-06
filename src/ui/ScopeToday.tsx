@@ -3,6 +3,7 @@
 import { PhotoPlate } from './StopPhoto'
 import { daysUntil } from '@core/trips'
 import { HowLine } from './Highlights'
+import { PackToday } from './Pack'
 import { LegLine } from './Leg'
 import { useMemo, useState } from 'react'
 import { deriveConstraints, limitRules, type Limit } from '@core/constraints'
@@ -169,6 +170,7 @@ export function ScopeToday({ trip, now, demo, onTrip, onRating, onUnrate }: Prop
           </button>
         ))}
       </nav>
+      <PackToday key={dayIndex} trip={trip} dayIndex={dayIndex} live={live} onTrip={onTrip} />
 
       <div className="chs" role="group" aria-label="同行者：点一下开关他的触发线">
         {channels.map(ch => (

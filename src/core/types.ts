@@ -233,6 +233,31 @@ export interface Trip {
   share?: TripShare
   /** 这趟的亮点：3–5 句，可以指向某一站 */
   highlights?: TripHighlight[]
+  /** 必带清单的勾选、去掉、自己加的（条目本身按行程现算，见 core/pack.ts） */
+  pack?: PackState
+}
+
+export type PackKind = 'doc' | 'gear' | 'wear' | 'care'
+
+/** 一件要带的东西。days 是哪几天出门要带着；缺省表示只放进行李、不在「今天」单独提醒 */
+export interface PackItem {
+  id: string
+  name: string
+  kind: PackKind
+  /** 为什么要带 */
+  why: string
+  /** 哪几天用得上（从 0 起） */
+  days?: number[]
+  done?: boolean
+  /** 自己加的，重算行程时保留 */
+  custom?: boolean
+}
+
+/** 勾过、去掉、自己加的。建议条目不存文案，行程一变就重算 */
+export interface PackState {
+  done?: string[]
+  hidden?: string[]
+  custom?: PackItem[]
 }
 
 /** 整趟亮点：一条对应行程里的一个地方，出处是网上推荐、好评这个地方的帖子 */
